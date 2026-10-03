@@ -1,0 +1,60 @@
+# Explicit AP duplicates and reissues (#47)
+
+`ap_duplicates.duplicate_result(current, history, ...)` compares explicit
+`model.ap_duplicate_record.DuplicateRecord` observations from ERP and the month.
+It returns `DUPLICATE`, `REISSUE`, `CLEAR` or `UNKNOWN`, with source evidence,
+`duplicate_of`/`reissue_of` and diagnostics. It does not emit the AP contract,
+infer document facts or mutate input state.
+
+Scope includes company, vendor, currency and document type. Same vendor,
+normalized number and integer gross amount identify a duplicate. Distinct
+explicit service periods exclude recurring monthly invoices even when amounts
+and numbers match. Distinct numbers or amounts are also distinct. Observed receipt
+time identifies the first document, independent of iterable order. Document ID
+stabilizes diagnostic order only: exact timestamp ties cannot prove which
+document was first. A date-only receipt spans its whole day, so same-day overlap
+also remains unknown, even when IDs sort after a possible earlier document.
+
+Normalization removes hyphens, slashes and whitespace, normalizes letter case
+and drops the letter prefix before the first digit (`F-F2611803` = `F2611803` =
+`2611803`), as policy §2.1 requires and July resends (`F-` added to the number)
+show. It preserves leading zeros, inner letters, suffixes and period punctuation.
+Non-letter prefixes (`Factura:`) need an explicit `confirmed_prefixes` profile.
+Conflicting prefix interpretations fail visibly.
+
+The original ERP log demonstrates `REJECT.corrected_by -> posted doc_id` with
+the same invoice number, including corrections that do not necessarily alter
+gross. This exact pointer confirms an exception for that target document.
+The explicit correction link also survives a changed invoice number.
+Unlinked rejected documents cannot be presumed corrected. A rejected original
+linked to another correction cannot become the duplicate root for a retry;
+the actual corrected document can. `HOLD` with subsequent resolution and a
+journal entry remains the same document, not a new corrected reissue.
+`RECEIVED` represents an explicit earlier monthly observation, whose reception
+alone is sufficient to anchor another received copy. A duplicate log record
+must have an evidenced matching original before its `duplicate_of` is reused:
+the original must share the current service period and must provably predate
+both the duplicate log record and current document.
+
+`registered_duplicate_records(PhaseData)` joins `ap_invoices` and
+`ap_document_log` by company/doc_id. It retains original log decision and
+`corrected_by`; invoice rows provide amount/currency. Log-only rows retain
+missing amount/currency instead of borrowing a vendor default or corrected
+invoice amount. Identity conflicts fail. No golden data is read.
+
+Negative/reissue conclusions require `inventory_complete=True`. Missing
+amount/currency/status or same-day ordering can still block that conclusion.
+Only two distinct explicit service periods exclude a match: ERP history never
+records one, so a missing period does not block vendor/number/amount identity.
+An earlier matching record with unknown amount can also block selecting a later
+document as the *first* duplicate. Scope-mismatched and future records do not.
+
+Validation: 16 synthetic policy tests cover ordering, number variants, explicit
+correction links, rejected/held statuses, recurring months, unknown roots,
+missing data, no mutation and company/vendor/currency isolation. Run
+`PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_ap_duplicates.py' -v`.
+
+Limits: #41/#42 must supply extracted amount, exact reception, resolved identity,
+service coverage where relevant and normalization evidence. Full July
+decision/reason evaluation and #32/#35 integration remain outstanding, so this
+work is a draft deterministic foundation rather than an issue closure.

@@ -96,6 +96,54 @@ _Avoid_: write-off or debt forgiveness.
 Construction work executed by close but not yet approved/certified, handled under the challenge's specific close rule.
 _Avoid_: an approved AR invoice.
 
+## AR billing
+
+**Billing item**:
+One billable concept of the month (a certification, a municipal service report, a price revision, a PPA or a market settlement) that must be resolved as invoice or skip.
+_Avoid_: invoice, which is only one possible result of a billing item.
+
+**Certification (work certificate)**:
+The monthly valuation of executed construction work approved by the project's facultative direction; the invoice amount is the current amount (cumulative minus the last invoiced cumulative).
+_Avoid_: an invoice, or work merely executed but not approved.
+
+**Price revision**:
+A decree that changes a contract's monthly fee with retroactive effect, billed as the difference for each month since the effective date.
+_Avoid_: a new fee schedule, a credit note.
+
+**PPA / market settlement**:
+Energy sold under a fixed-price contract for a contracted share of production, or at market through a representative whose settlement is net of deviations.
+_Avoid_: representative's fee, which is billed separately and is not deducted from the revenue.
+
+**Billing result**:
+The in-memory outcome for one billing item: the decision, and, when invoicing, the invoice and its journal entry with evidence and diagnostics.
+_Avoid_: delivery row, which is its later serialization.
+
+## Bank reconciliation
+
+**Statement line**:
+One movement of a bank account statement, identified by its `bank_line` id.
+_Avoid_: book line, or the bank-side journal posting it may correspond to.
+
+**Book line**:
+One line of a journal entry on the 572 account of a bank account, identified as `<entry id>#<line>`.
+_Avoid_: statement line.
+
+**Match**:
+A pairing of one or more statement lines with one or more book lines of the same account, one-to-one, one-to-many or many-to-one, whose totals agree or differ for a justified cause.
+_Avoid_: reconciliation, which is the result for a whole account.
+
+**Reconciling item**:
+A statement line or a book line left unmatched in the month, explained by a category.
+_Avoid_: error, since most are timing items that need no adjustment.
+
+**Prior-period item**:
+A book line posted in the month whose statement line belongs to an earlier month.
+_Avoid_: outstanding payment, which runs the other way: booked first, executed by the bank later.
+
+**Reconciliation identity**:
+For a bank account and month end, statement closing minus book balance equals the sum of unmatched statement lines minus the sum of unmatched book lines.
+_Avoid_: a balance check on the statement alone.
+
 ## Evaluation
 
 **Golden**:

@@ -9,6 +9,7 @@ from decimal import Decimal
 import re
 
 from .ap_allocation import AllocationResult, OrderKey
+from .model.ap_component_scope import APComponentScope
 from .money import company_local_currency, decimal, integer, line_amount
 
 
@@ -57,6 +58,8 @@ class ValuationResult:
     components: tuple[NetPostingComponent, ...] = ()
     net_doc: int = 0
     net_local: int = 0
+    scope: APComponentScope | None = None
+    assignments: tuple[tuple[str, CostAssignment], ...] = ()
 
 
 def value_ap_lines(*, company, vendor, currency, invoice_id, invoice_date,
@@ -77,8 +80,9 @@ def value_ap_lines(*, company, vendor, currency, invoice_id, invoice_date,
         raise ValueError("invalid invoice date")
     if decision not in {"POST", "POST_PAYMENT_BLOCK", "HOLD", "REJECT", "DUPLICATE", "NOT_INVOICE"}:
         raise ValueError("explicit AP decision required")
+    scope = APComponentScope(company, vendor, currency, invoice_id, invoice_date, decision)
     if decision not in {"POST", "POST_PAYMENT_BLOCK"}:
-        return ValuationResult("INELIGIBLE", decision, company, currency, local)
+        return ValuationResult("INELIGIBLE", decision, company, currency, local, scope=scope)
     if not re.fullmatch(r"\d{8}", gr_ir_account):
         raise ValueError("invalid explicit GR/IR account")
     if currency != local and rates is None:
@@ -109,13 +113,13 @@ def value_ap_lines(*, company, vendor, currency, invoice_id, invoice_date,
     matched = {l.line_id for l in lines if l.quantity_milli is not None}
     groups = {}
     if matched and (allocation is None or allocation.status != "ALLOCATED"):
-        return ValuationResult("UNALLOCATED", decision, company, currency, local)
+        return ValuationResult("UNALLOCATED", decision, company, currency, local, scope=scope)
     if allocation is not None:
         if (allocation.company, allocation.vendor, allocation.currency, allocation.invoice_id) != (
                 company, vendor, currency, invoice_id):
             raise ValueError("allocation belongs to another invoice scope")
         if allocation.status != "ALLOCATED":
-            return ValuationResult("UNALLOCATED", decision, company, currency, local)
+            return ValuationResult("UNALLOCATED", decision, company, currency, local, scope=scope)
         for part in allocation.allocations:
             if part.line_id not in matched:
                 raise ValueError("allocation contains unexpected/direct invoice line")
@@ -164,4 +168,5 @@ def value_ap_lines(*, company, vendor, currency, invoice_id, invoice_date,
         add(line, "PRICE_DIFFERENCE", line.assignment.account,
             line.amount_doc - received_value, cost=True)
     return ValuationResult("VALUED", decision, company, currency, local, tuple(components),
-                           sum(l.amount_doc for l in lines), sum(c.amount_local for c in components))
+                           sum(l.amount_doc for l in lines), sum(c.amount_local for c in components), scope,
+                           tuple((line.line_id, line.assignment) for line in lines))

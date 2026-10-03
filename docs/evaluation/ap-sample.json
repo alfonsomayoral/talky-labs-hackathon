@@ -1,0 +1,707 @@
+{
+  "schema_version": 1,
+  "sample_id": "ap-source-sample-v1",
+  "issues": [
+    134,
+    139
+  ],
+  "phase": "phase_dev",
+  "selection_frozen_on": "2026-10-03",
+  "selection_sha256": "02e51e54b38d39dc044b1afad85f3caf01d8140419aaf4629dacb378d1619d00",
+  "external_data_root": "Caller-supplied participant directory; all paths below are relative to it",
+  "read_allowlist": [
+    "README.md",
+    "POLITICAS_CONTABLES.md",
+    "FORMATO_ENTREGA.md",
+    "phase_dev/tasks/ap_documents.json",
+    "phase_dev/erp",
+    "phase_dev/inbox/ap/<task-doc-id>"
+  ],
+  "prohibited_sources": [
+    "golden",
+    "phase_test",
+    "model outputs or scores for selection/tuning labels"
+  ],
+  "source_anchors": [
+    {
+      "path": "README.md",
+      "sha256": "a7034cc249d0a1db2c30ddda8a5680c7b672b3c04d4367d816671ae576f9f070"
+    },
+    {
+      "path": "POLITICAS_CONTABLES.md",
+      "sha256": "ef3a6fbc74794d4e35aeb217557881792cc4b62687fcbe937f483beef6e56e39"
+    },
+    {
+      "path": "FORMATO_ENTREGA.md",
+      "sha256": "aa96dba77d0e90fc565403b05491c5a8ae013787311e41fef895cd67e881d5f7"
+    },
+    {
+      "path": "phase_dev/tasks/ap_documents.json",
+      "sha256": "c80dbb1a164886402afb7c8752fd205a5cd611b95b6bb1b3fccd9d5000846970"
+    },
+    {
+      "path": "phase_dev/erp/vendors.jsonl",
+      "sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717"
+    },
+    {
+      "path": "phase_dev/erp/purchase_orders.jsonl",
+      "sha256": "7d4d92e468096ae5ee824801bd651c4d262046639797cb167451173c0c0afeac"
+    },
+    {
+      "path": "phase_dev/erp/goods_receipts.jsonl",
+      "sha256": "47a1e2e5c739271d1d047cd3ebb805e170c35e3a03b13b871f130bb1e78e3c84"
+    },
+    {
+      "path": "phase_dev/erp/companies.json",
+      "sha256": "0bbad1fc053d19160b624b52996deea72712bdb5bee947e3c6affd9525af47d3"
+    }
+  ],
+  "population": {
+    "task_count": 305,
+    "attachments": {
+      "pdf": 262,
+      "xml": 58
+    },
+    "pdf_page_count_distribution": {
+      "1": 246,
+      "2": 16
+    },
+    "image_only_pdf_count": 3,
+    "image_only_doc_ids": [
+      "API005199",
+      "API005205",
+      "API005209"
+    ],
+    "absent_verified_variant": "No tax garnishment wording in task messages/text-bearing PDFs/XML; all three image-only pages reviewed visually before asserting absence.",
+    "absence_claims": [
+      "Tax-garnishment order not observed in AP task originals",
+      "No PDF exceeding two pages in the AP task inventory"
+    ],
+    "unsampled_present_variants": [
+      "CFDI credit-note positive XML versus negative PDF sign convention",
+      "Factor notice holdout not included; only tuning example exists in selected20"
+    ],
+    "sampling_method": "Manual purposeful stratification by original format/layout/content; no task filename/ID rules, labels, golden or model results used for selection",
+    "representativeness": "Small heterogeneous document sample, not a random prevalence estimate and not a complete accounting-engine evaluation"
+  },
+  "split_counts": {
+    "tuning": 12,
+    "holdout": 8
+  },
+  "cases": [
+    {
+      "case_id": "T01",
+      "split": "tuning",
+      "doc_id": "API004151",
+      "selection_reason": "Dense numeric table, decimal commas and delivery-note references across 18 rows.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004151/factura_0033715.pdf",
+          "sha256": "1d8c7193b95257ed01e4047dcfdd729b20397d9e5d6752abf96f17ae58f8c227",
+          "bytes": 56295,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004151/message.json",
+        "sha256": "c9a5302a49f501ed00806ad1f779b70fae546793f832cfce8146a1b4152a6f9b",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T02",
+      "split": "tuning",
+      "doc_id": "API004193",
+      "selection_reason": "Facturae 3.2.2 XML with repeated InvoiceLine nodes and nested totals; missing explicit purchase-order reference.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004193/facturae_2026-024821.xml",
+          "sha256": "b04ad781aaa84c8f62035b4347be31beb764fde4ef0f0a53e0264724914b348e",
+          "bytes": 9591,
+          "format": "facturae_3_2_2_xml"
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004193/message.json",
+        "sha256": "98165c04501ba5971224f3b4ac56c0f1d19d329868d7e50000d7ac20be220fac",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T03",
+      "split": "tuning",
+      "doc_id": "API005228",
+      "selection_reason": "Two attachments describing one transaction; retain different document totals instead of choosing or averaging them.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005228/F0657FA0-7679-4741-9B0E-130EA86E8A94.xml",
+          "sha256": "075b004b2d20d9ae85795cd2ca8c86415962dd3ee27480a04bb04ef6aa19733b",
+          "bytes": 1314,
+          "format": "cfdi_4_0_xml"
+        },
+        {
+          "path": "phase_dev/inbox/ap/API005228/factura_2026-007838.pdf",
+          "sha256": "3343fdeea814442bb911c0efb844c06b449985bbb8c7123d04dd11b7f750f7ea",
+          "bytes": 44602,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005228/message.json",
+        "sha256": "48757bf76f2f5f5cb796356969573436fd82d235af040c19d10f0aced65493da",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T04",
+      "split": "tuning",
+      "doc_id": "API005594",
+      "selection_reason": "Short proposal-style PDF containing a table and fiscal-validity disclaimer.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005594/proforma_API005594.pdf",
+          "sha256": "f51fd0e06aee63c6f0e8bf1003dcf0080aa0a832a66a36306f3971989ae402e1",
+          "bytes": 2300,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005594/message.json",
+        "sha256": "92b00b798ef14c7328510a2eeed6ac8c7e29f95a4abd66d38e7d4b2d02013c17",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T05",
+      "split": "tuning",
+      "doc_id": "API005595",
+      "selection_reason": "Aging-style table with invoice references and a balance; rows are not a newly issued invoice.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005595/statement_API005595.pdf",
+          "sha256": "c2402c9e76e44ea1a6aca4820be96fc4b47696f6ef2436a75649d85745c3bfa3",
+          "bytes": 65224,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005595/message.json",
+        "sha256": "92595a2addec8b72008bcd55d7afc189b8b904562a9a3e379ce1d1bfc5d9ab71",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T06",
+      "split": "tuning",
+      "doc_id": "API005189",
+      "selection_reason": "Narrative legal notice with effective date, recipient and payment-beneficiary change.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005189/letter_cession_API005189.pdf",
+          "sha256": "5acedfbb657c12cf1fc1c93ea65950a14013e23880a80dadab272af582c15637",
+          "bytes": 3098,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005189/message.json",
+        "sha256": "72b637c904614ef891af07cdd7bf74403f876f0790fac12660846af531e62c1d",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T07",
+      "split": "tuning",
+      "doc_id": "API005195",
+      "selection_reason": "Narrative account-change notice with distinct issue/effective dates and a certificate panel.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005195/letter_bank_change_API005195.pdf",
+          "sha256": "422257d8b3d06de6f66e5b302879410ea41f0aea0ccccaa5f47d409f14693935",
+          "bytes": 2531,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005195/message.json",
+        "sha256": "a8481f6a32f2cbe1a5509b7830d4df792debeb3654dde34f07038f67c8e1fae2",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T08",
+      "split": "tuning",
+      "doc_id": "API005577",
+      "selection_reason": "Authority certificate with validity range and a named contractor rather than invoice totals.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005577/certificate_art43_API005577.pdf",
+          "sha256": "b97f964c2df8f02cffed184dac14c51857e810bf20975d6285c31fe5172d1047",
+          "bytes": 2305,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005577/message.json",
+        "sha256": "14b66b8df453707a3d85642d6877cebe4fb88017f3d635b88b4d953d5cce968c",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T09",
+      "split": "tuning",
+      "doc_id": "API005584",
+      "selection_reason": "Signed negative amounts, correction reference and a portal message lacking ordinary email fields.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005584/factura_R-2026-009113.pdf",
+          "sha256": "203e877264234fdcfdee3ab466b4e781f1a03c8f209568bd75414c561bfc5392",
+          "bytes": 3085,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005584/message.json",
+        "sha256": "95b5bbf7a0a739b71d6f6af2940d4d7ea292df1e1d0b48c7d7f2024ddfb1d2d5",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T10",
+      "split": "tuning",
+      "doc_id": "API004469",
+      "selection_reason": "English deposit request whose title also says proforma; dollar symbol requires ERP currency context.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004469/invoice_HF26070294.pdf",
+          "sha256": "2848f1e2ad972a48b1d63f61c5ec77641e86ccc80b1ce19b9b7c5b72994f978d",
+          "bytes": 44688,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004469/message.json",
+        "sha256": "cf8d568dfed23b7ee96db17e1abd16aec80af23e8864ca541b71769075173936",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T11",
+      "split": "tuning",
+      "doc_id": "API004115",
+      "selection_reason": "Certification table with cumulative/current amounts, guarantee retention and abbreviated reference label.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004115/factura_2026-034241.pdf",
+          "sha256": "d1021240b8005f1a552b9d2974196ced1239bfb585a637def6ec7ef987d0a414",
+          "bytes": 76781,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004115/message.json",
+        "sha256": "9f94dbf3d2f73edbd3efa010c9c3cb195bec756110a215bd4050b3e283fcea4e",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "T12",
+      "split": "tuning",
+      "doc_id": "API005199",
+      "selection_reason": "Image-only PDF table; no visible purchase-order header and a delivery reference that collides across ERP history.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005199/factura_2026-030797.pdf",
+          "sha256": "2ee5ab17fe56e481b4706420cc3e5622f0d4eaf24ae3b95ce398e588f2b3d2f8",
+          "bytes": 143509,
+          "format": "pdf_image_only",
+          "pages": 1,
+          "images_per_page": [
+            1
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005199/message.json",
+        "sha256": "848ce2d8d29959c6525c3c3405f0976f1c5a4c5ed171a17f40d7371ed41d5f14",
+        "format": "message_json"
+      },
+      "annotation_status": "manual_source_verified",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H01",
+      "split": "holdout",
+      "doc_id": "API004232",
+      "selection_reason": "Text-bearing PDF with two pages, repeated page structure and a long transaction table.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+          "sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+          "bytes": 48028,
+          "format": "pdf_text",
+          "pages": 2,
+          "images_per_page": [
+            0,
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004232/message.json",
+        "sha256": "34c54d2522a0e2c41e4ab33f18cf6a4981d611a69375d72a132370f2fd515abb",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H02",
+      "split": "holdout",
+      "doc_id": "API004283",
+      "selection_reason": "Independent XML-only attachment with repeated structured fields.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+          "sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+          "bytes": 3472,
+          "format": "facturae_3_2_2_xml"
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004283/message.json",
+        "sha256": "c65aadb945fe30394bfaf9e2a1b378e0478fc1d1a79eb54e1738c2e302dba8c2",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H03",
+      "split": "holdout",
+      "doc_id": "API004558",
+      "selection_reason": "PDF and CFDI XML pair containing multiple monetary field families.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+          "sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+          "bytes": 1459,
+          "format": "cfdi_4_0_xml"
+        },
+        {
+          "path": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+          "sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+          "bytes": 75817,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004558/message.json",
+        "sha256": "d1621ce65790aa8b63167940a30eb7691c18cf9b2e9345ad6a42a22784eeba0e",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H04",
+      "split": "holdout",
+      "doc_id": "API005588",
+      "selection_reason": "Portuguese PDF with sign-sensitive numeric content and cross-document references.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+          "sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+          "bytes": 58385,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005588/message.json",
+        "sha256": "8da6b7dc0d6b3dc986b4809447eaf9c239185e6aba1beca2f9bcb3a147da98bc",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H05",
+      "split": "holdout",
+      "doc_id": "API005592",
+      "selection_reason": "Short text-bearing PDF with validity/disclaimer wording and tabular numeric content.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+          "sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+          "bytes": 64934,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005592/message.json",
+        "sha256": "dc1fcfc2ce2ab00ced74fcd0f5bdbe888bcb9a5bd332b4a51817de679050067e",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H06",
+      "split": "holdout",
+      "doc_id": "API005597",
+      "selection_reason": "Independent tabular PDF with status and date columns.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+          "sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+          "bytes": 2661,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005597/message.json",
+        "sha256": "885fbf38145fedb1804c2c1c3bf24bc653b999c69fdc7381409c644e3ae9c79f",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H07",
+      "split": "holdout",
+      "doc_id": "API005205",
+      "selection_reason": "Second image-only PDF, in a different language and document family.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+          "sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+          "bytes": 66647,
+          "format": "pdf_image_only",
+          "pages": 1,
+          "images_per_page": [
+            1
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API005205/message.json",
+        "sha256": "4a639b1adaace283a0b230be3e4dc58c6b97e6bf86904c6d269e6f2d255407ac",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    },
+    {
+      "case_id": "H08",
+      "split": "holdout",
+      "doc_id": "API004483",
+      "selection_reason": "English text-bearing PDF with foreign-currency notation and date-format ambiguity.",
+      "attachments": [
+        {
+          "path": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+          "sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+          "bytes": 65756,
+          "format": "pdf_text",
+          "pages": 1,
+          "images_per_page": [
+            0
+          ]
+        }
+      ],
+      "message": {
+        "path": "phase_dev/inbox/ap/API004483/message.json",
+        "sha256": "6afde819b34e44114ec1bbb64526e86327d59f879afc6deb3021f4118fb51368",
+        "format": "message_json"
+      },
+      "annotation_status": "withheld_not_created",
+      "solver_visibility": "original attachments/message only; no case metadata, labels or filenames as rules"
+    }
+  ],
+  "labels": {
+    "tuning": {
+      "path": "fixtures/llm_eval/ap-tuning-annotations.json",
+      "sha256": "fb084f053cd99bfbcf756d6ad69017b4e259acc616056aec1297485eb675abcb"
+    },
+    "holdout": null,
+    "visibility": "Evaluation-only; manifest, selection rationale, labels and synthetic variants must never enter model/solver prompts"
+  },
+  "synthetic_variants": {
+    "path": "fixtures/llm_eval/ap-candidate-guard-variants.json",
+    "sha256": "58e41ec842997b6510184ddf6c5de42d867d4b62550d3bab9926997a687924b6"
+  },
+  "evaluation_contract": {
+    "status": "Frozen by parent before any LLM/holdout run; architecture ADR owns client configuration",
+    "candidate_model": "gpt-6-luna",
+    "thresholds": {
+      "critical_header_money_tax_line_amount_exact_min": "0.95",
+      "grounded_evidence_location_min": "1.00",
+      "fabricated_values_or_ids_max": 0,
+      "selected_candidate_precision_min": "1.00",
+      "unique_resolvable_candidate_coverage_min": "0.80",
+      "ambiguous_correct_abstention_min": "1.00",
+      "case_required_field_completeness_min": "0.95",
+      "latency_p95_seconds_max": null,
+      "capture_estimated_cost_usd_per_document_max": "0.10",
+      "unknown_cost": "fails cost criterion"
+    },
+    "threshold_revision": "user-no-temporal-limit-2026-10-03",
+    "threshold_revision_reason": "User removed temporal limits before holdout evaluation; elapsed time and p95 remain reported, all accuracy/evidence/completeness/cost gates unchanged",
+    "budget": {
+      "smoke_plus_sample_spend_cap_usd": "5.00",
+      "spend_cap_change": "User approved USD5 and any necessary further extension on 2026-10-03 to complete model comparisons; spending and unknown reservations remain recorded, non-temporal quality and per-document-cost gates unchanged",
+      "max_attempts_per_document": 2,
+      "max_concurrency": 2,
+      "output_token_limit": null,
+      "output_limit_policy": "No application output-token limit, per user instruction; monetary reservations use verified model capacity without constraining the response",
+      "request_timeout_seconds": null,
+      "holdout_attempts_policy": "One frozen candidate/prompt/config pass; timeout retries only within predeclared attempt cap, no retuning or answer selection"
+    },
+    "reporting": {
+      "tuning": {
+        "document_type_denominator": 12,
+        "annotated_fact_denominator": 102,
+        "monetary_fact_denominator": 38,
+        "image_fact_denominator": 13,
+        "semantic_unique_case_denominator": 4,
+        "intrinsically_ambiguous_real_case_denominator": 0,
+        "explicit_cross_attachment_conflict_denominator": 1,
+        "per_format": {
+          "pdf_text": {
+            "annotated_values_including_type": 84,
+            "monetary_values": 25,
+            "critical_values": 67
+          },
+          "facturae_3_2_2_xml": {
+            "annotated_values_including_type": 12,
+            "monetary_values": 5,
+            "critical_values": 11
+          },
+          "cfdi_4_0_xml": {
+            "annotated_values_including_type": 4,
+            "monetary_values": 3,
+            "critical_values": 4
+          },
+          "pdf_image_only": {
+            "annotated_values_including_type": 14,
+            "monetary_values": 5,
+            "critical_values": 11
+          }
+        },
+        "critical_value_denominator": 93,
+        "grounded_evidence_denominator": 114,
+        "critical_header_fields": [
+          "as_of_date",
+          "buyer_tax_id",
+          "contractor_tax_id",
+          "corrects_invoice",
+          "document_date",
+          "document_number",
+          "effective_date",
+          "invoice_number",
+          "purchase_order_reference",
+          "supplier_tax_id",
+          "valid_until"
+        ],
+        "critical_money_definition": "Every currency_major_decimal fact including selected line-amount anchors; document_type plus listed critical headers; totals measured per attachment, conflicting totals remain separate."
+      },
+      "holdout": {
+        "document_count": 8,
+        "fact_and_semantic_denominators": "Must be fixed from separately sealed manual annotations before the run; no holdout ground truth exists in this commit"
+      },
+      "synthetic_candidate_guards": {
+        "denominator": 2,
+        "mixed_with_real_holdout": false
+      }
+    },
+    "no_evaluation_claim": {
+      "model_calls": 0,
+      "scores_computed": false,
+      "measured_cost": null,
+      "measured_latency": null
+    }
+  },
+  "privacy": {
+    "source_dataset": "Organizer declares all challenge data synthetic, including deliberately checksum-invalid NIFs",
+    "copied_bank_accounts": false,
+    "api_credentials": false,
+    "anonymization": "Use case aliases and redact source identities/account values for public copies; maintain original-byte hashes only in evaluator manifest. Do not alter source originals."
+  }
+}
