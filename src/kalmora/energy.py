@@ -6,7 +6,7 @@ and must not reduce this revenue a second time. All amounts are document cents.
 """
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from .money import decimal, integer, line_amount
 
@@ -87,11 +87,14 @@ def calculate_ppa(*, scope, measurements, share_bp, price_mwh_cents):
     price = decimal(price_mwh_cents)
     if price < 0:
         raise ValueError("PPA price must be nonnegative")
+    with localcontext() as ctx:
+        ctx.prec = 50
+        share = Decimal(share_bp) / 10000
     lines = []
     for measurement in _plants(scope, measurements):
         _nonnegative(measurement.mwh_milli, "mwh_milli")
         amount = line_amount(measurement.mwh_milli, price,
-                             share=Decimal(share_bp).scaleb(-4), truncate=True)
+                             share=share, truncate=True)
         lines.append(EnergyLine(measurement.plant, amount, amount))
     return EnergyResult(scope, "PPA", tuple(lines), sum(line.amount_cents for line in lines))
 

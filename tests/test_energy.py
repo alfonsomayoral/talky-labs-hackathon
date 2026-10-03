@@ -1,5 +1,5 @@
 from dataclasses import replace
-from decimal import Decimal
+from decimal import Decimal, localcontext
 import unittest
 
 from kalmora.energy import (EnergyScope, PlantMeasurement, PlantSettlement,
@@ -34,6 +34,13 @@ class EnergyTests(unittest.TestCase):
         self.assertEqual([l.plant for l in result.lines], ["P1", "P2"])
         self.assertEqual(result, self.ppa(0, measurements=reversed(rows), share_bp=10000, price_mwh_cents=100))
         self.assertEqual(self.ppa(1000, share_bp=10000, price_mwh_cents=Decimal("100.999")).net_cents, 100)
+
+    def test_ppa_is_independent_of_callers_decimal_precision(self):
+        baseline = self.ppa(1000, share_bp=7001, price_mwh_cents=10000)
+        with localcontext() as context:
+            context.prec = 2
+            self.assertEqual(self.ppa(1000, share_bp=7001, price_mwh_cents=10000), baseline)
+        self.assertEqual(baseline.net_cents, 7001)
 
     def test_market_conservation_and_no_representative_double_cost(self):
         rows = [PlantSettlement(self.scope, "P1", 10000, 250, 300),
