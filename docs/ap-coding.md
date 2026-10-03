@@ -2,8 +2,11 @@
 
 Policy §1 assigns supplier defaults unless the document or purchase order says
 otherwise; omitted policy detail comes from recorded ERP history. `ap_coding`
-implements that boundary with per-field precedence **document → confirmed PO →
-explicitly contextualized history → vendor defaults**. It creates no entry,
+implements that boundary with account/fiscal precedence **document → confirmed PO
+→ vendor master → contextual history when the master field is missing**. A known
+current master treatment prevails over older historical treatment, unless explicit
+document/PO facts override it. Cost objects use **document → PO → contextual history
+→ an explicitly supplied vendor object**, with no inferred vendor object. It creates no entry,
 eligibility decision or output row and reads no golden data.
 
 `CodingRecord` is frozen and carries company/vendor/document currency, optional
@@ -43,9 +46,11 @@ History is considered only with a caller-provided exact concept context and
 company/vendor/currency match. Matching normalizes case and whitespace only;
 it does not infer an expanded concept from a shortened journal description.
 Historical dates must be **strictly before** the target invoice date. Multiple
-compatible accounts or cost objects remain ambiguous regardless of frequency or
-recency. A current document can override one field while other fields still
-retain historical uncertainty. No arbitrary latest-record or mode preference
+compatible candidates remain ambiguous whenever history is the winning tier,
+regardless of frequency or recency. Historical context alone cannot override a
+known current vendor account, tax code, supplier account or withholding treatment.
+A current document can override one field while other fields still retain
+historical uncertainty. No arbitrary latest-record or mode preference
 is authorized by the policy.
 
 `CodingCatalog.from_phase(PhaseData)` snapshots companies, vendors, chart,
@@ -75,12 +80,14 @@ invoice line/PO portion, preserving the quantity allocation's original line
 identity in the caller. Final quantity conservation and posting belong to #44,
 #51 and #54. The caller must also complete identity and eligibility checks.
 
-Nine synthetic tests cover precedence, conflicts, compatible historical
+Ten synthetic tests cover current-master precedence over conflicting history,
+explicit document/PO overrides, missing-master historical fallback, conflicts, compatible historical
 ambiguity, strict dates, source joins, currency/company/vendor isolation,
 account/tax/withholding validation, CC/WBS ownership, project mismatch,
 immutable masters and missing context/object/withholding. Source-only smoke
 validation loaded 6,343 expense/asset historical records from original July ERP
-and resolved its explicit notarized-fee context without golden access.
+and resolved its explicit notarized-fee cost object without golden access. Account
+and treatment in that case remain those of the current vendor master.
 
 Normalized document facts/extraction (#41) and end-to-end phase adaptation remain
 pending. This core supplies deterministic recovery but does not claim full July

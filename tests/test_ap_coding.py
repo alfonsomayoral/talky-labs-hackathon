@@ -166,12 +166,15 @@ class CodingTests(unittest.TestCase):
             def iter_journal(self):
                 yield dict(entry, company="1910")  # Same journal id cannot cross company.
                 yield entry
+        self.vendors[0].pop("reconciliation_account")  # Missing master field can use contextual history.
         catalog = CodingCatalog.from_phase(Source())
         result = catalog.resolve(self.query)
         self.assertEqual(result.status, "RESOLVED")
-        self.assertEqual((result.record.account, result.record.cost_center), ("62300000", "CC1"))
+        self.assertEqual((result.record.account, result.record.cost_center), ("62900000", "CC1"))
         self.assertTrue(any("#line=4.account" in e.field for e in self.field(result, "reconciliation_account").evidence))
         key = OrderKey("1100", "V1", "EUR", "PO1", 10)
+        self.vendors[0]["reconciliation_account"] = "41000000"
+        catalog = CodingCatalog.from_phase(Source())
         order = catalog.order_record(key, evidence=self.evidence)
         result = catalog.resolve(replace(self.query, project="P1"), order=(order,))
         self.assertEqual((result.record.account, result.record.wbs, result.record.tax_code),
@@ -182,6 +185,30 @@ class CodingTests(unittest.TestCase):
             catalog.order_record(key, evidence=())
         invoice["received_on"] = "2026-08-01"
         self.assertEqual(CodingCatalog.from_phase(Source()).resolve(self.query).status, "INCOMPLETE")
+
+    def test_current_supplier_master_precedes_conflicting_historical_treatment(self):
+        self.vendors[0]["withholding"] = "IRPF15"
+        historical = self.history(account="60000000", tax_code="SEX", reconciliation_account="40000000",
+                                  withholding_codes=("IRPF7",))
+        catalog = self.catalog((historical,))
+        result = catalog.resolve(self.query)
+        self.assertEqual(result.status, "RESOLVED")
+        self.assertEqual((result.record.account, result.record.tax_code, result.record.reconciliation_account,
+                          result.record.withholding_codes, result.record.cost_center),
+                         ("62900000", "S21", "41000000", ("IRPF15",), "CC1"))
+        self.assertEqual([f.source for f in result.fields], ["vendor", "vendor", "vendor", "history", "vendor"])
+        # Only an explicit current document/PO override can change a known master treatment.
+        current = self.record(account="60000000", tax_code="SEX", reconciliation_account="40000000",
+                              withholding_codes=("IRPF7",))
+        overridden = catalog.resolve(self.query, document=(current,))
+        self.assertEqual((overridden.record.account, overridden.record.tax_code,
+                          overridden.record.reconciliation_account, overridden.record.withholding_codes),
+                         ("60000000", "SEX", "40000000", ("IRPF7",)))
+        for name in ("default_gl_account", "default_tax_code", "reconciliation_account", "withholding"):
+            self.vendors[0].pop(name)
+        fallback = self.catalog((historical,)).resolve(self.query)
+        self.assertEqual(fallback.status, "RESOLVED")
+        self.assertTrue(all(f.source == "history" for f in fallback.fields))
 
 
 if __name__ == "__main__":

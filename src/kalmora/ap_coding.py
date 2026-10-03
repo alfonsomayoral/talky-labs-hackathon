@@ -1,7 +1,8 @@
 """Deterministic AP coding from explicit context and validated masters (#45).
 
-Per-field precedence: document, confirmed PO, contextual historical records,
-vendor defaults. A cost object is one indivisible CC/WBS choice. No voting,
+Account/treatment precedence: document, confirmed PO, vendor master, contextual
+history when missing. Cost objects use document, PO, contextual history, vendor.
+A cost object is one indivisible CC/WBS choice. No voting,
 latest-record preference, fuzzy concepts, amount matching or golden reads.
 """
 from collections.abc import Iterable, Mapping
@@ -261,8 +262,9 @@ class CodingCatalog:
                 vendor.get("reconciliation_account"), vendor.get("default_cost_center"),
                 vendor.get("default_wbs"), proof,
                 withholding_codes=_withholding(vendor)),)
-        tiers = (("document", document), ("order", order), ("history", tuple(history)), ("vendor", defaults))
-        fields = tuple(self._field(name, tiers, query) for name in
+        master_tiers = (("document", document), ("order", order), ("vendor", defaults), ("history", tuple(history)))
+        cost_tiers = (("document", document), ("order", order), ("history", tuple(history)), ("vendor", defaults))
+        fields = tuple(self._field(name, cost_tiers if name == "cost_object" else master_tiers, query) for name in
                        ("account", "tax_code", "reconciliation_account", "cost_object", "withholding_codes"))
         statuses = {field.status for field in fields}
         status = ("INVALID" if "INVALID" in statuses else "AMBIGUOUS" if "AMBIGUOUS" in statuses
