@@ -28,6 +28,11 @@
   animation: rise var(--duration) var(--ease-out);
 }
 
+/* The panel only takes focus as a fallback (no control inside): it is not a control, so no ring. */
+.panel:focus-visible {
+  outline: none;
+}
+
 .top .panel {
   max-height: calc(86vh - var(--space-6));
 }
