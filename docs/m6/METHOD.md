@@ -35,7 +35,10 @@ Contradictory representations fail rather than being added twice.
 
 - ACCRUAL: comparable supplier/service/cost-object history over twelve months, last
   three distinct observed periods, mean daily rate times uncovered days. Coverage
-  is a union of booked receipts; a rejected invoice does not cover its period.
+  is a union of evidenced invoice receptions, independently of posting decisions.
+  HOLD, REJECT and DUPLICATE retain their observed periods and allocations; they
+  do not create journal entries. An ambiguous cost allocation blocks the affected
+  series rather than proving nonreceipt.
   Previous unbilled periods persist only when their linked invoice has not arrived.
   Posted invoice costs are additive within the same observed period and replace
   same-period close estimates. Reissued historical estimates retain the latest
@@ -60,8 +63,10 @@ Contradictory representations fail rather than being added twice.
   document principal at closing FX. Liability value growth is a credit; asset value
   growth a debit. Revaluation moves local cents only (foreign amount_doc=0). Original
   unassigned loan principal is tied to the unique documented agreement; this is
-  explicit, not a hidden assignment rewrite. Only supplier invoices are revalued,
-  never credit notes.
+  explicit, not a hidden assignment rewrite. Supplier invoices and credit notes
+  are revalued when their individual monetary positions remain open. No automatic
+  vendor netting or credit-note exclusion is supported by policy §5; see the
+  source review in `reviews/fx-evidence.md` for the reference discrepancy.
 - BAD_DEBT: private/community balances after receipts; strictly >180 and >365 days,
   insolvency includes guarantees, public/group excluded. Required provision minus
   existing 490 supports both expense and release. Missing ageing blocks release.

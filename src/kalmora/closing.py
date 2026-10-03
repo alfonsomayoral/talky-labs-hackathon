@@ -71,7 +71,7 @@ def _ap(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, A
         if row.get("decision") in POSTING and not row.get("journal_entry"):
             notes.append(note(f"ap:{row['doc_id']}", "POST", "coding", "FAIL",
                               f"Decisión {row['decision']}, pero el motor no pudo codificar el asiento"))
-    return {"coding_errors": errors}
+    return {"coding_errors": errors, "complete": errors == 0}
 
 
 def _ar_billing(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
@@ -144,14 +144,19 @@ def _commit() -> str:
 
 
 def _ic(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
-    """Runs ``python -m kalmora.ic --recorded-only``: AP and bank deliveries are not fed in, and exit 3 says so."""
+    """Consume real AP/bank outputs and retain audit/ownership in the run bundle."""
+    from .v0.upstream import build_ic_upstream
+    out = target.parent.parent / "handoffs" / "ic"
+    shutil.rmtree(out, ignore_errors=True)
+    upstream = build_ic_upstream(phase, target.parent, work)
     done = subprocess.run([sys.executable, "-m", "kalmora.ic", "--phase", str(phase), "--out", str(work),
-                           "--recorded-only", "--backend-commit", _commit()],
+                           "--upstream", str(upstream), "--backend-commit", _commit()],
                           capture_output=True, text=True, check=False)
     if done.returncode not in (0, 3):
         raise RuntimeError((done.stderr or done.stdout).strip().splitlines()[-1] if (done.stderr or done.stdout).strip()
                            else f"exit code {done.returncode}")
     shutil.copyfile(work / "ic.jsonl", target)
+    shutil.copytree(work, out)
     audit = json.loads((work / "audit.json").read_text(encoding="utf-8"))
     items = {}
     for finding in audit["findings"]:
@@ -167,11 +172,14 @@ def _ic(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, An
                               [_evidence(e) for e in diagnostic["evidence"]]))
         else:
             loose.append(text)
-    return {"integration": "recorded_only", "complete": done.returncode == 0, "diagnostics": loose}
+    return {"integration": "producer_deliveries", "complete": done.returncode == 0,
+            "diagnostics": loose, "audit": str(out / "audit.json")}
 
 
 def _close(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
     from .v0.close_handoff import run_close as close_from_deliveries
+    out = target.parent.parent / "handoffs" / "close"
+    shutil.rmtree(out, ignore_errors=True)
     shutil.copyfile(close_from_deliveries(phase, target.parent, work), target)
     delivered = {_close_key(row) for row in read_rows(target)}
     # A decision with no delivered row (e.g. no adjustment needed) stays in trace/close.zip only.
@@ -179,7 +187,10 @@ def _close(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str,
         if (key := _close_key(decision)) in delivered:
             notes.append(note(f"close:{key}", "DECIDE", "decision", "INFO", f"{decision['type']}: {decision['action']}",
                               [_evidence(e) for e in decision.get("evidence", [])]))
-    return {"integration": "real_upstream"}
+    shutil.copytree(work, out)
+    freeze = json.loads((work / "frozen" / "freeze.json").read_text())
+    return {"integration": freeze["integration"], "complete": freeze["engine_data_complete"],
+            "freeze": str(out / "frozen" / "freeze.json")}
 
 
 ENGINES: dict[str, Engine] = {
@@ -288,7 +299,7 @@ def _sha256(path: Path) -> str | None:
 # ---------------------------------------------------------------- command
 def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissions: Path | None = None,
               recorder: RunRecorder | None = None) -> dict[str, Any]:
-    """Run the close. Returns ``{"ok", "tasks"}``; ``ok`` is False when any engine that ran failed.
+    """Run the close; incomplete, failed or unavailable modules keep ok false.
 
     With a ``recorder``, the manifest takes its run id and its models and cost."""
     phase, out = phase.resolve(), out.resolve()
@@ -320,6 +331,7 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
         tasks[module] = task
         atomic_json(manifest_path, manifest)
         target = out / "deliverables" / f"{module}.jsonl"
+        target.unlink(missing_ok=True)
         source = submissions / f"{module}.jsonl" if submissions else None
         notes: list[Row] = []
         work = Path(tempfile.mkdtemp(prefix=f"kalmora-{module}-"))
@@ -338,7 +350,10 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
             with trace.open("a", encoding="utf-8") as handle:
                 handle.writelines(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in stamped)
             written += len(stamped)
-            task.update(state="done", rows=len(rows), events=len(stamped))
+            task.update(state="done" if task.get("complete", True) else "failed",
+                        rows=len(rows), events=len(stamped))
+            if task["state"] == "failed":
+                task["error"] = "engine delivered incomplete dependencies"
         except Exception as exc:  # noqa: BLE001 - one module failing must not hide the others
             target.unlink(missing_ok=True)
             task.update(state="failed", error=f"{type(exc).__name__}: {exc}")
@@ -349,8 +364,8 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
             shutil.rmtree(work, ignore_errors=True)
             task["finished_at"] = _now()
     manifest.setdefault("finished_at", _now())
-    manifest["runtime_s"] = manifest.get("runtime_s") or round(time.monotonic() - began, 3)
+    manifest["runtime_s"] = round(time.monotonic() - began, 3)
     if recorder is not None:
         manifest.update(_usage(recorder))
     atomic_json(manifest_path, manifest)
-    return {"ok": not any(t.get("state") == "failed" for t in tasks.values()), "tasks": tasks}
+    return {"ok": all(t.get("state") == "done" for t in tasks.values()), "tasks": tasks}

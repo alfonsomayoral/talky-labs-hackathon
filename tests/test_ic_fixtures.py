@@ -184,7 +184,7 @@ class AdapterTests(SyntheticFixture):
         delivered, audit = ap_delivery([row], self.context(), 'intercompany')
         self.assertEqual(delivered, [])
         self.assertTrue(audit['excluded_entries'][0]['validation_diagnostics'])
-        with self.assertRaisesRegex(ValueError, 'Invalid AP fixture'):
+        with self.assertRaisesRegex(ValueError, 'Invalid AP delivery'):
             ap_delivery([row], self.context(), 'full')
 
     def test_pooling_link_uses_statement_and_erp_not_ic_fixture(self):

@@ -60,8 +60,10 @@ def execute(phase: Path, handoff_path: Path, output: Path, *, saved_facts_only: 
                   for key in sorted(set(original) | set(prior) | set(final))]
         atomic_bytes(output / "balance_impact.json", encoded(impact))
         manifest = {"schema": "kalmora.close.freeze/v1", "phase": phase.name, "month": data.month,
-            "integration": "simulated" if result.simulated else "real_handoffs_not_yet_e2e_verified",
+            "integration": "simulated" if result.simulated else "real_audited_handoffs",
             "real_flow_gate": "OPEN: #171; module execution is not real M1-M5 integration evidence",
+            "real_flow_verified": False,
+            "integration_execution_complete": not result.simulated and handoff.complete and result.complete,
             "dependency_coverage_complete": handoff.complete, "engine_data_complete": result.complete,
             "estimation_limitations": handoff.payload["facts"].get("coverage_limitations", []),
             "handoff_sha256": handoff.payload["payload_sha256"], "handoff_file_sha256": file_hash(handoff_path),

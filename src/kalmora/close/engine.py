@@ -100,6 +100,9 @@ class CloseEngine:
         for f in sorted(self.facts["accruals"], key=lambda x: x["series_id"]):
             decision = dict(f)
             company, vendor, identity = f["company"], f["vendor"], f["series_id"]
+            if f.get("coverage_unknown"):
+                self.decisions.append(dict(decision, type="ACCRUAL", action="blocked_receipt_allocation"))
+                continue
             if f.get("po_required") or f.get("service_id") in exclusions or f.get("gr_ir_recognized"):
                 self.decisions.append(dict(decision, type="ACCRUAL", action="excluded_prior_owner"))
                 continue

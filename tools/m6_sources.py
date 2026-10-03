@@ -187,7 +187,7 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
             s['evidence'].append(evidence)
 
     # Receipt coverage includes held/rejected/duplicate invoices, not just postings.
-    prepaid_current, receipt_amounts = [], set()
+    prepaid_current, receipt_amounts, ap_receipts = [], set(), []
     for row in upstream['ap']:
         vendor = vendors.get(row.get('vendor_id'))
         if not vendor or row.get('document_type') != 'INVOICE':
@@ -199,6 +199,10 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         if not observed:
             continue
         start, end, evidence = observed
+        ap_receipts.append({"doc_id": row["doc_id"], "company": row["company"],
+                            "vendor": row["vendor_id"], "decision": row["decision"],
+                            "start": start.isoformat(), "end": end.isoformat(), "evidence": evidence,
+                            "posted": bool(row.get("journal_entry"))})
         journal = row.get('journal_entry')
         if not journal:
             journal = {'lines': []}
@@ -208,6 +212,20 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
                     amount = rates.to_local(l['amount'], row['currency'], row['company'], row['invoice_date'])
                     journal['lines'].append(dict(l, account=account, debit=max(amount, 0), credit=max(-amount, 0)))
         groups = component_groups(journal)
+        if not groups:
+            candidates = [s for s in series.values()
+                          if s["company"] == row["company"] and s["vendor"] == row["vendor_id"]]
+            # A single source-backed historical cost object supports association;
+            # several possible sites remain unknown rather than picking one.
+            if len(candidates) == 1:
+                groups[candidates[0]["cost_center"], candidates[0]["wbs"]] = {}
+            else:
+                diagnostics.append({"kind": "unresolved_received_service_allocation",
+                                    "document": row["doc_id"], "blocking": bool(candidates),
+                                    "company": row["company"], "vendor": row["vendor_id"],
+                                    "evidence": evidence, "candidate_series": [s["series_id"] for s in candidates]})
+                for s in candidates:
+                    s["coverage_unknown"] = True
         business = row['company'], row['vendor_id'], re.sub(r'[^\w]', '', row.get('invoice_number') or '').upper()
         posted = row.get('decision') in {'POST', 'POST_PAYMENT_BLOCK'}
         first_arrival = posted and business not in receipt_amounts
@@ -216,10 +234,6 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         for (cc, wbs), amounts in groups.items():
             if archetype in CONTINUOUS | EPISODIC:
                 s = get_series(row['company'], row['vendor_id'], cc, wbs)
-                if row['decision'] == 'REJECT':
-                    # A rejected invoice is not booked; the period stays unbilled until the reissue.
-                    s['evidence'].append(evidence)
-                    continue
                 s['received_coverage'].append({'start': start.isoformat(), 'end': end.isoformat(),
                     'document': row['doc_id'], 'decision': row['decision'], 'evidence': evidence})
                 if first_arrival:
@@ -364,7 +378,7 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         company = a['company']
         if a.get('currency') == company_local_currency(company) or not a.get('vendor'):
             continue
-        if str(a.get('kind') or a.get('document_type') or 'invoice').lower() != 'invoice':
+        if str(a.get('kind') or a.get('document_type') or 'invoice').lower() not in {'invoice', 'credit_note'}:
             continue
         journal = a.get('journal_entry')
         journal = original.get(journal, {}) if isinstance(journal, str) else journal or {}
@@ -418,7 +432,8 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
             'item': 'BANK:' + bank['id'], 'currency': bank['currency'], 'document_signed': principal,
             'evidence': [ev(relative, 'last/Saldo', final_value)], 'principal_basis': 'original statement closing balance'})
 
-    return {'accruals': accruals, 'prepaids': list(prepaids.values()), 'pending_certifications': pending,
+    return {'accruals': accruals, 'ap_receipts': ap_receipts,
+            'prepaids': list(prepaids.values()), 'pending_certifications': pending,
             'fx_positions': fx_positions, 'document_facts': document_facts,
             'billed_invoices': [dict(r['invoice'], company=r['company'], customer=r['customer'], id=r['journal_entry']['reference']) for r in upstream['ar_billing'] if r.get('invoice')],
             'ageing_evidence': [ev('erp/ar_invoices.jsonl', 'due_date'), ev('erp/customers.jsonl', 'kind,insolvency'),

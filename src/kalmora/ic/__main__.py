@@ -84,6 +84,8 @@ def main(argv=None) -> int:
             write_jsonl(output / "projected_journal.jsonl", result.projection.iter_entries())
         audit = result.audit()
         audit["metadata"]["ic_jsonl_sha256"] = sha256(output / "ic.jsonl")
+        audit["metadata"]["projection_adjustments_sha256"] = sha256(output / "projection.adjustments.jsonl")
+        audit["metadata"]["task_file_sha256"] = sha256(data._path("tasks/intercompany"))
         atomic_json(output / "audit.json", audit)
         code = 0 if result.complete else 3
         recorder.report.update(exit_code=code, modular_contracts_complete=result.complete,

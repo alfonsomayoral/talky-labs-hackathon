@@ -235,6 +235,17 @@ def reconcile(data: PhaseData, *, recorded: Ledger, upstream: Upstream,
                      "real_flow_gate": "#159 requires independently verified real AP and bank outputs",
                      "output_contract": "FORMATO_ENTREGA.md / IC",
                      "emission_semantics": "incremental over before_ic; original incidents retained on replay"})
+    # Positive coverage comes from a completed execution of all rules over the
+    # configured pairs/accounts, including pairs producing no exception rows.
+    result.metadata["task_coverage"] = {
+        "month": ctx.month, "as_of": ctx.last.isoformat(),
+        "pairs": [list(p) for p in sorted(ctx.pairs)],
+        "accounts": sorted(ctx.tasks["accounts"]),
+        "rules": ["duplicate_postings", "wrong_partners", "loan_interest",
+                  "invoices_in_transit", "pooling_not_booked"],
+        "complete": result.complete,
+        "positions_sha256": digest({"recorded": result.original, "before_ic": result.before,
+                                    "corrected": result.corrected})}
     if digest(tuple(recorded.iter_entries())) != original_hash:
         raise AssertionError("M5 mutated the original ERP ledger")
     if upstream.prior_projection and digest(tuple(upstream.prior_projection.iter_entries())) != upstream_hash:

@@ -93,6 +93,10 @@ class Handoff:
             require(_hash(dependency.get("source_sha256")), f"{producer}: source hash missing")
             require(isinstance(dependency.get("coverage"), dict), f"{producer}: coverage missing")
             coverage = dependency["coverage"]
+            if producer == "ic" and dependency["provenance"] == "real":
+                require(coverage.get("mode") == "reconciled_pairs" and _hash(coverage.get("audit_sha256"))
+                        and _hash(coverage.get("upstream_sha256")),
+                        "real IC requires a phase-bound audit of every configured pair")
             expected_ids, observed_ids = coverage.get("expected", []), coverage.get("observed", [])
             require(len(set(observed_ids)) == len(observed_ids), f"{producer}: duplicated coverage IDs")
             require(set(observed_ids).issubset(expected_ids), f"{producer}: unknown coverage IDs")

@@ -39,7 +39,7 @@ jobs:
           git archive --format=tar HEAD > m5-ci-evidence/source.tar
           git bundle create m5-ci-evidence/source.bundle HEAD
           sha256sum m5-ci-evidence/source.tar m5-ci-evidence/source.bundle > m5-ci-evidence/SHA256SUMS
-      - run: python -m pip install -e .
+      - run: python -m pip install -c requirements-m1.lock -e '.[documents,llm,landing,api,dev]'
       - run: python -m compileall -q src tools
       - name: Run complete backend unit suite
         run: |

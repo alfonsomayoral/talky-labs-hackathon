@@ -138,3 +138,9 @@ upstream simulated adjustments and actual M6 movements, not just differences.
 
 See the final CI artifact and delivery execution manifest for checks on any later
 documentation/workflow-only commit. M6 and #171 remain open regardless of CI success.
+# Current real-flow execution
+
+The figures below preserve the historical simulated baseline. Current real
+deterministic results, including September, are in
+[REAL_FLOW_REVIEW.md](REAL_FLOW_REVIEW.md) and
+[evidence/real-flow-20261003.json](evidence/real-flow-20261003.json).
