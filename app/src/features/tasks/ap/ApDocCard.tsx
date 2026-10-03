@@ -199,44 +199,51 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
             </Section>
           ) : null}
 
-          <Section title="Pago">
-            <KeyValue
-              labelWidth={130}
-              items={[
-                {
-                  label: 'Beneficiario',
-                  value: row.payee ? (
-                    <span>
-                      {AP_PAYEE_CATALOG[row.payee.type]?.label ?? row.payee.type}
-                      {row.payee.type === 'FACTOR' && vendor?.alternative_payee && <span className={styles.note}> · {vendor.alternative_payee.name}</span>}
-                      {row.payee.type === 'AEAT_EMBARGO' && vendor?.garnishments?.length ? <span className={styles.note}> · {vendor.garnishments.map((g) => g.ref).join(', ')}</span> : null}
-                    </span>
-                  ) : (
-                    'El proveedor'
-                  ),
-                },
-                {
-                  label: 'Bloqueo de pago',
-                  value: row.payment_block ? (
-                    <Badge tone="warn" icon={<AlertTriangle />}>
-                      Certificado art. 43 caducado
-                    </Badge>
-                  ) : (
-                    'Sin bloqueo'
-                  ),
-                },
-                ...(row.decision === 'NOT_INVOICE' && row.action
-                  ? [
-                      { label: 'Acción en el maestro', value: AP_ACTION_CATALOG[row.action]?.label ?? row.action },
-                      ...actionDetails(row.action_data).map((d) => ({
-                        label: d.label,
-                        value: d.kind === 'money' ? <Amount cents={Number(d.value)} currency={currency} /> : d.kind === 'mono' ? <Mono>{d.value}</Mono> : d.value,
-                      })),
-                    ]
-                  : []),
-              ]}
-            />
-          </Section>
+          {row.decision === 'NOT_INVOICE' ? (
+            // Not an invoice: nothing is paid, so only what it changes in the vendor master matters.
+            <Section title="Acción en el maestro">
+              <KeyValue
+                labelWidth={130}
+                items={[
+                  { label: 'Acción', value: row.action ? (AP_ACTION_CATALOG[row.action]?.label ?? row.action) : 'Ninguna' },
+                  ...actionDetails(row.action_data).map((d) => ({
+                    label: d.label,
+                    value: d.kind === 'money' ? <Amount cents={Number(d.value)} currency={currency} /> : d.kind === 'mono' ? <Mono>{d.value}</Mono> : d.value,
+                  })),
+                ]}
+              />
+            </Section>
+          ) : (
+            <Section title="Pago">
+              <KeyValue
+                labelWidth={130}
+                items={[
+                  {
+                    label: 'Beneficiario',
+                    value: row.payee ? (
+                      <span>
+                        {AP_PAYEE_CATALOG[row.payee.type]?.label ?? row.payee.type}
+                        {row.payee.type === 'FACTOR' && vendor?.alternative_payee && <span className={styles.note}> · {vendor.alternative_payee.name}</span>}
+                        {row.payee.type === 'AEAT_EMBARGO' && vendor?.garnishments?.length ? <span className={styles.note}> · {vendor.garnishments.map((g) => g.ref).join(', ')}</span> : null}
+                      </span>
+                    ) : (
+                      'El proveedor'
+                    ),
+                  },
+                  {
+                    label: 'Bloqueo de pago',
+                    value: row.payment_block ? (
+                      <Badge tone="warn" icon={<AlertTriangle />}>
+                        Certificado art. 43 caducado
+                      </Badge>
+                    ) : (
+                      'Sin bloqueo'
+                    ),
+                  },
+                ]}
+              />
+            </Section>
+          )}
 
           {corrects && (
             <Section title="Factura rectificada">
