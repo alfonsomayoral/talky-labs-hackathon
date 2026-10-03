@@ -45,3 +45,10 @@ this change because accepted XML facts must equal original literal leaves;
 a derived count requires a separate proof contract. An evaluation interface
 that expects `unit`, gross from payable, or a derived XML count needs an
 explicit, versioned boundary decision rather than altered source facts.
+
+Previously prepared AP bundles explicitly pin XML/normalization versions and
+will reject these new versions. Regenerate a bundle from the original sources
+and retained accepted model recordings before using v3; XML remains local and
+needs no paid extraction call. Preserve the old bundle and its frozen code for
+historical replay. Do not replace its configuration/hash to bypass the version
+check or silently call old normalized facts new observations.
