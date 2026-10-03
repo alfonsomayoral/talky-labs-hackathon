@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { BankAccount, BankLine, BankRecRow, JournalEntry, WorkItem } from '@/domain/types'
-import { accountSummary, adjustmentsOf, balanceBridge, bookAmount, bookLinesOf, glAdjustments, itemByLine, matchShape, recView, unmatchedByCategory, type BookLine } from './model'
+import type { ApRow, BankAccount, BankLine, BankRecRow, JournalEntry, WorkItem } from '@/domain/types'
+import { accountSummary, adjustmentsOf, balanceBridge, bookAmount, bookLinesOf, glAdjustments, itemByLine, matchShape, openDirectDebits, recView, unmatchedByCategory, type BookLine } from './model'
 
 const bank = (id: string, amount: number, date = '2026-07-10'): BankLine => ({ bank_line: id, booking_date: date, value_date: date, amount, currency: 'EUR', text: id })
 const book = (id: string, amount: number, date = '2026-07-10'): BookLine => ({ id, date, amount, text: id, partner: null, source: 'AP' })
@@ -177,5 +177,24 @@ describe('account grid', () => {
   it('maps each line to the item that holds it', () => {
     const m = itemByLine([it_('BIN-1200/B1', 'AUTO', 0, [{ kind: 'bank', account: 'BIN-1200', bank_line: 'B1' }, { kind: 'journal', book_line: 'J1#2' }])], 'BIN-1200')
     expect(m.get('J1#2')).toBe('bank_rec:BIN-1200/B1')
+  })
+})
+
+describe('openDirectDebits', () => {
+  // Three direct debits: one with its adjustment, one whose invoice AP rejected, one with no invoice at all,
+  // and one whose invoice AP posted but nobody adjusted.
+  const dd = (id: string, amount: number) => ({ id, side: 'bank' as const, date: '2026-07-27', amount, text: id, group: null, category: 'DIRECT_DEBIT_NOT_BOOKED', known: true })
+  const lines = [dd('D1', -222947), dd('D2', -215748), dd('D3', -107141), dd('D4', -50000)]
+  const adjustments = [{ account: 'CMA-1100', index: 0, category: 'DIRECT_DEBIT_NOT_BOOKED', label: '', glMovement: -222947, lines: [] }]
+  const ap = (doc_id: string, decision: string, gross: number, company = '1100') => ({ doc_id, decision, gross, company, currency: 'EUR' }) as unknown as ApRow
+  const apRows = [ap('API004109', 'POST', 222947), ap('API005227', 'REJECT', 215748), ap('API009999', 'POST', 50000), ap('API008888', 'REJECT', 107141, '1200')]
+
+  it('explains a debit without adjustment by its invoice in AP, and flags only the posted ones', () => {
+    const open = openDirectDebits(lines, adjustments, apRows, '1100', 'EUR')
+    expect(open.map((o) => [o.line.id, o.invoice?.doc_id ?? null, o.missing])).toEqual([
+      ['D2', 'API005227', false],
+      ['D3', null, false],
+      ['D4', 'API009999', true],
+    ])
   })
 })
