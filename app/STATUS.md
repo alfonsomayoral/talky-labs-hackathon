@@ -14,9 +14,9 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 1.C Motor | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.0 | Paridad exacta con `score.py` en 8 casos; totales en EUR |
 | 2.A Ejecuciones y entregables | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.B, 1.C | El zip de entrega saca 100 en `score.py` |
 | 2.B Resumen | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.C | Commit `ac57d87` |
-| 2.C Actividad y panel de partida | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 1.C | `ItemPanel` y kit (`ProcessMap`, `ReasoningView`, `JournalEntryView`…). **Desbloquea la fase 3** |
+| 2.C Actividad y panel de partida | Coordinadora (subagente, detenido) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | WIP `3cb7318` (ver HANDOFF.md) | 1.C | `ItemPanel` y kit (`ProcessMap`, `ReasoningView`, `JournalEntryView`…). **Desbloquea la fase 3** |
 | 2.D Atención | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.C | Commit `21fc1c3` |
-| Refinado de diseño + 4.D Búsqueda y teclado | «Kalmora Close frontend: diseño y shell» | `fe/design-shell` | `talky-wt/fe-design-shell` | 5174 | Asignado | 1.A | Cambios de componentes solo compatibles (las demás sesiones los usan) |
+| Refinado de diseño + 4.D Búsqueda y teclado | «Kalmora Close frontend: diseño y shell» | `fe/design-shell` | `talky-wt/fe-design-shell` | 5174 | Hecho e integrado (`2e27dea`) | 1.A | Cambios de componentes solo compatibles (las demás sesiones los usan) |
 | 4.A Explorador de datos + 4.C Coste y calibración | «Resumen y Atención Kalmora Close» | `fe/explorer-cost` | `talky-wt/fe-explorer-cost` | 5176 | Asignado | 1.B, 1.C | Resumen y Atención ya los cubre la coordinadora |
 | 3.B Facturación + 3.C Cobros | «Actividad y panel de partida» | `fe/tasks-ar` | `talky-wt/fe-tasks-ar` | 5175 | Esperando el kit | 2.C (kit) | 2.C lo termina la coordinadora |
 | 3.A AP + 3.D Bancos | «Kalmora Close frontend: AP y Bancos» | `fe/tasks-ap-bank` | `talky-wt/fe-tasks-ap-bank` | 5177 | Asignado; el kit llega después | 2.C (kit) | Puede empezar por lo que no usa el kit |
