@@ -57,6 +57,27 @@ class AllocationTests(unittest.TestCase):
         self.assertEqual([(a.receipt_id, a.quantity_milli) for a in result.allocations],
                          [("R2", 500), ("S1", 1000)])
 
+    def test_flexible_line_does_not_starve_explicit_receipt_reference(self):
+        lines = [self.line(999),
+                 InvoiceQuantityLine("L2", 1001, "ud", (OrderPortion(self.key, 1001, ("R1",)),))]
+        result = self.run_allocation(lines)
+        self.assertEqual(result.status, "ALLOCATED")
+        self.assertEqual([(a.line_id, a.receipt_id, a.quantity_milli) for a in result.allocations],
+                         [("L1", "R2", 999), ("L2", "R1", 1001)])
+
+    def test_overlapping_receipt_subsets_can_reassign_partial_supply(self):
+        receipts = [Receipt(f"R{i}", self.key, 1000, "ud", "2026-07-01") for i in range(1, 4)]
+        lines = [InvoiceQuantityLine("L1", 1500, "ud", (OrderPortion(self.key, 1500, ("R1", "R2")),)),
+                 InvoiceQuantityLine("L2", 1500, "ud", (OrderPortion(self.key, 1500, ("R1", "R3")),))]
+        result = self.run_allocation(lines, receipts=receipts)
+        self.assertEqual(result.status, "ALLOCATED")
+        self.assertEqual(sum(u.quantity_milli for u in result.state.usages), 3000)
+        for line in lines:
+            parts = [a for a in result.allocations if a.line_id == line.line_id]
+            self.assertEqual(sum(a.quantity_milli for a in parts), line.quantity_milli)
+            self.assertTrue(all(a.receipt_id in line.portions[0].receipt_ids for a in parts))
+        self.assertEqual(result, self.run_allocation(lines, receipts=reversed(receipts)))
+
     def test_missing_ambiguous_erroneous_and_units(self):
         cases = [
             (replace(self.line(1), portions=()), "MISSING_REFERENCE"),

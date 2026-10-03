@@ -4,6 +4,7 @@ No ERP reads, reference recovery, eligibility decision or posting. Quantities ar
 integer thousandths. A successful invoice returns a new immutable consumption
 snapshot; a blocked invoice leaves the supplied snapshot unchanged.
 """
+from collections import deque
 from dataclasses import dataclass
 from datetime import date
 
@@ -117,12 +118,70 @@ def _order(key):
         raise ValueError("po item must be positive")
 
 
+def _assign_quantities(demands, used):
+    """Integral max flow over resolved portion/receipt edges only.
+
+    Residual edges allow reassignment when an earlier flexible portion consumed
+    supply needed by a later restricted one. Stable insertion/BFS order keeps
+    results reproducible without claiming a policy preference between solutions.
+    """
+    source, sink = ("source",), ("sink",)
+    graph, receipt_nodes = {}, set()
+
+    def edge(left, right, capacity):
+        graph.setdefault(left, {})[right] = capacity
+        graph.setdefault(right, {})[left] = 0
+
+    for index, (_, portion, candidates) in enumerate(demands):
+        node = ("portion", index)
+        edge(source, node, portion.quantity_milli)
+        for receipt in candidates:
+            receipt_node = ("receipt", *receipt.key)
+            edge(node, receipt_node, portion.quantity_milli)
+            if receipt_node not in receipt_nodes:
+                edge(receipt_node, sink, receipt.quantity_milli - used.get(receipt.key, 0))
+                receipt_nodes.add(receipt_node)
+    while source in graph:
+        parents, queue = {source: None}, deque([source])
+        while queue and sink not in parents:
+            node = queue.popleft()
+            for neighbor, capacity in graph[node].items():
+                if capacity > 0 and neighbor not in parents:
+                    parents[neighbor] = node
+                    queue.append(neighbor)
+        if sink not in parents:
+            break
+        node, path = sink, []
+        while node != source:
+            parent = parents[node]
+            path.append((parent, node))
+            node = parent
+        take = min(graph[left][right] for left, right in path)
+        for left, right in path:
+            graph[left][right] -= take
+            graph[right][left] += take
+    allocations, diagnostics, new_used = [], [], dict(used)
+    for index, (line_id, portion, candidates) in enumerate(demands):
+        node = ("portion", index)
+        available = portion.quantity_milli - graph[source][node]
+        if available < portion.quantity_milli:
+            diagnostics.append(AllocationDiagnostic(line_id, "INSUFFICIENT_RECEIPTS",
+                                                    portion.quantity_milli, available))
+        for receipt in candidates:
+            take = graph[("receipt", *receipt.key)][node]
+            if take:
+                allocations.append(QuantityAllocation(line_id, portion.order, receipt.receipt_id, take))
+                new_used[receipt.key] = new_used.get(receipt.key, 0) + take
+    return allocations, diagnostics, new_used
+
+
 def allocate_receipts(*, company, vendor, currency, invoice_id, lines,
                       orders, receipts, state=ConsumptionState()):
     """Allocate an entire invoice atomically, returning ALLOCATED or BLOCKED.
 
     Portions are quantities already resolved to specific PO positions by #43.
-    Without explicit receipt_ids, consume eligible receipts in date/id order.
+    Without explicit receipt_ids, prefer eligible receipts in date/id order,
+    reassigning tentative quantities if needed to honor other explicit references.
     The caller supplies eligible receipt candidates and the complete catalog
     needed to validate prior consumption. Commit state only after downstream
     eligibility, valuation and posting succeed; this function performs no I/O.
@@ -190,7 +249,7 @@ def allocate_receipts(*, company, vendor, currency, invoice_id, lines,
                 for value in portion.receipt_ids:
                     _text(value)
     invoice_key = (company, vendor, currency, invoice_id)
-    diagnostics, allocations = [], []
+    diagnostics, demands = [], []
     if invoice_key in state.invoices:
         diagnostics.append(AllocationDiagnostic(None, "ALREADY_ALLOCATED"))
     else:
@@ -227,19 +286,9 @@ def allocate_receipts(*, company, vendor, currency, invoice_id, lines,
                         block("UNKNOWN_RECEIPT_REFERENCE")
                         continue
                 candidates.sort(key=lambda r: (r.posting_date, r.receipt_id))
-                available = sum(r.quantity_milli - used.get(r.key, 0) for r in candidates)
-                if available < portion.quantity_milli:
-                    block("INSUFFICIENT_RECEIPTS", portion.quantity_milli, available)
-                    continue
-                remaining = portion.quantity_milli
-                for receipt in candidates:
-                    take = min(remaining, receipt.quantity_milli - used.get(receipt.key, 0))
-                    if take:
-                        allocations.append(QuantityAllocation(line.line_id, key, receipt.receipt_id, take))
-                        used[receipt.key] = used.get(receipt.key, 0) + take
-                        remaining -= take
-                    if not remaining:
-                        break
+                demands.append((line.line_id, portion, candidates))
+    if not diagnostics:
+        allocations, diagnostics, used = _assign_quantities(demands, used)
     if diagnostics:
         return AllocationResult("BLOCKED", company, vendor, currency, invoice_id,
                                 (), state, tuple(diagnostics))

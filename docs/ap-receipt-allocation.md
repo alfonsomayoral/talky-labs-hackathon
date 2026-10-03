@@ -13,14 +13,18 @@ are rejected. Convert source quantities with M0 `quantity_milli` if necessary.
 - `InvoiceQuantityLine.references_resolved=False` explicitly represents ambiguity.
   Empty portions represent an absent reference. This kernel never chooses a PO.
 - `OrderPortion.receipt_ids` limits supply to explicitly referenced receipts.
-  Without this list, supplied eligible receipts are consumed by posting date and
-  receipt ID. This ordering is an implementation convention, not a policy rule.
+  Without this list, supplied eligible receipts are preferred by posting date and
+  receipt ID. An integer capacity flow can reassign tentative quantities within
+  resolved candidate edges to honor overlapping explicit references. Thus an
+  earlier flexible line cannot incorrectly starve a later restricted line. Stable
+  flow traversal is an implementation convention, not a policy rule.
 - `Receipt.key` is company plus receipt ID; duplicates in that company fail even
   if they claim different vendors, currencies or PO positions.
 - `ALLOCATED` returns receipt-level quantities and a new state. `BLOCKED` returns
   diagnostics, no allocations and the original state. All invoice lines succeed
   together or none consume supply. Partial receipts can satisfy partial invoices.
-- `INSUFFICIENT_RECEIPTS` reports requested and remaining available quantities.
+- `INSUFFICIENT_RECEIPTS` reports requested and achievable quantities for the
+  deficient portion after competing invoice portions share receipt capacity.
   Other codes distinguish unknown references, scope/unit mismatches, unresolved
   ambiguity, malformed portions, and a previously allocated invoice key.
 
