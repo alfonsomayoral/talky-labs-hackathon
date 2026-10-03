@@ -191,6 +191,9 @@ async def prepare_ap_sources(phase_path: str | Path, destination: str | Path, *,
         residual=extractor.config.to_dict() if extractor is not None else None)
     if extractor is not None and mode == "record":
         await _prefetch_residuals(phase, inventory.doc_ids, router, transform, extractor)
+        # The ordered pass reads what was just recorded; a source whose capture failed stays unknown
+        # instead of being retried one at a time.
+        extractor = RecordedExtractor(extractor.store, extractor.config, mode="replay", recorder=extractor.recorder)
     packets, source_hashes, folder_inventories, provenance = [], {}, {}, []
     for doc_id in inventory.doc_ids:
         paths = _inventory(phase, doc_id)
