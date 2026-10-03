@@ -103,3 +103,10 @@ corrected organizer reference, followed by a new frozen comparison. #159 require
 complete real AP receipt/export and bank deliveries through the same interfaces,
 evaluation and replay without dependency fixtures. The disclosed IC score remains
 0.8615 until the reference discrepancy is resolved.
+
+The [subsequent #239 source audit](verification/m5-239.md) checked current official
+downloads and the newly available September history. The latter records receipt
+of the three invoices on August 3/4, corroborating nonreceipt at July close.
+Those later facts are diagnostic only and do not enter the July solver. No
+published general exclusion rule was found; the reference clarification remains
+pending and no improved official score is claimed.

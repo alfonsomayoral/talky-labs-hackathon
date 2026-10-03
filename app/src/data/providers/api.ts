@@ -1,8 +1,9 @@
-// Backend provider (CONTRACT.md §2), enabled when VITE_API_URL is set.
-// v1 assumption, not yet in the contract: a dataset's raw files are served under
-// `GET /api/datasets/{id}/files/__index.json` and `…/files/{path}`, and parsed in the browser.
-// When the backend serves parsed data, openDataset can return a DatasetApi made of HTTP calls.
-import { DELIVERABLE_FILES, TASK_KEYS, type DatasetMeta, type RunManifest } from '@/domain/types'
+// Backend provider: the HTTP API `/v1` of `kalmora serve` (backend docs/api-contracts.md §9), enabled when
+// VITE_API_URL is set. Phases and run bundles come as raw files (`…/files/__index.json` and `…/files/{path}`)
+// and are parsed in the browser worker, like the dev middleware. A phase is uploaded as the organizers' ZIP
+// (`POST /v1/packages`); a close is launched with `POST /v1/phases/{phase}/runs` (the command given to
+// `kalmora serve --close-command`) and followed by polling `GET /v1/runs/{id}`: the API has no event stream.
+import type { DatasetMeta } from '@/domain/types'
 import { bundleFromFiles } from '../bundles/bundle'
 import type { PathFile } from '../sources/types'
 import { openDataset } from '../worker/client'
@@ -14,30 +15,44 @@ export const apiUrl = (): string | null => {
   return url ? url.replace(/\/+$/, '') : null
 }
 
-const requireApi = () => {
+const v1 = () => {
   const api = apiUrl()
   if (!api) throw new Error('VITE_API_URL no está definida: no hay backend configurado')
-  return api
+  return `${api}/v1`
 }
 
-const remoteId = (dataset: DatasetMeta) => dataset.remoteId ?? dataset.id
+/** `data` of a `/v1` envelope, or null when the endpoint is missing. */
+const data = async <T>(url: string): Promise<T | null> => (await fetchJsonOrNull<{ data: T }>(url))?.data ?? null
 
-/** Files of a run under `<runId>/` (the manifest from the status endpoint becomes manifest.json). */
-async function runFiles(api: string, runId: string): Promise<PathFile[]> {
-  const base = `${api}/api/runs/${encodeURIComponent(runId)}`
-  const status = await fetchJsonOrNull<{ state?: string; manifest?: RunManifest; files?: string[] }>(base)
-  const known = [...TASK_KEYS.map((t) => `deliverables/${DELIVERABLE_FILES[t]}`), 'trace/events.jsonl', 'trace/attention.jsonl']
-  // With the run's file list, optional files that do not exist are not requested (no 404 in the console).
-  const paths = Array.isArray(status?.files) ? known.filter((p) => status.files!.includes(p)) : known
-  const files = (
-    await Promise.all(
-      paths.map(async (path) => {
-        const res = await fetch(`${base}/files/${encodePath(path)}`)
-        return res.ok ? { path: `${runId}/${path}`, file: await res.blob() } : null
-      }),
-    )
-  ).filter((f): f is PathFile => f !== null)
-  if (status?.manifest) files.push({ path: `${runId}/manifest.json`, file: new Blob([JSON.stringify(status.manifest)], { type: 'application/json' }) })
+interface RunRow {
+  run_id: string
+  started_at?: string
+  status?: string
+  has_files?: boolean
+  month?: string
+}
+
+const POLL_MS = 2000
+
+/** Error message of a failed `/v1` call (RFC 9457 problem `detail`). */
+async function failure(res: Response, action: string): Promise<Error> {
+  const problem = (await res.json().catch(() => null)) as { detail?: string } | null
+  return new Error(`${action}: ${problem?.detail ?? `el backend respondió ${res.status}`}`)
+}
+
+const STATUS_LABEL: Record<string, string> = { running: ' · en curso', failed: ' · fallida' }
+
+/** Files of a run bundle; the run report becomes manifest.json when the bundle has none. */
+async function runFiles(runId: string): Promise<PathFile[]> {
+  const base = `${v1()}/runs/${encodeURIComponent(runId)}`
+  const index = await fetchJsonOrNull<{ path: string }[]>(`${base}/files/__index.json`)
+  if (!index) throw new Error(`El backend no tiene la ejecución ${runId}`)
+  const wanted = index.filter((f) => /\.(jsonl|json)$/.test(f.path))
+  const files = await Promise.all(wanted.map(async (f) => ({ path: f.path, file: await (await fetch(`${base}/files/${encodePath(f.path)}`)).blob() })))
+  if (!wanted.some((f) => f.path === 'manifest.json')) {
+    const report = await data<unknown>(base)
+    if (report) files.push({ path: 'manifest.json', file: new Blob([JSON.stringify(report)], { type: 'application/json' }) })
+  }
   return files
 }
 
@@ -46,40 +61,66 @@ export const apiProvider: RemoteProvider = {
   enabled: () => apiUrl() !== null,
 
   async listDatasets() {
-    const list = await fetchJsonOrNull<{ dataset_id: string; name?: string }[]>(`${requireApi()}/api/datasets`)
-    return (list ?? []).map((d) => ({ id: d.dataset_id, name: d.name ?? d.dataset_id }))
+    const phases = await data<{ phase: string; month: string }[]>(`${v1()}/phases`)
+    return (phases ?? []).map((p) => ({ id: p.phase, name: `${p.phase} · ${p.month}` }))
   },
 
   openDataset: (id, name, onProgress) =>
-    openDataset({ kind: 'http', baseUrl: `${requireApi()}/api/datasets/${encodeURIComponent(id)}/files`, name }, { remoteId: id }, onProgress),
+    openDataset({ kind: 'http', baseUrl: `${v1()}/phases/${encodeURIComponent(id)}/files`, name }, { remoteId: id }, onProgress),
 
   async listRuns(dataset) {
-    const list = await fetchJsonOrNull<RunManifest[]>(`${requireApi()}/api/runs?dataset_id=${encodeURIComponent(remoteId(dataset))}`)
-    return (list ?? []).map((m) => ({ id: m.run_id, label: m.finished_at ? `${m.run_id} · ${m.finished_at.slice(0, 16).replace('T', ' ')}` : m.run_id }))
+    const page = await data<{ items: RunRow[] }>(`${v1()}/runs?limit=1000`)
+    return (page?.items ?? [])
+      .filter((r) => r.has_files && (!r.month || r.month === dataset.month))
+      .map((r) => {
+        const when = r.started_at ? ` · ${r.started_at.slice(0, 16).replace('T', ' ')}` : ''
+        return { id: r.run_id, label: `${r.run_id.slice(0, 8)}${when}${STATUS_LABEL[r.status ?? ''] ?? ''}` }
+      })
   },
 
-  loadRun: async (runId, dataset) => bundleFromFiles(await runFiles(requireApi(), runId), { datasetId: dataset.id, source: 'api', key: runId, name: runId }),
+  loadRun: async (runId, dataset: DatasetMeta) => bundleFromFiles(await runFiles(runId), { datasetId: dataset.id, source: 'api', key: runId, name: runId }),
 
   async startRun(dataset) {
-    const res = await fetch(`${requireApi()}/api/runs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dataset_id: remoteId(dataset), options: {} }),
-    })
-    if (!res.ok) throw new Error(`El backend respondió ${res.status} al lanzar el cierre`)
-    return ((await res.json()) as { run_id: string }).run_id
+    const res = await fetch(`${v1()}/phases/${encodeURIComponent(dataset.remoteId ?? dataset.id)}/runs`, { method: 'POST' })
+    if (!res.ok) throw await failure(res, 'No se pudo lanzar el cierre')
+    return ((await res.json()) as { data: { run_id: string } }).data.run_id
   },
 
+  /** Polls the run until it ends; emits `done`, or `error` with the reason. */
   subscribeRun(runId, onEvent) {
-    const es = new EventSource(`${requireApi()}/api/runs/${encodeURIComponent(runId)}/events`)
-    es.onmessage = onEvent
-    es.addEventListener('done', (e) => {
-      onEvent(e as MessageEvent)
-      es.close()
-    })
-    es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) onEvent(new MessageEvent('error', { data: 'Se ha cerrado la conexión con el backend' }))
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poll = async () => {
+      const run = await data<{ status?: string; exit_code?: number }>(`${v1()}/runs/${encodeURIComponent(runId)}`).catch(() => null)
+      if (stopped) return
+      if (run?.status === 'completed') return onEvent(new MessageEvent('done', { data: '' }))
+      if (run?.status === 'failed')
+        return onEvent(new MessageEvent('error', { data: `El cierre ha fallado (código ${run.exit_code ?? '?'}); detalle en run.log de la ejecución` }))
+      timer = setTimeout(() => void poll(), POLL_MS)
     }
-    return () => es.close()
+    void poll()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  },
+
+  /** Uploads the organizers' ZIP (root `participant/`) and waits until its phases are loaded. */
+  async uploadDataset(file) {
+    const form = new FormData()
+    form.append('archive', file)
+    const res = await fetch(`${v1()}/packages`, { method: 'POST', body: form })
+    if (!res.ok) throw await failure(res, 'El backend rechazó el zip')
+    const upload = ((await res.json()) as { data: { package_id: string; job_id: string | null; already_registered?: boolean } }).data
+    if (upload.already_registered || !upload.job_id) {
+      const phases = await data<{ phase: string; package_id: string }[]>(`${v1()}/phases`)
+      return (phases ?? []).filter((p) => p.package_id === upload.package_id).map((p) => p.phase)
+    }
+    for (;;) {
+      const job = await data<{ status: string; phases?: { phase: string }[]; error?: { detail?: string } }>(`${v1()}/jobs/${encodeURIComponent(upload.job_id)}`)
+      if (!job || job.status === 'failed') throw new Error(`El backend no pudo cargar el zip${job?.error?.detail ? `: ${job.error.detail}` : ''}`)
+      if (job.status === 'loaded') return (job.phases ?? []).map((p) => p.phase)
+      await new Promise((r) => setTimeout(r, POLL_MS / 2))
+    }
   },
 }
