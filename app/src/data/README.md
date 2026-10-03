@@ -19,7 +19,7 @@ Nada fuera de `src/data/` importa de `sources/`, `parsers/`, `worker/`, `bundles
 | --- | --- | --- |
 | `local` | Carpeta o `.zip` elegidos por el usuario | Parsea los ficheros en un Web Worker e importa paquetes de ejecución desde ficheros |
 | `dev` | Middleware de Vite: `/__data/<id>`, `/__runs/<id>` (`dev/kalmoraData.ts`) | Igual que `local`, pero leyendo los ficheros por HTTP |
-| `api` | Backend (`CONTRACT.md` §2), activo si existe `VITE_API_URL` | Lista datasets y ejecuciones, lanza el cierre y sigue los eventos por SSE |
+| `api` | Backend `/v1` (`CONTRACT.md` §2), activo si existe `VITE_API_URL` | Lista y abre las fases cargadas y lista y carga las ejecuciones con paquete |
 
 Abrir un dataset devuelve un `DatasetApi`: el `core` ya cargado y métodos asíncronos para lo pesado (diario, entradas de mercancía, detalle bruto del banco, ficheros). Los métodos `rawBankDetails`, `recordedTrialBalance` y el opcional `einvoice` son **evidencia derivada**. Un proveedor puede devolverla ya calculada por el backend en lugar de parsearla en el navegador.
 

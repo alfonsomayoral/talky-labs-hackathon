@@ -36,7 +36,7 @@ Después, en el mismo Nuevo cierre, se eligen los resultados:
 | --- | --- |
 | Referencia | «Abrir referencia» lee `golden/` (solo julio). Su nota es 100 |
 | Importados | Las 6 JSONL sueltas, la carpeta de un paquete o su `.zip` |
-| Backend | «Cerrar el mes», con `VITE_API_URL` definida. La app sigue el progreso por SSE |
+| Backend | Con `VITE_API_URL` apuntando a `kalmora serve`: abre sus fases y carga sus ejecuciones desde «Ejecuciones» |
 
 El **Asistente** (`/asistente` o `⌘J`) responde con el motor local. En desarrollo, si `.env.local` define `OPENAI_API_KEY`, el modo Profundo hace que un modelo de OpenAI (`OPENAI_MODEL`, por defecto `gpt-6-luna`) redacte el texto sobre las mismas cifras. La clave se queda en el servidor de Vite.
 
