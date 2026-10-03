@@ -39,8 +39,8 @@ close therefore sees July receipts up to month end.
 | Golden HOLD, same reason | 16 / 19 |
 | Golden HOLD, missed | 3 |
 | Golden POST, predicted HOLD (false hold) | 1 |
-| Golden POST, CLEAR | 120 |
-| Golden POST, UNKNOWN (insufficient evidence) | 94 |
+| Golden POST, CLEAR | 122 |
+| Golden POST, UNKNOWN (insufficient evidence) | 92 |
 | Golden POST, no INVOICE facts (extraction error/classification) | 27 |
 
 By reason: VENDOR_NOT_IN_MASTER 2/2, BANK_DETAILS_CHANGED 1/2, QTY_NOT_RECEIVED 8/9,
