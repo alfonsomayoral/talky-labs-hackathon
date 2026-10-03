@@ -1,25 +1,29 @@
 """Lazy, read-only solver data access. Golden data is never a solver table."""
 import json
+from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
+from typing import Any, cast
+
+from .model import BankLine, Company, JournalEntry, Month
 
 
-def _reject_constant(value):
+def _reject_constant(value: str) -> Any:
     raise ValueError(f'Invalid JSON constant: {value}')
 
 
-def _decode(text):
+def _decode(text: str) -> Any:
     return json.loads(text, parse_float=Decimal, parse_constant=_reject_constant)
 
 
-def _input_path(path):
+def _input_path(path: str | Path) -> Path:
     path = Path(path)
     if 'golden' in path.parts or 'golden' in path.resolve().parts:
         raise ValueError('Golden data is not available to solvers')
     return path
 
 
-def load_json(path: Path):
+def load_json(path: Path) -> Any:
     """Read UTF-8 JSON; malformed input raises ValueError with its path."""
     path = _input_path(path)
     try:
@@ -28,7 +32,7 @@ def load_json(path: Path):
         raise ValueError(f'{path}: invalid JSON: {exc}') from exc
 
 
-def read_jsonl(path: Path):
+def read_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     """Yield object rows without loading the complete journal into memory."""
     path = _input_path(path)
     with path.open(encoding='utf-8') as handle:
@@ -58,13 +62,13 @@ class PhaseData:
     Composite identities can be queried with find; ambiguous get raises ValueError.
     iter_journal streams entries; table('journal_entries') caches on demand.
     """
-    def __init__(self, phase_dir: Path):
-        self.phase_dir = _input_path(phase_dir).resolve()
-        self._cache = {}
-        self._indexes = {}
-        self.month = self.table('tasks/close')['month']
+    def __init__(self, phase_dir: Path) -> None:
+        self.phase_dir: Path = _input_path(phase_dir).resolve()
+        self._cache: dict[Any, Any] = {}
+        self._indexes: dict[Any, dict[Any, list[dict[str, Any]]]] = {}
+        self.month: Month = self.table('tasks/close')['month']
 
-    def _path(self, name):
+    def _path(self, name: str) -> Path:
         relative = PurePosixPath(name)
         if relative.is_absolute() or '..' in relative.parts or '\\' in name or 'golden' in relative.parts:
             raise ValueError(f'Unsafe table name: {name}')
@@ -82,7 +86,7 @@ class PhaseData:
                 return candidate
         raise KeyError(name)
 
-    def table(self, name):
+    def table(self, name: str) -> Any:
         if name in {'document_messages', 'bank_lines'}:
             if name not in self._cache:
                 if name == 'document_messages':
@@ -98,15 +102,15 @@ class PhaseData:
         return self._cache[path]
 
     @property
-    def companies(self):
-        return self.table('companies')
+    def companies(self) -> list[Company]:
+        return cast(list[Company], self.table('companies'))
 
     @property
-    def tasks(self):
+    def tasks(self) -> dict[str, Any]:
         return {path.stem: self.table('tasks/' + path.stem)
                 for path in sorted((self.phase_dir / 'tasks').glob('*.json'))}
 
-    def _rows(self, table):
+    def _rows(self, table: str) -> list[dict[str, Any]]:
         value = self.table(table)
         if isinstance(value, dict):
             if table.rsplit('/', 1)[-1].removesuffix('.json') == 'tax_codes':
@@ -115,16 +119,16 @@ class PhaseData:
                     for key, row in value.items()]
         return [row if isinstance(row, dict) else {'id': row} for row in value]
 
-    def find(self, table, **criteria):
+    def find(self, table: str, **criteria: Any) -> list[dict[str, Any]]:
         """Return every row matching all exact field values."""
         return [row for row in self._rows(table)
                 if all(row.get(key) == value for key, value in criteria.items())]
 
-    def get(self, table, id):
+    def get(self, table: str, id: Any) -> dict[str, Any]:
         """Return a row by its identity; missing IDs raise KeyError."""
         path = table if table in {'document_messages', 'bank_lines'} else self._path(table)
         if path not in self._indexes:
-            index = {}
+            index: dict[Any, list[dict[str, Any]]] = {}
             for row in self._rows(table):
                 stem = table.rsplit('/', 1)[-1].split('.')[0]
                 composite = {'open_items': ('company', 'account', 'partner', 'assignment'),
@@ -133,7 +137,7 @@ class PhaseData:
                              'factoring_assignments': ('invoice', 'remittance'),
                              'penalty_notices': ('invoice', 'notified_on')}
                 if stem in composite:
-                    identity = tuple(row.get(key) for key in composite[stem])
+                    identity: Any = tuple(row.get(key) for key in composite[stem])
                 else:
                     identity = next((row[key] for key in ('id', 'doc_id', 'code', 'account', 'bank_line', 'number', 'reference', 'invoice', 'vendor') if key in row), None)
                 if identity is not None:
@@ -146,7 +150,7 @@ class PhaseData:
             raise ValueError(f'Ambiguous identity {id!r} in {table}; use find')
         return matches[0]
 
-    def bank_lines(self, account, month=None):
+    def bank_lines(self, account: str, month: Month | None = None) -> Iterator[BankLine]:
         """Iterate parsed statement lines for a bank account and optional month."""
         if '/' in account or '\\' in account or account in {'.', '..'}:
             raise ValueError('Invalid bank account')
@@ -155,8 +159,8 @@ class PhaseData:
         for path in sorted((self.phase_dir / 'bank' / account).glob('*.lines.jsonl')):
             if month is None or path.name == f'{month}.lines.jsonl':
                 safe = self._path(path.relative_to(self.phase_dir).as_posix())
-                yield from read_jsonl(safe)
+                yield from cast(Iterator[BankLine], read_jsonl(safe))
 
-    def iter_journal(self):
+    def iter_journal(self) -> Iterator[JournalEntry]:
         """Stream all journal entry objects, preserving their original lines."""
-        yield from read_jsonl(self._path('journal_entries'))
+        yield from cast(Iterator[JournalEntry], read_jsonl(self._path('journal_entries')))
