@@ -129,7 +129,7 @@ quality on this package has not yet been established. A capability/schema match
 does not close the quality issue.
 
 Initial configuration: timeout 60 seconds, two attempts, concurrency two,
-maximum 200,000 conservatively estimated input tokens, maximum 8,192 output tokens, run budget
+maximum 200,000 conservatively estimated input tokens, no application output-token limit (per subsequent user instruction), run budget
 USD 1. Reserve an upper estimate before each real request; unknown usage retains
 the conservative reservation. Auth/quota/refusal/schema/incomplete/network and
 timeout failures remain distinct. SDK/agent automatic retries are disabled.

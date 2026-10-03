@@ -626,7 +626,8 @@
       "smoke_plus_sample_spend_cap_usd": "1.00",
       "max_attempts_per_document": 2,
       "max_concurrency": 2,
-      "output_token_limit": 8192,
+      "output_token_limit": null,
+      "output_limit_policy": "No application output-token limit, per user instruction; monetary reservations use verified model capacity without constraining the response",
       "request_timeout_seconds": 60,
       "holdout_attempts_policy": "One frozen candidate/prompt/config pass; timeout retries only within predeclared attempt cap, no retuning or answer selection"
     },
