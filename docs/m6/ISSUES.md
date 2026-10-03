@@ -18,7 +18,7 @@ current score evidence is in `SCORE_INVESTIGATION.md`.
 | #101 M6-07 | After-cash ageing and required-minus-existing 490; threshold, insolvency, guarantees, exclusions and reversal tests; exact July amount | Real M3/M4 applications and ageing completeness; external review |
 | #102 M6-08 | Minimal shared CloseType extension; invoice-by-invoice 430-to-436 in declaration month only; multiple invoices/rerun/prior-month tests | July has no such event; real-flow variation evidence and review |
 | #103 M6-09 | Month-end-only entry validation; historical reversals read; no new day-one reversals; ERP immutability and idempotence tests | Real pipeline rerun/event-stage ownership evidence |
-| #104 M6-10 | Frozen-output evaluator, original/pre/final books, strict and aggregate differences, per-account impact, replay and real CI logs | Overall scorer 78.507%, not full accounting acceptance; review and real integration |
+| #104 M6-10 | Frozen-output evaluator, original/pre/final books, strict and aggregate differences, per-account impact, replay and real CI logs | Original close component 78.507%, not full accounting acceptance; review and real integration |
 | #171 M6-11 | Explicit real-compatible contract and mock/real substitution tests | Actual M1–M5-to-M6 execution with no golden_fixture dependencies, producer versions, positive coverage and reviewed output: NOT RUN |
 
 Epics #20 (accruals), #21 (prepaids/WIP), #22 (FX/customers), #23 (export/validation)

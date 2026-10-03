@@ -19,7 +19,7 @@ Source CI passes in both repositories: 66 M6 passes and 839 backend passes /
 
 Use Python >=3.12 and an unmodified participant directory containing `phase_dev`
 and `score.py`. Outputs must be outside the phase. The July participant ZIP has
-no `phase_test`. September originals are available under
+no `phase_test`. September originals are available in the primary checkout under
 `data/septiembre/participant/phase_test`; no blind-phase result is claimed.
 
 ```bash
