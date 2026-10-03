@@ -36,6 +36,12 @@ def main(argv: list[str] | None = None) -> int:
     ap_prepare.add_argument("--config", type=Path, help="LLM settings for record; saved RecordingConfig for replay/fixture")
     ap_prepare.add_argument("--budget-usd", help="Explicit positive provider budget; required for record")
     ap_prepare.add_argument("--pdf-vision", action="store_true", help="Preserve native page renders and unverified OCR aids")
+    ap_plan = commands.add_parser("plan-ap", help="Audit prepared AP sources and ERP context; does not post or export AP decisions")
+    ap_plan.add_argument("phase", type=Path)
+    ap_plan.add_argument("--sources", type=Path, required=True, help="Verified phase-sources.json manifest")
+    ap_plan.add_argument("--output", type=Path, required=True, help="Audit JSON outside original and prepared sources")
+    ap_plan.add_argument("--receipt-cutoff-fact", type=Path,
+                         help="Optional JSON {value: YYYY-MM-DD, evidence: {...}} with an observed receipt cutoff")
     ar_cash.add_argument("--use-preparsed", action="store_true",
                          help="Development shortcut: load remittance source snapshots instead of parsing originals")
     ar_cash.add_argument("--normalized-dir", type=Path,
@@ -50,10 +56,13 @@ def main(argv: list[str] | None = None) -> int:
     solve_billing = commands.add_parser("solve-ar-billing", help="Invoice every AR billing item from its documents (v0 rules)")
     solve_billing.add_argument("phase", type=Path)
     solve_billing.add_argument("--output", type=Path, required=True, help="Destination ar_billing.jsonl")
-    run_all = commands.add_parser("run", help="Run every task in dependency order into <out>/deliverables")
-    run_all.add_argument("phase", type=Path)
-    run_all.add_argument("--out", type=Path, required=True, help="Run folder (deliverables/, manifest.json, work/)")
-    run_all.add_argument("--backend-commit", default="unknown", help="Code version recorded in the manifest")
+    close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
+    close.add_argument("phase", type=Path)
+    close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
+    close.add_argument("--module", action="append", choices=("ap", "ar_billing", "ar_cash", "bank_rec", "ic", "close"),
+                       help="Only these modules (default: all)")
+    close.add_argument("--from-submissions", type=Path,
+                       help="Folder with <module>.jsonl for modules that have no engine here (e.g. AP)")
     evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
     evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
     evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
@@ -78,11 +87,17 @@ def main(argv: list[str] | None = None) -> int:
                        help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
-    if args.command == "prepare-ap":
-        run_dir = args.run_dir.resolve()
-        if run_dir.is_relative_to(args.phase.resolve()) or "golden" in run_dir.parts or "golden" in args.run_dir.parts:
-            print(json.dumps({"error": "AP run reports must be outside the original phase and Golden"}), file=sys.stderr)
-            return 1
+    if args.command in {"prepare-ap", "plan-ap"}:
+        destinations = [args.run_dir] + ([args.output] if args.command == "plan-ap" else [])
+        protected = [args.phase.resolve()]
+        if args.command == "plan-ap":
+            protected.append(args.sources.resolve().parent)
+        for destination in destinations:
+            resolved = destination.resolve()
+            if (any(resolved.is_relative_to(source) for source in protected)
+                    or any(part.lower() == "golden" for part in (*resolved.parts, *destination.parts))):
+                print(json.dumps({"error": "AP outputs and run reports must be outside original sources, prepared source state and Golden"}), file=sys.stderr)
+                return 1
     from .runlog import RunRecorder
     metadata: dict[str, object] = {"package_version": __version__}
     for name in ("phase", "archive", "destination", "submission", "evaluator", "output"):
@@ -95,6 +110,30 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _execute(args: argparse.Namespace, recorder=None) -> int:
+    if args.command == "plan-ap":
+        import asyncio
+        from .ap_source_plan import plan_ap_sources
+        from .data import load_json
+        from .facts import Evidence, Fact, atomic_json
+        try:
+            cutoff = None
+            if args.receipt_cutoff_fact is not None:
+                source = args.receipt_cutoff_fact.resolve()
+                if any(part.lower() == "golden" for part in (*source.parts, *args.receipt_cutoff_fact.parts)):
+                    raise ValueError("AP cutoff evidence cannot be loaded from Golden")
+                raw = load_json(source)
+                if not isinstance(raw, dict) or set(raw) != {"value", "evidence"}:
+                    raise ValueError("receipt cutoff requires a value and structured evidence")
+                cutoff = Fact(raw["value"], Evidence(**raw["evidence"]))
+            plan = asyncio.run(plan_ap_sources(args.phase, args.sources, receipt_as_of=cutoff))
+            atomic_json(args.output, plan)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"output": str(args.output.resolve()), "accounting_run": False,
+                          "stable_plan_sha256": plan["stable_plan_sha256"], **plan["summary"]}))
+        statuses = plan["summary"]["statuses"]
+        return 0 if not (statuses["UNKNOWN"] or statuses["UNSUPPORTED"]) else 1
     if args.command == "prepare-ap":
         import asyncio
         from decimal import Decimal, InvalidOperation
@@ -117,7 +156,7 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                     budget = Decimal(args.budget_usd)
                     if not budget.is_finite() or budget <= 0:
                         raise ValueError("record mode requires a positive finite provider budget")
-                    from .llm.client import LLMClient, LLMConfig
+                    from .llm.client import AsyncLLMClient, LLMConfig
                     from .documents.extractor import LLMDocumentExtractor
                     settings = dict(raw_config)
                     include_aids = settings.pop("include_processing_aids", True)
@@ -125,7 +164,7 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                         if isinstance(settings[name], bool):
                             raise ValueError("model pricing must use exact numeric rates")
                         settings[name] = Decimal(settings[name])
-                    client = LLMClient(LLMConfig(budget_usd=budget, **settings), recorder)
+                    client = AsyncLLMClient(LLMConfig(budget_usd=budget, **settings), recorder)
                     adapter = LLMDocumentExtractor(client, include_processing_aids=include_aids)
                     config = RecordingConfig.from_adapter(adapter)
                     extractor = RecordedExtractor(RecordingStore(args.captures), config, mode="record",
@@ -236,12 +275,6 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
         write_jsonl(output.with_name("pending_wip.jsonl"), pending)
         print(json.dumps({"output": str(output), "rows": len(rows), "pending_wip": len(pending)}))
         return 0
-    if args.command == "run":
-        from .v0.chain import run_chain
-        manifest = run_chain(args.phase, args.out, backend_commit=args.backend_commit)
-        failed = {name: task["error"] for name, task in manifest["tasks"].items() if "error" in task}
-        print(json.dumps({"out": str(args.out), "runtime_s": manifest["runtime_s"], "failed": failed}))
-        return 1 if failed else 0
     if args.command == "solve-bank-rec":
         from .bankrec import build_bank_rec
         from .bankrec.io import write_bank_rec
@@ -274,6 +307,16 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "adjustments": sum(len(result.adjustments) for result in run.results),
                           "diagnostics": sum(len(result.diagnostics) for result in run.results)}))
         return 0
+    if args.command == "close":
+        from .closing import run_close
+        try:
+            result = run_close(args.phase, args.out, args.module, args.from_submissions)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"out": str(args.out.resolve()), "ok": result["ok"],
+                          "tasks": {m: t.get("state") for m, t in result["tasks"].items()}}))
+        return 0 if result["ok"] else 1
     if args.command == "serve":
         try:
             import uvicorn

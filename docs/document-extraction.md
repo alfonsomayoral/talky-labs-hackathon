@@ -125,7 +125,8 @@ model/settings/request hashes and per-call metadata. Resolution additionally
 preserves the full request fingerprint, including candidate attributes/context,
 and selection/candidate limits. Change prompt/schema versions when their
 interpretation contract changes; the stage recorder includes these identities
-in its compatibility key. The adapters add no independent cache or retry loop.
+in its compatibility key. The adapters add no independent cache. Optional
+source-bound validation repairs are described below and remain fully audited.
 
 Original text, XML, email and candidate context are explicitly untrusted data
 in JSON payloads. Fixed instructions prohibit following embedded commands,
@@ -155,3 +156,56 @@ metadata identifies the actual document-specific prompt; the identity's
 instructions. Schema identity uses the contracts fingerprint; provider output
 schema hashes remain separate transport metadata. Injected transports receive
 an explicit `injected:<module>.<class>` identity rather than claiming OpenAI.
+
+## Coverage and validation repairs (#222)
+
+Optional `require_page_coverage`, `require_line_descriptions` and
+`require_native_row_coverage` reject silent omissions. Native coverage recognizes
+a narrow printed quantity/unit/price/amount table and compares its physical row
+count with invoice row IDs, including counts and unique evidence pages per page.
+Duplicated first-page rows cannot cover an omitted continuation. Supplemental-detail IDs cannot satisfy invoice
+coverage. Unrecognized tables remain explicitly `not_applicable`; counts cannot
+prove semantic correctness or literal image fidelity.
+
+`max_validation_attempts=2` permits one source-bound repair for schema or evidence
+validation errors. Every rejected original response, diagnostic, actual prompt
+hash and incurred/unknown cost is retained. The second prompt includes rejected
+output as untrusted data and the same original document. Replay reconstructs
+the entire hash chain; a changed diagnostic cannot reuse a compatible capture.
+Defaults still allow one validation attempt. Provider transport retries remain
+separately bounded and accounted. There is no provider deadline or output cap.
+
+`extraction_scope='header_footer_only'` has a distinct recording identity. It
+restricts model output to headers/footers for composition with a deterministic
+native-table parser; the model still receives the unchanged original source.
+Table composition must preserve a separate parser version and provenance rather
+than presenting deterministic rows as the raw LLM response. Complete extraction
+uses the default scope. A flagged PDF page without a retained full-page image
+fails before any provider call.
+
+`HybridDocumentExtractor(native, vision, xml=None)` dispatches an already prepared
+document unchanged. XML defaults to the deterministic extractor with no provider
+call. Image-bearing/vision-required PDFs use the injected vision extractor, and
+native sources use the injected native extractor. Preparation precedes recording
+key computation; the hybrid adapter does not render, cache or rewrite results.
+
+`extract_native_table(document)` handles ordered Spanish/English/Portuguese
+description, quantity, unit, price and amount columns. It copies complete
+physical rows, including duplicates and literal AL/GR references. Explicit,
+clearly separated code columns yield material codes. Joined code/description
+text stays intact. Wrapped descriptions, unsupported units/columns and unknown
+continuations abstain instead of truncating the table. Recognizable totals and
+page/legal footers are excluded from invoice rows and remain in the source.
+
+`extract_native_timesheet(document)` separately reads explicitly titled and
+delimited dated-hour tables. Supplemental rows retain their original dates,
+operators, descriptions and quantities; `Horas` is quoted from the actual
+column label. It never calculates or reconciles billed and worked hours.
+
+`compose_native_invoice(document, recorded_facts)` records a new mixed-extractor
+identity, source/transformation fingerprints, native table/field provenance and
+derived counts. It preserves non-invoice facts and independent statements.
+Complete native timesheets can replace model interpretations of the same detail
+pages. `project_recorded_rows=True` explicitly migrates an archived full capture;
+superseded model fields remain listed and the entire old capture stays archived.
+Raw model responses are never rewritten to pretend they produced native rows.

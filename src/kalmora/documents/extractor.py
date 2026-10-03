@@ -12,7 +12,7 @@ from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.llm.client import ImageInput, LLMError, sanitize
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint
 from .prompts import (EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION,
-                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION, prompt_text)
+                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION, prompt_text, repair_prompt)
 
 HEADER_FIELDS = frozenset("""supplier_tax_id recipient_tax_id customer_tax_id supplier_name
 recipient_name customer_name document_number invoice_number document_date invoice_date
@@ -244,6 +244,8 @@ def _ground(document: ParsedDocument, value: Any, observation: Any, *, explicit_
         locator = "image:" + image.sha256
         review = {"block_id": block.id, "page": image.page, "image_sha256": image.sha256,
                   "quote": observation.quote}
+        if image.region is not None:
+            review["region"] = image.region.to_dict()
     else:
         empty_xml = (explicit_absence and document.media_type == "application/xml"
                      and block.source_field is not None and block.text == "" and observation.quote == "")
@@ -329,11 +331,32 @@ def _provider_name(client: Any) -> str:
 
 
 class LLMDocumentExtractor:
-    def __init__(self, client: Any, *, include_processing_aids: bool = True) -> None:
+    def __init__(self, client: Any, *, include_processing_aids: bool = True,
+                 max_validation_attempts: int = 1, require_page_coverage: bool = False,
+                 require_line_descriptions: bool = False,
+                 require_native_row_coverage: bool = False,
+                 extraction_scope: str = 'complete') -> None:
         if type(include_processing_aids) is not bool:
             raise ValueError('include_processing_aids must be a boolean')
         self.client = client
         self.include_processing_aids = include_processing_aids
+        if type(max_validation_attempts) is not int or not 1 <= max_validation_attempts <= 3:
+            raise ValueError('validation attempts must be between one and three')
+        self.max_validation_attempts = max_validation_attempts
+        if type(require_page_coverage) is not bool:
+            raise ValueError('page coverage switch must be boolean')
+        self.require_page_coverage = require_page_coverage
+        if type(require_line_descriptions) is not bool:
+            raise ValueError('line description switch must be boolean')
+        self.require_line_descriptions = require_line_descriptions
+        if type(require_native_row_coverage) is not bool:
+            raise ValueError('native row coverage switch must be boolean')
+        if extraction_scope not in {'complete', 'header_footer_only', 'outside_native_invoice_table'}:
+            raise ValueError('unsupported extraction scope')
+        if extraction_scope != 'complete' and require_native_row_coverage:
+            raise ValueError('native rows must be checked after header/table composition')
+        self.require_native_row_coverage = require_native_row_coverage
+        self.extraction_scope = extraction_scope
 
     def _prompt_extras(self) -> dict[str, Any]:
         extras = {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
@@ -342,12 +365,23 @@ class LLMDocumentExtractor:
                   "image_locator_version": 1}
         if not self.include_processing_aids:
             extras['include_processing_aids'] = False
+        if self.extraction_scope != 'complete':
+            extras['extraction_scope'] = self.extraction_scope
         return extras
 
     def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
         schema, _ = output_models()
+        parameters = {"prompt_extras": self._prompt_extras()}
+        if self.max_validation_attempts != 1:
+            parameters['max_validation_attempts'] = self.max_validation_attempts
+        if self.require_page_coverage:
+            parameters['require_page_coverage'] = True
+        if self.require_line_descriptions:
+            parameters['require_line_descriptions'] = True
+        if self.require_native_row_coverage:
+            parameters['require_native_row_coverage'] = True
         return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
-                                   EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": self._prompt_extras()},
+                                   EXTRACTION_PROMPT_VERSION, schema, parameters,
                                    provider or _provider_name(self.client))
 
     @property
@@ -359,13 +393,71 @@ class LLMDocumentExtractor:
         return (await self.extract_with_response(document)).facts
 
     async def extract_with_response(self, document: ParsedDocument) -> ExtractionArtifact:
+        required_images = {int(match.group(1)) for warning in document.warnings
+                           if (match := re.fullmatch(r'page\.(\d+):vision_required', warning))}
+        if required_images - {image.page for image in document.images if image.region is None}:
+            raise DocumentInterpretationError('vision_image_missing', document,
+                                              'render every flagged original page before extraction')
+        history = []
+        metrics = []
+        for attempt in range(1, self.max_validation_attempts + 1):
+            try:
+                artifact = await self._extract_once(document, history)
+                metrics.extend(artifact.request_metadata.get('attempt_metrics', []))
+                metadata = dict(artifact.request_metadata)
+                if history:
+                    metadata['validation_history'] = history
+                    metadata['attempt_metrics'] = metrics
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    metadata['capture_cost_usd'] = str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None
+                    return ExtractionArtifact(artifact.facts, artifact.raw_response, metadata,
+                                              artifact.unknowns, artifact.provenance)
+                return artifact
+            except DocumentInterpretationError as error:
+                metrics.extend(error.request_metadata.get('attempt_metrics', []))
+                if attempt == self.max_validation_attempts:
+                    error.request_metadata['validation_history'] = history
+                    error.request_metadata['attempt_metrics'] = metrics
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    error.request_metadata['capture_cost_usd'] = str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None
+                    raise
+                history.append({'category': error.category, 'detail': str(error),
+                                'raw_response': error.raw_response,
+                                'prompt_sha256': error.request_metadata['prompt_sha256']})
+            except LLMError as error:
+                metrics.extend(getattr(error, 'request_metadata', {}).get('attempt_metrics', []))
+                if error.category == 'schema' and attempt < self.max_validation_attempts:
+                    detail = 'Previous response does not conform to the required typed schema; return the original document using exactly the schema.'
+                    try:
+                        text = ''.join(content['text'] for item in error.raw.get('output', [])
+                                       for content in item.get('content', []) if content.get('type') == 'output_text')
+                        output_models()[0].model_validate_json(text)
+                    except Exception as validation:
+                        if callable(getattr(validation, 'errors', None)):
+                            detail += ' Validation errors: ' + str([
+                                {'location': list(item['loc']), 'type': item['type'], 'message': item['msg']}
+                                for item in validation.errors(include_input=False, include_url=False)][:20])
+                    history.append({'category': error.category, 'detail': detail,
+                                    'raw_response': error.raw,
+                                    'prompt_sha256': error.request_metadata['prompt_sha256']})
+                    continue
+                if history:
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    error.request_metadata = {**getattr(error, 'request_metadata', {}),
+                                              'validation_history': history,
+                                              'attempt_metrics': metrics,
+                                              'capture_cost_usd': str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None}
+                raise
+        raise AssertionError('validation attempts exhausted')
+
+    async def _extract_once(self, document: ParsedDocument, history) -> ExtractionArtifact:
         schema, _ = output_models()
         identity = self.recording_identity()
         provenance = _provenance(document, EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION, schema)
         provenance.update(provider=identity["provider"], model=identity["model"],
                           extractor_version=identity["extractor_version"])
         completion = await _complete(self.client, schema, EXTRACTION_INSTRUCTIONS,
-                                               _prompt(document, self._prompt_extras()),
+                                               repair_prompt(_prompt(document, self._prompt_extras()), history),
                                      document, provenance)
         output = completion.output
         fields: dict[str, list[Fact]] = {}
@@ -382,12 +474,19 @@ class LLMDocumentExtractor:
             for observation in observations:
                 name = observation.field
                 if not _field_allowed(name) or name in DERIVED_COUNTS:
-                    raise DocumentInterpretationError("field", document, "unsupported or accounting-owned field")
+                    raise DocumentInterpretationError("field", document, f"unsupported or accounting-owned field: {name}")
+                if self.extraction_scope == 'header_footer_only' and name.startswith(('line.', 'detail_lines.', 'statement.')):
+                    raise DocumentInterpretationError('field', document, 'header-only scope cannot return table rows')
+                if self.extraction_scope == 'outside_native_invoice_table' and name.startswith('line.'):
+                    raise DocumentInterpretationError('field', document, 'native invoice rows belong to the deterministic parser')
                 leaf = name.rsplit(".", 1)[-1]
                 if observation.kind == "OBSERVED" and (leaf in RAW_STRING_FIELDS or leaf.endswith("_valid_until") or ".raw." in name or name.startswith("raw.")) and not isinstance(observation.value, str):
                     raise DocumentInterpretationError("field", document, "amount/quantity/date must preserve original text")
-                evidence, review = _ground(document, observation.value, observation,
-                                          explicit_absence=observation.kind == "EXPLICIT_ABSENCE")
+                try:
+                    evidence, review = _ground(document, observation.value, observation,
+                                              explicit_absence=observation.kind == "EXPLICIT_ABSENCE")
+                except DocumentInterpretationError as error:
+                    raise DocumentInterpretationError(error.category, document, f'{name}: {error}') from error
                 fields.setdefault(name, []).append(Fact(observation.value, evidence))
                 if review:
                     reviews.append({"field": name, **review})
@@ -396,11 +495,41 @@ class LLMDocumentExtractor:
                 if not unknown["reason"].strip():
                     raise DocumentInterpretationError("unknown", document, "unknown state requires a reason")
                 if not _field_allowed(unknown["field"]) or unknown["field"] in DERIVED_COUNTS:
-                    raise DocumentInterpretationError("field", document, "unsupported unknown field")
+                    raise DocumentInterpretationError("field", document, f"unsupported unknown field: {unknown['field']}")
+                if (self.extraction_scope == 'header_footer_only' and unknown['field'].startswith(('line.', 'detail_lines.', 'statement.'))
+                        or self.extraction_scope == 'outside_native_invoice_table' and unknown['field'].startswith('line.')):
+                    raise DocumentInterpretationError('field', document, 'excluded table row cannot be returned as unknown')
                 if unknown["status"] == "MISSING" and unknown["field"] in fields:
                     raise DocumentInterpretationError("unknown", document, "missing field has an observation")
                 if unknown["status"] == "CONTRADICTORY" and len({fingerprint(fact.value) for fact in fields.get(unknown["field"], [])}) < 2:
                     raise DocumentInterpretationError("unknown", document, "contradiction requires distinct observed values")
+            if self.require_page_coverage:
+                required = {block.page for block in document.blocks if block.page is not None
+                            and block.text.strip()} | {image.page for image in document.images}
+                cited = {fact.evidence.page for values in fields.values() for fact in values}
+                missing = sorted(required - cited)
+                if missing:
+                    raise DocumentInterpretationError('coverage', document, f'pages without observed facts: {missing}')
+                if not fields:
+                    raise DocumentInterpretationError('coverage', document, 'no observed document fields')
+            if self.extraction_scope != 'complete' and not fields:
+                raise DocumentInterpretationError('coverage', document, 'no observed facts outside the native invoice table')
+            if self.require_line_descriptions:
+                line_ids = {name.split('.')[1] for name in fields if name.startswith('line.')}
+                explicit_states = {unknown['field'] for unknown in unknowns}
+                missing = sorted(int(index) for index in line_ids
+                    if f'line.{index}.description' not in fields and f'line.{index}.material' not in fields
+                    and f'line.{index}.description' not in explicit_states)
+                if missing:
+                    raise DocumentInterpretationError('coverage', document, f'row descriptions silently omitted: {missing}')
+            if self.require_native_row_coverage:
+                from .coverage import native_row_coverage
+                coverage = native_row_coverage(document, fields)
+                provenance['native_row_coverage'] = coverage.to_dict()
+                if coverage.status == 'incomplete':
+                    raise DocumentInterpretationError('coverage', document,
+                        f'native table has {coverage.expected_count} printed rows, response has {coverage.observed_count}; '
+                        f'source rows by page: {dict(coverage.source_row_counts)}')
             for count_name, namespace in DERIVED_COUNTS.items():
                 prefix = namespace + '.'
                 line_ids = sorted({int(name.split('.')[1]) for name in fields if name.startswith(prefix)})

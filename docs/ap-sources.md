@@ -54,3 +54,17 @@ The command returns a nonzero status for uninterpreted sources or incomplete
 task inventories. Its manifest has `accounting_run=false`. It produces no AP
 decisions or journal entries and cannot by itself close M1, prove document quality,
 claim July accounting comparison or validate September.
+
+`load_prepared_ap_sources(phase_path, manifest_path)` reconnects saved packets to
+the source APIs without a provider or recording store. It verifies current parser,
+extractor, normalizer and classifier versions, original bytes, full message fields,
+all attachments/pages, canonical task inventory and phase clock. It recomputes the
+normalization/classification rather than trusting supplied derived conclusions.
+Changed inputs or configuration invalidate the prepared state.
+
+Source format `ap-source-runner-v2` binds residual `capture_origin` and
+`recording_key` into each artifact identity. A synthetic fixture cannot become a
+real record/replay by relabeling the manifest. Direct XML has no residual recording
+provenance. Runtime calls/costs stay separate from stable content identity.
+The loader retains failed/unknown attachments and empty packets for operational
+audit; loading them does not imply a completed accounting workflow.
