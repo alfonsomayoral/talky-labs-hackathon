@@ -1,5 +1,5 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v9"
+EXTRACTION_PROMPT_VERSION = "document-observations-v10"
 RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v3"
 SCHEMA_VERSION = "document-interpretation-v3"
 
@@ -122,7 +122,10 @@ def image_manifest(document):
 
 
 def prompt_text(document, extras):
-    payload = {"untrusted_document": document.to_dict(include_images=False), **extras}
+    source = document.to_dict(include_images=False)
+    if extras.get('include_processing_aids') is False:
+        source.pop('unverified_processing_aids', None)
+    payload = {"untrusted_document": source, **extras}
     # Versioned stage parameters preserve byte-for-byte legacy recording prompts.
     if extras.get("image_locator_version") == 1:
         payload["image_manifest"] = image_manifest(document)
