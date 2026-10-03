@@ -105,8 +105,7 @@ def validate_facts(document: ParsedDocument, facts: DocumentFacts, extractor_ver
                    provenance: dict[str, Any] | None = None) -> None:
     if facts.source_sha256 != document.source_sha256 or facts.extractor_version != extractor_version:
         raise ValueError('Accepted facts have a different source/extractor identity')
-    line_ids = sorted({int(match.group(1)) for name in facts.fields
-                       if (match := re.fullmatch(r'line\.([1-9]\d*)\.[a-z][a-z0-9_]*', name))})
+    derived_names = {'line_count': 'line', 'statement_row_count': 'statement', 'detail_line_count': 'detail_lines'}
     for name, values in facts.fields.items():
         for fact in values:
             evidence = fact.evidence
@@ -114,10 +113,14 @@ def validate_facts(document: ParsedDocument, facts: DocumentFacts, extractor_ver
                 raise ValueError('Evidence belongs to another source')
             blocks = [block for block in document.blocks
                       if evidence.field == (block.source_field or block.id) and evidence.page == block.page]
-            if name == 'line_count':
-                derived = (provenance or {}).get('derived_fields', {}).get('line_count', {})
+            if name in derived_names:
+                namespace = derived_names[name]
+                prefix = namespace + '.'
+                line_ids = sorted({int(match.group(1)) for key in facts.fields
+                                   if (match := re.fullmatch(re.escape(prefix) + r'([1-9]\d*)\..+', key))})
+                derived = (provenance or {}).get('derived_fields', {}).get(name, {})
                 fields = sorted({item.evidence.field for key, entries in facts.fields.items()
-                                 if key.startswith('line.') for item in entries})
+                                 if key.startswith(prefix) for item in entries})
                 if (type(fact.value) is not int or fact.value != len(line_ids)
                         or line_ids != list(range(1, len(line_ids)+1)) or not line_ids
                         or derived.get('method') != 'count_unique_contiguous_line_ids'
