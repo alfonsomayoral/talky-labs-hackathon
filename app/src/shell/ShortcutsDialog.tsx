@@ -8,6 +8,7 @@ type Shortcut = ShortcutHelp
 
 const GENERAL: Shortcut[] = [
   { label: 'Paleta de comandos', keys: [MOD_KEY, 'K'] },
+  { label: 'Asistente', keys: [MOD_KEY, 'J'] },
   { label: 'Atajos de teclado', keys: ['?'] },
   { label: 'Cerrar panel o diálogo', keys: ['Esc'] },
 ]

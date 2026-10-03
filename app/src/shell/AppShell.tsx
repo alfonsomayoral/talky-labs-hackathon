@@ -1,6 +1,6 @@
 // App frame: sidebar + topbar (breadcrumb, page actions slot) + routed content,
 // plus the global overlays (item peek, ⌘K palette, shortcuts help) and keyboard shortcuts.
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { NAV } from '@/app/nav'
 import { Breadcrumb } from '@/components'
@@ -14,6 +14,9 @@ import { Sidebar } from './Sidebar'
 import { useShellUi } from './uiStore'
 import { useEntitySearch } from './useEntitySearch'
 import styles from './AppShell.module.css'
+
+// Lazy: the assistant pulls in the item kit, kept out of the main bundle.
+const AssistantPanel = lazy(() => import('@/features/assistant/AssistantPanel').then((m) => ({ default: m.AssistantPanel })))
 
 const GO_TO: Record<string, string> = Object.fromEntries(
   NAV.flatMap((s) => s.entries)
@@ -55,6 +58,10 @@ export default function AppShell() {
           </main>
         </div>
       </div>
+      {/* Before PeekHost so an item opened from the chat sits on top of it. */}
+      <Suspense fallback={null}>
+        <AssistantPanel />
+      </Suspense>
       <PeekHost />
       <CommandPalette />
       <ShortcutsDialog />
