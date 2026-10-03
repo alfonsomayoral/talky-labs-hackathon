@@ -54,7 +54,7 @@ class ChronologySourcesTests(unittest.TestCase):
 
     def test_certificate_valid_or_expired_at_invoice_date_over_erp_history(self):
         notice = self.bind("C1", "2026-07-01T10:52:00", "CONTRACTOR_TAX_CERTIFICATE",
-                           certificate_tax_id="A11111111", certificate_valid_from="27/06/2026",
+                           sender="shared@other.example", certificate_tax_id="A11111111", certificate_valid_from="27/06/2026",
                            certificate_valid_until="27/06/2027")
         self.assertFalse(self.state(notice, "2026-06-25", "2026-07-02T09:00:00").certificate_valid)
         valid = self.state(notice, "2026-07-01", "2026-07-02T09:00:00")
@@ -69,12 +69,12 @@ class ChronologySourcesTests(unittest.TestCase):
         self.assertFalse(self.state(notice, "2026-07-01", "2026-07-10T08:00:00").embargo_active)
 
     def test_bank_change_received_in_month_supports_iban_before_effective_date(self):
-        letter = self.bind("B1", "2026-07-20T08:11:00", "BANK_DETAILS_CHANGE", old_iban="ESOLD",
+        letter = self.bind("B1", "2026-07-20T08:11:00", "BANK_DETAILS_CHANGE", sender="pagos@v1.example",
                            iban="ESNEW", bank_details_effective_date="15/08/2026")
         self.assertTrue(self.state(letter, "2026-07-22", "2026-07-25T09:00:00",
                                    bank_iban="ESNEW").bank_change_supported)
         other_sender = self.bind("B2", "2026-07-20T08:11:00", "BANK_DETAILS_CHANGE",
-                                 sender="admin@v1-example.es", old_iban="ESOLD", iban="ESNEW")
+                                 sender="admin@v1-example.es", supplier_tax_id="A11111111", iban="ESNEW")
         self.assertIsNone(other_sender[0].verified)
         self.assertIsNone(self.state(other_sender, "2026-07-22", "2026-07-25T09:00:00",
                                      bank_iban="ESNEW").bank_change_supported)

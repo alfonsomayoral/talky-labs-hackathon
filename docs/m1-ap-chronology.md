@@ -49,8 +49,9 @@ factor never authorizes an unrelated invoice bank account.
 
 `registered_events(PhaseData, scope)` reads vendor alternative payee and article
 43 certificates with source evidence. Customer `factoring_assignments` are AR
-data and cannot authorize an AP payee. Vendor garnishments provide `from_date`
-but not a documented receipt time in the supplied ERP: this remains unknown.
+data and cannot authorize an AP payee. A vendor garnishment registered in the
+master snapshot precedes every reception of the month, so it applies to invoices
+dated on or after its `from_date`; no receipt timestamp is invented.
 Bank-history `valid_to` alone cannot prove a signed, verified bank-change letter.
 
 Validation: `PYTHONPATH=src python3 -m unittest discover -s tests -p
