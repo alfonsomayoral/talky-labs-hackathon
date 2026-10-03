@@ -66,7 +66,9 @@ function Close({ data, core, run }: { data: DerivedRun; core: DatasetCore; run: 
   const items = useMemo(() => (nodeFilter ? all.filter((it) => nodeFilter.items.has(it.id)) : all), [all, nodeFilter])
   const steps = core.tasks.close.steps?.length ? core.tasks.close.steps : [...CLOSE_TYPES]
   const tabs = steps.map((t) => ({ id: t, label: typeLabel(t), count: items.filter((it) => it.outcome === t).length }))
-  const type = steps.find((t) => t === params.get('tipo')) ?? tabs.find((t) => t.count)?.id ?? steps[0]
+  const active = useActiveItemId()
+  const activeType = active?.startsWith('close:') ? active.slice('close:'.length).split('/')[0] : null
+  const type = steps.find((t) => t === params.get('tipo')) ?? steps.find((t) => t === activeType) ?? tabs.find((t) => t.count)?.id ?? steps[0]
   const typeItems = useMemo(() => items.filter((it) => it.outcome === type), [items, type])
   const month = core.tasks.close.month
   const view: TypeViewProps = { items: typeItems, rows, core, review, itemsById: data.itemsById }
