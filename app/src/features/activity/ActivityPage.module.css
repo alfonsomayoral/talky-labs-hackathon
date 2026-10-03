@@ -2,7 +2,6 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -16,6 +15,38 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+.mapBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-out),
+    opacity var(--duration) ease;
+}
+
+.mapBody[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.mapInner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The gap lives inside the collapsing row so it closes with the map. */
+.mapInner > * {
+  margin-top: var(--space-3);
+}
+
+.chevron {
+  transition: transform var(--duration) var(--ease-out);
+}
+
+.chevron[data-open] {
+  transform: rotate(180deg);
 }
 
 .mapTitle {

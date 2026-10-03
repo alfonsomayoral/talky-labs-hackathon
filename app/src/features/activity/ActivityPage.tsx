@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { ChevronDown, ChevronUp, Search } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import type { DerivedRun, TaskKey, WorkItem } from '@/domain/types'
 import { TASK_KEYS } from '@/domain/types'
 import {
@@ -94,13 +94,19 @@ function Activity({ data, filters, update }: ActivityProps) {
               <span>Cuántas partidas tomaron cada camino de la política. Pulsa una rama para filtrar la lista.</span>
             </div>
             <IconButton
-              icon={mapOpen ? <ChevronUp /> : <ChevronDown />}
+              icon={<ChevronDown className={styles.chevron} data-open={mapOpen || undefined} />}
               label={mapOpen ? 'Ocultar mapa' : 'Mostrar mapa'}
               size="sm"
+              aria-expanded={mapOpen}
               onClick={() => setMapOpen((o) => !o)}
             />
           </header>
-          {mapOpen && <ProcessMap flow={flow} selectedId={filters.node} onSelect={(f: FlowFilter | null) => update({ node: f?.id ?? null, view: 'items' })} />}
+          {/* Collapses by animating its grid row, so the list below slides up instead of jumping. */}
+          <div className={styles.mapBody} data-open={mapOpen || undefined} inert={!mapOpen}>
+            <div className={styles.mapInner}>
+              <ProcessMap flow={flow} selectedId={filters.node} onSelect={(f: FlowFilter | null) => update({ node: f?.id ?? null, view: 'items' })} />
+            </div>
+          </div>
         </section>
       )}
       <Tabs
