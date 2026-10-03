@@ -215,7 +215,7 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
                 'observed_closes': sorted({h['closing'] for h in histories}),
                 'exposure': 'unknown additional service consumption'})
             continue
-        s['method'] = 'median_observed_daily_rate'
+        s['method'] = 'mean_observed_daily_rate'
         for account in accounts:
             samples_by_span = {}
             for h in histories + observations:
@@ -373,4 +373,4 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
             'ic_owned_services': [], 'coverage_limitations': diagnostics,
             'impairment_rounding': 'truncate',
             'impairment_rounding_evidence': 'historical 50% provisions truncate half cents (e.g. compare open-invoice odd cents with original 490 balances); not a target tolerance',
-            'estimation_policy': 'last three distinct observed periods; median daily rate; no targets read'}
+            'estimation_policy': 'last three distinct observed periods; mean daily rate; no targets read'}

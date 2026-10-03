@@ -84,10 +84,10 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(uncovered_ranges(date(2026, 7, 1), D, [(date(2026, 6, 1), date(2026, 7, 10)),
             (date(2026, 7, 5), date(2026, 7, 20))]), [(date(2026, 7, 21), D)])
 
-    def test_daily_median(self):
+    def test_daily_mean(self):
         amount, audit = estimate_daily([(300, date(2026, 6, 1), date(2026, 6, 30)),
             (600, date(2026, 6, 1), date(2026, 6, 30)), (3000, date(2026, 6, 1), date(2026, 6, 30))], 5)
-        self.assertEqual(amount, 100)
+        self.assertEqual(amount, 217)
         self.assertEqual(audit["low"], 50)
 
     def test_no_history_no_estimate(self):

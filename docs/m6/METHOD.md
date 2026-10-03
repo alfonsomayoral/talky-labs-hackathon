@@ -34,7 +34,7 @@ Contradictory representations fail rather than being added twice.
 ## Rules and assumptions
 
 - ACCRUAL: comparable supplier/service/cost-object history over twelve months, last
-  three distinct observed periods, median daily rate times uncovered days. Coverage
+  three distinct observed periods, mean daily rate times uncovered days. Coverage
   is a union of booked receipts; a rejected invoice does not cover its period.
   Previous unbilled periods persist only when their linked invoice has not arrived.
   Discrete professional services are not estimated: whether one happened is not
