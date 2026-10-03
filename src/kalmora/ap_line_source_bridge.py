@@ -20,7 +20,7 @@ from .documents.contracts import fingerprint, source_path as validate_source_pat
 from .facts import DocumentFacts, Evidence, Fact
 from .money import decimal
 
-LINE_SOURCE_BRIDGE_VERSION = "ap-line-source-bridge-v2"
+LINE_SOURCE_BRIDGE_VERSION = "ap-line-source-bridge-v3"
 _ROW = re.compile(r"line\.([1-9]\d*)\.(.+)")
 
 
@@ -88,7 +88,7 @@ def _net_observation(view: APLineFacts) -> APField:
 
 def validate_ap_line_sources(
     *, bindings: Iterable[APLineSourceBinding], amount_sources: Iterable[DocumentFacts],
-    valuation_lines: Iterable[ValuationLine], quantity_lines: Iterable[InvoiceQuantityLine] = (),
+    valuation_lines: Iterable[ValuationLine] = (), quantity_lines: Iterable[InvoiceQuantityLine] = (),
     price_lines: Iterable[PriceLine] = (), views: Iterable[APLineFacts] | None = None,
     currency: str | None = None, amounts_required: bool = True,
 ) -> APLineSourceResult:
@@ -100,7 +100,9 @@ def validate_ap_line_sources(
     disagrees with a caller's posting input raises ValueError before any factory.
 
     ``amounts_required=False`` permits ordered quantity/price gates to run before
-    line amounts are resolved. It still rejects a contradiction with known net.
+    line amounts are resolved. Without valuation lines, quantity lines supply
+    the complete checked line inventory. No amount is invented; when valuation
+    lines are supplied, a contradiction with a known net still fails.
     Observed PO references require exact agreement with active quantity/price
     order keys. A discrepancy requires a separate evidenced reference resolver,
     so this bridge reports UNKNOWN rather than asserting the literal is wrong.
@@ -117,7 +119,9 @@ def validate_ap_line_sources(
     valued = _indexed(valuation_lines, ValuationLine, "valuation")
     quantified = _indexed(quantity_lines, InvoiceQuantityLine, "quantity")
     priced = _indexed(price_lines, PriceLine, "price")
-    if not set(quantified).issubset(valued) or not set(priced).issubset(valued):
+    quantity_only = not valued and not amounts_required
+    checked = quantified if quantity_only else valued
+    if not set(quantified).issubset(checked) or not set(priced).issubset(checked):
         raise ValueError("quantity and price lines must identify a valued posting line")
     if any(type(line.amount_doc) is not int for line in valued.values()):
         raise ValueError("valued line amounts require exact integer cents")
@@ -172,7 +176,7 @@ def validate_ap_line_sources(
 
     by_line, bound, seen_bindings, line_sources = defaultdict(list), set(), set(), set()
     for binding in bindings:
-        if binding.line_id not in valued:
+        if binding.line_id not in checked:
             raise ValueError("source binding identifies an unvalued posting line")
         key = (binding.source_path, binding.index)
         if key in seen_bindings:
@@ -189,10 +193,10 @@ def validate_ap_line_sources(
         by_line[binding.line_id].append(actual[key])
     for path, index in sorted(set(actual) - bound):
         notes.append(f"SOURCE_ROW_UNBOUND:{path}:{index}")
-    for line_id in valued:
+    for line_id in checked:
         if not by_line[line_id]:
             notes.append("POSTING_LINE_SOURCE_UNOBSERVED:" + line_id)
-    if not valued:
+    if not checked:
         notes.append("POSTING_LINE_INVENTORY_UNOBSERVED")
 
     def unknown(field, label):
@@ -203,7 +207,8 @@ def validate_ap_line_sources(
             return True
         return False
 
-    for line_id, line in valued.items():
+    for line_id in checked:
+        line = valued.get(line_id)
         linked = by_line[line_id]
         if not linked:
             continue
@@ -246,14 +251,15 @@ def validate_ap_line_sources(
                     raise ValueError("valued amount contradicts the observed financial source line net")
         elif amount.known:
             proof.extend(amount.evidence)
-            if amount.value != line.amount_doc:
+            if line is not None and amount.value != line.amount_doc:
                 raise ValueError("valued amount contradicts the observed financial source line net")
 
-        needs_quantity = quantity_line is not None or price_line is not None or line.quantity_milli is not None
+        needs_quantity = (quantity_line is not None or price_line is not None
+                          or line is not None and line.quantity_milli is not None)
         if needs_quantity:
             quantity = _consensus("quantity_milli", (view.quantity_milli for view in linked), "integer")
             if not unknown(quantity, "SOURCE_LINE_QUANTITY_UNKNOWN:" + line_id):
-                quantities = [line.quantity_milli] if line.quantity_milli is not None else []
+                quantities = [line.quantity_milli] if line is not None and line.quantity_milli is not None else []
                 if quantity_line is not None:
                     quantities.append(quantity_line.quantity_milli)
                 if price_line is not None:

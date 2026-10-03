@@ -20,6 +20,7 @@ from .ap_identity import APIdentityResult, IdentityCatalog, normalize_tax_identi
 from .ap_order_bridge import APOrderBridge, APOrderMatch
 from .ap_orders import POCandidate, POQuery
 from .ap_pipeline import APInvoiceRequest
+from .ap_project_binding import resolve_ap_project_binding
 from .ap_transaction import APTransactionState
 from .data import PhaseData
 from .documents.ap_sources import APTaskSources
@@ -70,6 +71,13 @@ def _prepare_invoice_context_batch(data: PhaseData, baseline: APERPBaseline):
     if companies_path is None or not companies_path.resolve().is_relative_to(data.phase_dir) or "golden" in companies_path.resolve().parts:
         raise ValueError("safe active-phase companies master required")
     paths.append((companies_path, _file_sha256(companies_path)))
+    projects_path = next((data.phase_dir / "erp" / ("projects" + suffix)
+        for suffix in (".jsonl", ".json")
+        if (data.phase_dir / "erp" / ("projects" + suffix)).is_file()), None)
+    if projects_path is not None:
+        if not projects_path.resolve().is_relative_to(data.phase_dir) or "golden" in projects_path.resolve().parts:
+            raise ValueError("safe active-phase projects master required")
+        paths.append((projects_path, _file_sha256(projects_path)))
     identities = IdentityCatalog.from_phase(data)
     data.table("purchase_orders")  # one cached read for exact reference scope
     batch = _APInvoiceContextBatch(data, baseline, orders, identities, tuple(paths))
@@ -387,7 +395,8 @@ async def resolve_ap_invoice_context(
                 proof = tuple(e for field in names.values() for e in source.field(field).evidence)
                 rejection[kind] = (*rejection.get(kind, ()), *_facts(view, proof))
 
-    lines, prices, quantity_evidence = [], [], []
+    lines, prices, quantity_evidence, project_evidence = [], [], [], []
+    project_rows, project_source, project_loaded = None, "erp/projects.jsonl", False
     if primary is not None and not unsupported:
         for line in primary.lines:
             notes = []
@@ -407,14 +416,29 @@ async def resolve_ap_invoice_context(
                     notes.append(f"QUERY_FIELD_UNKNOWN:{name}:{field.status}")
             if scope is None or invoice_date is None or cutoff is None:
                 notes.append("QUERY_SCOPE_DATE_OR_CUTOFF_UNKNOWN")
+            observed_project = optional["project_reference"]
+            if observed_project.candidates and scope is not None and not project_loaded:
+                project_loaded = True
+                try:
+                    project_path = data._path("projects")
+                    project_source = project_path.relative_to(data.phase_dir).as_posix()
+                    project_rows = data.table("projects")
+                except (KeyError, TypeError, ValueError):
+                    project_rows = None
+            project_binding = resolve_ap_project_binding(observed_project,
+                company=None if scope is None else scope.company,
+                projects=project_rows, project_source=project_source)
+            project_evidence.extend(project_binding.evidence)
+            if project_binding.status == "UNKNOWN":
+                notes.extend(project_binding.diagnostics)
             query, match = None, None
             if not notes:
                 evidence = _proofs(quantity.evidence, uom.evidence, ref_evidence,
-                                   *(field.evidence for field in optional.values()))
+                                   project_binding.evidence, *(field.evidence for field in optional.values()))
                 query = POQuery(line.line_id, scope.company, scope.vendor, scope.currency,
                     quantity.value, uom.value, evidence, po_reference=optional["po_reference"].value,
                     po_item=optional["po_item"].value, receipt_references=refs,
-                    project=optional["project_reference"].value, material=optional["material"].value,
+                    project=project_binding.project_id, material=optional["material"].value,
                     description=optional["description"].value)
                 attachment = next(a for a in task.attachments if a.path == primary.source_path)
                 match = await orders.resolve(query, invoice_date=invoice_date.value, receipt_as_of=cutoff.value,
@@ -452,7 +476,7 @@ async def resolve_ap_invoice_context(
         identity.supplier.evidence, identity.recipient.evidence,
         *(tuple(f.evidence for f in candidates) for candidates in (*rejection.values(), *holds.values())),
         tuple(f.evidence for f in (construction, guarantee_fact, basis_fact) if f is not None),
-        quantity_evidence, () if received is None else (received.evidence,),
+        quantity_evidence, project_evidence, () if received is None else (received.evidence,),
         () if cutoff is None else (cutoff.evidence,))
     observation = None
     if company and identity.supplier.identity and header.invoice_number.known and received is not None and financial_types == {"INVOICE"}:

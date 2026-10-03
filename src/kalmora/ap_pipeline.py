@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from calendar import monthrange
 from datetime import date
 
-from .ap_allocation import allocate_receipts
+from .ap_allocation import InvoiceQuantityLine, OrderLine, OrderPortion, Receipt, allocate_receipts
 from .ap_duplicates import duplicate_result
 from .ap_chronology import event_support_facts, receipt_key
 from .ap_notice_bridge import strict_invoice_events
@@ -20,6 +20,7 @@ from .ap_rejections import (
     rejection_checks, resolve_field,
 )
 from .ap_transaction import APPostingInputs, APTransactionRequest, APTransactionState, commit_ap_transaction
+from .ap_valuation import OrderPrice
 from .facts import DocumentFacts, Evidence, Fact
 from .model.ap_component_scope import APComponentScope
 from .model.ap_duplicate_record import DuplicateRecord
@@ -92,6 +93,38 @@ def source_rejection_stage(
 
 
 @dataclass(frozen=True, kw_only=True)
+class APQuantityCheckInputs:
+    """Evidenced receipt checks independent of monetary posting preparation.
+
+    These inputs contain no fabricated net, header or coding. Their catalogues
+    and visibility date are checked against the active ERP and source cutoff
+    before any provisional allocation. They cannot authorize a posting.
+    """
+
+    quantity_lines: tuple[InvoiceQuantityLine, ...]
+    order_catalog: tuple[OrderLine, ...]
+    receipt_catalog: tuple[Receipt, ...]
+    order_prices: tuple[OrderPrice, ...]
+    receipt_as_of: str
+
+    def __post_init__(self):
+        for items, cls in ((self.quantity_lines, InvoiceQuantityLine),
+                           (self.order_catalog, OrderLine),
+                           (self.receipt_catalog, Receipt),
+                           (self.order_prices, OrderPrice)):
+            if not isinstance(items, tuple) or any(not isinstance(item, cls) for item in items):
+                raise TypeError("quantity checks require immutable typed line/catalogue tuples")
+        for line in self.quantity_lines:
+            if (not isinstance(line.portions, tuple)
+                    or any(not isinstance(portion, OrderPortion) or
+                           portion.receipt_ids is not None and not isinstance(portion.receipt_ids, tuple)
+                           for portion in line.portions)):
+                raise TypeError("quantity checks require immutable typed order portions/references")
+        if not isinstance(self.receipt_as_of, str):
+            raise TypeError("quantity checks require an explicit receipt cutoff")
+
+
+@dataclass(frozen=True, kw_only=True)
 class APInvoiceRequest:
     """Source observations and explicit policy context for one ordinary invoice.
 
@@ -114,6 +147,7 @@ class APInvoiceRequest:
     invoice_date: Fact | None = None
     header: APHeader | None = None
     posting: APPostingInputs | None = None
+    quantity_inputs: APQuantityCheckInputs | None = None
     price_lines: tuple[PriceLine, ...] = ()
     quantity_evidence: tuple[Evidence, ...] = ()
     receipt_inventory_complete: Fact | None = None
@@ -277,13 +311,22 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
     quantity_applies, _, _ = bool_field(hold_fields, "quantity_check_applicable")
     price_applies, _, _ = bool_field(hold_fields, "price_check_applicable")
     inputs = request.posting
+    quantity_inputs = request.quantity_inputs
+    if quantity_inputs is not None:
+        if not isinstance(quantity_inputs, APQuantityCheckInputs):
+            raise TypeError("independent receipt checks require APQuantityCheckInputs")
+        if inputs is not None and any(getattr(quantity_inputs, name) != getattr(inputs, name)
+                for name in ("quantity_lines", "order_catalog", "receipt_catalog", "order_prices", "receipt_as_of")):
+            raise ValueError("quantity checks differ from monetary posting inputs")
+    hold_inputs = quantity_inputs if quantity_inputs is not None else inputs
+    hold_valuation = inputs.valuation_lines if inputs is not None and quantity_inputs is None else ()
     if quantity_applies is True:
-        if inputs is None or not inputs.quantity_lines or request.receipt_as_of is None:
+        if hold_inputs is None or not hold_inputs.quantity_lines or request.receipt_as_of is None:
             stages.append(("hold", "UNKNOWN"))
             return finish("UNKNOWN", diagnostics=("QUANTITY_POSTING_INPUTS_UNKNOWN",))
         linked = validate_ap_line_sources(bindings=request.line_source_bindings,
-            amount_sources=request.amount_sources, valuation_lines=inputs.valuation_lines,
-            quantity_lines=inputs.quantity_lines, currency=current.currency, amounts_required=False)
+            amount_sources=request.amount_sources, valuation_lines=hold_valuation,
+            quantity_lines=hold_inputs.quantity_lines, currency=current.currency, amounts_required=False)
         evidence.extend(linked.evidence)
         if linked.status != "CLEAR":
             stages.append(("hold", "UNKNOWN"))
@@ -293,30 +336,30 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
             raise TypeError("receipt visibility requires a source-backed date Fact")
         cutoff_day = date.fromisoformat(cutoff.value)
         year, month = map(int, baseline.month.split("-"))
-        if (cutoff_day.isoformat() != cutoff.value or cutoff.value != inputs.receipt_as_of
+        if (cutoff_day.isoformat() != cutoff.value or cutoff.value != hold_inputs.receipt_as_of
                 or cutoff_day > date(year, month, monthrange(year, month)[1])
                 or cutoff_day < receipt_key(current.received_at).date()):
             raise ValueError("receipt visibility differs from observed cutoff or active phase horizon")
         evidence.append(cutoff.evidence)
-        if (inputs.order_catalog != baseline.orders or inputs.receipt_catalog != baseline.receipts
-                or inputs.order_prices != baseline.prices):
+        if (hold_inputs.order_catalog != baseline.orders or hold_inputs.receipt_catalog != baseline.receipts
+                or hold_inputs.order_prices != baseline.prices):
             raise ValueError("quantity inputs must use the complete active ERP catalogue")
         certainty = {c.receipt.key: c for c in baseline.history.certainties}
-        requested_orders = {p.order for line in inputs.quantity_lines for p in line.portions}
-        for line in inputs.quantity_lines:
+        requested_orders = {p.order for line in hold_inputs.quantity_lines for p in line.portions}
+        for line in hold_inputs.quantity_lines:
             for portion in line.portions:
                 if portion.receipt_ids is None:
                     raise ValueError("quantity portions require evidenced eligible receipt IDs")
                 for ident in portion.receipt_ids:
                     item = certainty.get((current.company, ident))
-                    if item is not None and (item.consumed_milli is None or item.receipt.posting_date > inputs.receipt_as_of):
+                    if item is not None and (item.consumed_milli is None or item.receipt.posting_date > hold_inputs.receipt_as_of):
                         stages.append(("hold", "UNKNOWN"))
                         return finish("UNKNOWN", diagnostics=("RECEIPT_CAPACITY_OR_VISIBILITY_UNKNOWN",))
         allocation = allocate_receipts(company=current.company, vendor=current.vendor,
-            currency=current.currency, invoice_id=current.doc_id, lines=inputs.quantity_lines,
-            orders=inputs.order_catalog, receipts=inputs.receipt_catalog, state=state.consumption)
+            currency=current.currency, invoice_id=current.doc_id, lines=hold_inputs.quantity_lines,
+            orders=hold_inputs.order_catalog, receipts=hold_inputs.receipt_catalog, state=state.consumption)
         if allocation.status != "ALLOCATED" and any(c.receipt.order in requested_orders
-                and c.receipt.posting_date <= inputs.receipt_as_of and c.consumed_milli is None
+                and c.receipt.posting_date <= hold_inputs.receipt_as_of and c.consumed_milli is None
                 for c in baseline.history.certainties):
             stages.append(("hold", "UNKNOWN"))
             return finish("UNKNOWN", diagnostics=("HISTORICAL_RECEIPT_CAPACITY_UNKNOWN",))
@@ -325,8 +368,8 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
                                                 catalog_complete=request.receipt_inventory_complete)
         if price_applies is True and quantity_check.violation is False and request.invoice_date is not None:
             linked = validate_ap_line_sources(bindings=request.line_source_bindings,
-                amount_sources=request.amount_sources, valuation_lines=inputs.valuation_lines,
-                quantity_lines=inputs.quantity_lines, price_lines=request.price_lines,
+                amount_sources=request.amount_sources, valuation_lines=hold_valuation,
+                quantity_lines=hold_inputs.quantity_lines, price_lines=request.price_lines,
                 currency=current.currency, amounts_required=False)
             evidence.extend(linked.evidence)
             if linked.status != "CLEAR":
@@ -348,7 +391,7 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
             price_check = price_variance_check(scope, request.invoice_date, tuple(prices),
                 allocation=allocation, rates=rates,
                 rate_evidence=(Evidence("erp/fx_rates.jsonl", "invoice-date EUR threshold"),))
-    elif quantity_applies is False and inputs is not None and inputs.quantity_lines:
+    elif quantity_applies is False and hold_inputs is not None and hold_inputs.quantity_lines:
         raise ValueError("quantity non-applicability conflicts with PO quantity lines")
     hold = evaluate_holds(hold_fields, quantity_check=quantity_check, price_check=price_check)
     checks.extend(hold.checks)
