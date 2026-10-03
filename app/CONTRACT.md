@@ -81,9 +81,16 @@ El backend ya escribe un informe por ejecución en `outputs/runs/<uuid>.json` (`
 - **`kind`:** `FRAUD_SIGNAL | MATERIAL_UNEXPLAINED | AGENT_DOUBT | ESTIMATE | CROSS_TASK | POLICY_EXCEPTION | MASTER_DATA | DATA_QUALITY`.
 - **`priority`:** `P0 | P1 | P2 | P3`.
 
-## 2. API HTTP (cuando exista)
+## 2. API HTTP
 
-La app la usa si `VITE_API_URL` está definida. Mientras no exista, se importan paquetes.
+**Sustituida por la API `/v1` del backend** (`kalmora serve`, `docs/api-contracts.md` §9 en la rama del backend). Con `VITE_API_URL` definida, la app (`src/data/providers/api.ts`):
+
+- lista las fases cargadas (`GET /v1/phases`) y las abre leyendo sus ficheros (`GET /v1/phases/{fase}/files/{ruta}`, sin `golden/`);
+- sube el zip de los organizadores («Subir .zip al backend», `POST /v1/packages`) y espera a que cargue (`GET /v1/jobs/{id}`);
+- lanza el cierre con «Cerrar el mes» (`POST /v1/phases/{fase}/runs`, que ejecuta el comando de `kalmora serve --close-command`) y lo sigue consultando `GET /v1/runs/{id}` cada 2 s hasta `completed` o `failed`; no hay eventos en vivo;
+- lista las ejecuciones del mismo mes con carpeta de paquete (`GET /v1/runs`, `has_files`, `month`) y las carga (`GET /v1/runs/{id}/files/{ruta}`), con el informe de ejecución como `manifest.json` si el paquete no trae uno.
+
+La nota solo aparece si la fase trae `golden/` y el backend se arranca con `--serve-golden`. El chat del Asistente usa su propia variable, `VITE_CHAT_URL`. La tabla siguiente es la propuesta original; solo `POST /api/chat` sigue vigente.
 
 | Método y ruta | Qué hace | Respuesta |
 | --- | --- | --- |
