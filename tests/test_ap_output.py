@@ -220,6 +220,17 @@ class APOutputTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "zero local side"):
             self.posted(header=header, lines=lines, journal_entry=entry, context=None)
 
+    def test_foreign_gr_ir_cannot_relabel_local_cents_as_invoice_currency(self):
+        header = replace(self.header, currency="USD", tax=0, gross=10000, withholding=0, payable=10000)
+        lines = [{**self.lines[0], "tax_code": "SEX", "po": "PO1", "po_item": 10}]
+        entry = {"company": "1100", "currency": "USD", "lines": [
+            {"account": "40090000", "debit": 10000, "credit": 0, "amount_doc": 10000,
+             "currency": "EUR", "partner": "V1", "assignment": "PO1/10"},
+            {"account": "62300000", "debit": 0, "credit": 1000, "cost_center": "CC1", "amount_doc": 1000, "currency": "EUR"},
+            {"account": "41000000", "debit": 0, "credit": 9000, "partner": "V1", "amount_doc": 10000, "currency": "USD"}]}
+        with self.assertRaisesRegex(ValueError, "GR/IR currency differs from invoice"):
+            self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+
     def test_foreign_advance_application_conserves_document_payable(self):
         header = APHeader("1100", "V1", "INV1", "2026-07-01", "USD", 10000, 0, 10000, 0, 0, 7000)
         lines = [{**self.lines[0], "tax_code": "SEX"}]

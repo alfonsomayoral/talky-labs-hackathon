@@ -188,6 +188,8 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
     base_doc = charged_tax_doc = withholding_doc = retention_doc = 0
     actual_dimensions, reverse_pairs = {}, {}
     reversal = -1 if kind == "CREDIT_NOTE" else 1
+    advance_side = "debit" if kind == "CREDIT_NOTE" else "credit"
+    has_advance_application = any(line["account"] == "40700000" and line[advance_side] for line in entry["lines"])
     def document_amount(line):
         value = line.get("amount_doc")
         if value is None:
@@ -210,12 +212,16 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
             if (line["account"], line.get("cost_center"), line.get("wbs")) not in dimensions:
                 errors.append("journal base imputation is absent from coded lines")
             signed_base += line["debit"] - line["credit"]
+            if line.get("currency", row["currency"]) != row["currency"] and not has_advance_application:
+                errors.append("local cost adjustment requires an explicit advance application")
             if line.get("currency", row["currency"]) == row["currency"]:
                 amount = reversal * direction * document_amount(line)
                 base_doc += amount
                 dim = (line["account"], line.get("cost_center"), line.get("wbs"))
                 actual_dimensions[dim] = actual_dimensions.get(dim, 0) + amount
         elif line["account"] == "40090000":
+            if line.get("currency", row["currency"]) != row["currency"]:
+                errors.append("GR/IR currency differs from invoice")
             if "40090000" not in monetary_accounts:
                 errors.append("GR/IR requires an explicitly coded PO portion")
             positions = {f"{coded['po']}/{coded['po_item']}" for coded in lines if coded.get("po") is not None}
@@ -319,7 +325,6 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
                 errors.append("journal line currency is outside invoice/local scope")
         if supplier.get("assignment") not in (None, row["invoice_number"]):
             errors.append("supplier assignment differs from invoice number")
-    advance_side = "debit" if kind == "CREDIT_NOTE" else "credit"
     applied = [line for line in entry["lines"] if line["account"] == "40700000" and line[advance_side]]
     if any(type(line.get("amount_doc")) is not int or line.get("currency", row["currency"]) != row["currency"] for line in applied):
         errors.append("advance applications require scoped document cents")
