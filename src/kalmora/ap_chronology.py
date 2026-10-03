@@ -151,8 +151,13 @@ def invoice_state(
                 continue
             if kind == "TAX_GARNISHMENT_ORDER":
                 if event.received_at is None:
-                    unknown = True
-                    diagnostics.append(f"{event.event_id}:EMBARGO_RECEIPT_UNKNOWN")
+                    # A garnishment registered in the master snapshot precedes
+                    # every reception of the month; it applies from from_date.
+                    if event.valid_from is None:
+                        unknown = True
+                        diagnostics.append(f"{event.event_id}:EMBARGO_RECEIPT_UNKNOWN")
+                    elif _date(event.valid_from) <= inv_date:
+                        matches.append(event)
                     continue
                 before = _before(event.received_at, received_at)
                 if before is None:
@@ -215,7 +220,8 @@ def registered_events(data: PhaseData, scope: ApScope) -> ApTimelineState:
     """Read known vendor baseline and certificates through M0 PhaseData.
 
     AR factoring_assignments belongs to customers and is deliberately excluded.
-    Vendor garnishment from_date is not documented as receipt: preserve unknown.
+    A garnishment in the master snapshot was received before the month: it
+    applies to invoices dated on/after from_date without inventing a receipt.
     Bank-history valid_to does not prove a signed bank-change letter.
     """
     validate_scope(scope)

@@ -7,7 +7,7 @@ import re
 
 from kalmora.facts import DocumentFacts, Fact
 
-NORMALIZATION_VERSION = "document-normalization-v1"
+NORMALIZATION_VERSION = "document-normalization-v2"
 ALIASES = {
     "buyer_tax_id": "recipient_tax_id", "customer_tax_id": "recipient_tax_id",
     "vendor_tax_id": "supplier_tax_id", "seller_tax_id": "supplier_tax_id",
@@ -94,6 +94,14 @@ def _number(value: object, fact: Fact) -> Decimal:
     return result
 
 
+# Spanish and Portuguese month names, as written in "30 de junio de 2026".
+_MONTHS = {name: number for number, names in enumerate((
+    ("enero", "janeiro"), ("febrero", "fevereiro"), ("marzo", "março"), ("abril",),
+    ("mayo", "maio"), ("junio", "junho"), ("julio", "julho"), ("agosto",),
+    ("septiembre", "setiembre", "setembro"), ("octubre", "outubro"),
+    ("noviembre", "novembro"), ("diciembre", "dezembro")), start=1) for name in names}
+
+
 def _date(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("Expected source date string")
@@ -104,6 +112,9 @@ def _date(value: object) -> str:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
     if re.fullmatch(r"\d{4}/\d{2}/\d{2}", text):
         return date.fromisoformat(text.replace("/", "-")).isoformat()
+    named = re.fullmatch(r"(\d{1,2}) de ([a-zç]+) de (\d{4})", text.casefold())
+    if named and named.group(2) in _MONTHS:
+        return date(int(named.group(3)), _MONTHS[named.group(2)], int(named.group(1))).isoformat()
     match = re.fullmatch(r"(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})", text)
     if not match:
         raise ValueError("Unsupported date format")

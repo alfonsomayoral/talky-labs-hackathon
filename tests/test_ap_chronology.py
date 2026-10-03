@@ -108,7 +108,12 @@ class ChronologyTests(unittest.TestCase):
         for timestamp in ("2026-07-16T10:00:00", "2026-07-16T10:00:01"):
             self.assertFalse(observe([replace(before, received_at=timestamp)], complete_kinds=KINDS).embargo_active)
         self.assertIsNone(observe([replace(before, received_at="2026-07-16")], complete_kinds=KINDS).embargo_active)
-        self.assertIsNone(observe([replace(before, received_at=None, valid_from="2026-01-01")], complete_kinds=KINDS).embargo_active)
+        self.assertIsNone(observe([replace(before, received_at=None)], complete_kinds=KINDS).embargo_active)
+
+    def test_registered_garnishment_precedes_month_receptions_from_its_date(self):
+        registered = event("aeat", KINDS[2], valid_from="2026-07-15")
+        self.assertTrue(observe([registered]).embargo_active)
+        self.assertFalse(observe([registered], invoice_date="2026-07-14", complete_kinds=KINDS).embargo_active)
 
     def test_verified_bank_notice_received_later_in_month(self):
         bank = event("bank", KINDS[3], received_at="2026-07-31T23:59:59", verified=True, value="ESNEW")
@@ -173,7 +178,7 @@ class ChronologyTests(unittest.TestCase):
         self.assertTrue(observe([embargo], received_at="2026-07-16T10:00:00Z").embargo_active)
         self.assertFalse(observe([replace(embargo, received_at="2026-07-16T12:00:00+02:00")], received_at="2026-07-16T10:00:00Z", complete_kinds=KINDS).embargo_active)
 
-    def test_phase_adapter_preserves_receipt_unknown_and_original_tables(self):
+    def test_phase_adapter_reads_registered_history_and_original_tables(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "erp").mkdir()
@@ -189,7 +194,7 @@ class ChronologyTests(unittest.TestCase):
             state = registered_events(data, SCOPE)
             self.assertTrue(observe(state).certificate_valid)
             self.assertTrue(observe(state).factoring_active)
-            self.assertIsNone(observe(state).embargo_active)
+            self.assertTrue(observe(state).embargo_active)
             self.assertEqual(data.table("vendors"), [vendor])
             with self.assertRaises(ValueError):
                 registered_events(data, ApScope("1910", "V1", "EUR"))
