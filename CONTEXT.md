@@ -118,6 +118,32 @@ _Avoid_: representative's fee, which is billed separately and is not deducted fr
 The in-memory outcome for one billing item: the decision, and, when invoicing, the invoice and its journal entry with evidence and diagnostics.
 _Avoid_: delivery row, which is its later serialization.
 
+## Bank reconciliation
+
+**Statement line**:
+One movement of a bank account statement, identified by its `bank_line` id.
+_Avoid_: book line, or the bank-side journal posting it may correspond to.
+
+**Book line**:
+One line of a journal entry on the 572 account of a bank account, identified as `<entry id>#<line>`.
+_Avoid_: statement line.
+
+**Match**:
+A pairing of one or more statement lines with one or more book lines of the same account, one-to-one, one-to-many or many-to-one, whose totals agree or differ for a justified cause.
+_Avoid_: reconciliation, which is the result for a whole account.
+
+**Reconciling item**:
+A statement line or a book line left unmatched in the month, explained by a category.
+_Avoid_: error, since most are timing items that need no adjustment.
+
+**Prior-period item**:
+A book line posted in the month whose statement line belongs to an earlier month.
+_Avoid_: outstanding payment, which runs the other way: booked first, executed by the bank later.
+
+**Reconciliation identity**:
+For a bank account and month end, statement closing minus book balance equals the sum of unmatched statement lines minus the sum of unmatched book lines.
+_Avoid_: a balance check on the statement alone.
+
 ## Evaluation
 
 **Golden**:

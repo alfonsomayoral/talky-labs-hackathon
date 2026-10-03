@@ -1,0 +1,203 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  height: 26px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  overflow: hidden;
+}
+
+.activeChip {
+  border-style: solid;
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.trigger {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 0 var(--space-2);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.trigger:hover,
+.clear:hover {
+  background: var(--bg-muted);
+}
+
+.trigger:focus-visible,
+.clear:focus-visible {
+  outline-offset: -2px;
+}
+
+.trigger svg {
+  width: 13px;
+  height: 13px;
+}
+
+.facet {
+  color: var(--ink-3);
+}
+
+.value {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-strong);
+}
+
+.chevron {
+  color: var(--ink-4);
+}
+
+.clear {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-1-5);
+  border-left: 1px solid var(--line);
+  color: var(--ink-3);
+}
+
+.clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+.popover {
+  width: 260px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.search {
+  height: 34px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  font-size: var(--text-13);
+}
+
+.search:focus-visible {
+  outline: none;
+}
+
+.list {
+  padding: var(--space-1);
+  overflow: auto;
+  max-height: 300px;
+}
+
+.list:focus-visible {
+  outline: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-13);
+}
+
+.optionActive {
+  background: var(--bg-muted);
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkbox {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+}
+
+.checked {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  color: var(--ink-inverse);
+}
+
+.checkbox svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.5;
+}
+
+.count {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.noResults {
+  padding: var(--space-3) var(--space-2);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.footerCount {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}

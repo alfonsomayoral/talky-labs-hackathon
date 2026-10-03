@@ -64,6 +64,23 @@ including the vendor on both open-item accounts. It returns the new historical
 advance balance in tentative state. This deliberately keeps M0's partner
 invariant despite original advance entries that have `partner=null` on 407.
 
+`ap_advance_sources.resolve_advance_sources` supplies this resolved order/master
+from an exact documentary PO `Fact`, an `AdvanceApproval` containing an observed
+PO and literal boolean approval, and phase PO/vendor/company masters. The
+approval pair must describe one evidenced source statement; PO existence alone
+never establishes approval. Company/currency, creation date, affiliation and
+foreign country are checked. Observed supplier/recipient tax IDs are corroborated
+through `IdentityCatalog`; contradictory, unknown-to-master or ambiguous observed
+IDs cannot be discarded to favor the PO. If a request has no tax ID, the exact
+documentary approved PO and affiliated master independently establish its
+counterparty. Missing PO/approval/affiliation/country exposes no usable order or
+master. Every source and failed condition remains in the resolution audit.
+Feed a `RESOLVED` result into `build_down_payment_request` with its master country,
+explicit eligible decision and monetary/FX inputs. No source journal is repaired,
+no amount/doc ID special case determines the supplier and no state is committed.
+The helper snapshots its inputs and the journal preserves that derived vendor
+on both 407 and reconciliation lines.
+
 ## Historical advance application
 
 `AdvanceBalance` carries original document cents and booked local cents, the
