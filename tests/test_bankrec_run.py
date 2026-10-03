@@ -1,4 +1,6 @@
 from collections import Counter
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -6,6 +8,7 @@ import tempfile
 import unittest
 
 from kalmora.bankrec import Category, build_bank_rec, to_row
+from kalmora.cli import main
 from kalmora.data import PhaseData
 from bankrec_support import write_n43, write_twin
 
@@ -97,6 +100,34 @@ class EndToEndTests(SyntheticPhase):
         self.assertEqual([(x["company"], x["account"], x["debit"], x["credit"]) for x in wrong["lines"]],
                          [("1100", "57200002", 700, 0), ("1100", "57200001", 0, 700)])
         json.dumps(row)
+
+    def test_cli_writes_one_delivery_row_per_task_account(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "bank_rec.jsonl"
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = main(["--run-dir", str(Path(directory) / "runs"), "solve-bank-rec",
+                               str(self.root), "--output", str(output)])
+            self.assertEqual(status, 0)
+            rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([row["account"] for row in rows], ["BIN-1100", "CMA-1100"])
+            self.assertTrue(all(line["company"] == "1100"
+                                for row in rows for adjustment in row["adjustments"]
+                                for line in adjustment["lines"]))
+            self.assertEqual(json.loads(stdout.getvalue())["accounts"], 2)
+
+    def test_cli_does_not_write_an_incomplete_account_set(self):
+        write_twin(self.root / "bank/CMA-1100/2026-07.lines.jsonl", [{
+            "bank_line": "X", "booking_date": "2026-07-01", "value_date": "2026-07-01",
+            "amount": 5, "currency": "EUR", "text": "?",
+        }])
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "bank_rec.jsonl"
+            with contextlib.redirect_stderr(io.StringIO()):
+                status = main(["--run-dir", str(Path(directory) / "runs"), "solve-bank-rec",
+                               str(self.root), "--output", str(output)])
+            self.assertEqual(status, 1)
+            self.assertFalse(output.exists())
 
     def test_account_with_an_inconsistent_statement_is_unresolved_and_the_rest_continue(self):
         write_twin(self.root / "bank/CMA-1100/2026-07.lines.jsonl", [{"bank_line": "X", "booking_date": "2026-07-01",
