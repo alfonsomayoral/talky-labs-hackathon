@@ -1,34 +1,55 @@
 # fe/qa-core — 5.A–5.B QA y pulido: núcleo
 
+Paquete cerrado. Tanda 1 fusionada en la PR #158; tanda 2 en esta PR.
+
 ## Hecho
 
-Tanda 1: cifras que cuadran entre pantallas y arreglos encontrados con septiembre.
+Tanda 1 (PR #158): cifras que cuadran entre pantallas y arreglos encontrados con septiembre.
 
-- **Atención en EUR, como Resumen y Asistente.** La cabecera decía «Quedan 60 · 6,9 M€ + 49,7 M MXN» mientras Resumen y Asistente decían «60 · 9,4 M€». Ahora suma en EUR con `attentionSummary` y `eurConverter` de `features/overview/model` (3100 al tipo de cierre). Las cabeceras por prioridad siguen separadas por moneda, igual que la tabla del Asistente. `src/features/attention/AttentionPage.tsx`.
-- **Hueco del balance de Entregables en EUR.** La tarjeta de nota toma `trialBalance.eur` (69,8 M€ en julio, igual que Resumen y Balance) en vez de las unidades de `score.py` (303,7 M, con MXN sin convertir). En el desglose de la tarea Balance, las dos cifras de `score.py` se muestran sin símbolo de moneda y con la etiqueta «(score.py, MXN sin convertir)». `src/features/deliverables/ScoreCard.tsx`.
-- **Asiento en el panel estrecho.** `JournalEntryView` cortaba Debe y Haber al estrechar el panel. Las columnas de texto ceden con elipsis y Cuenta pesa el 60 %; a ancho normal se ve igual. `src/features/item/kit/JournalEntryView.tsx` y `.module.css`.
-- **Asistente sin ids de julio.** Con septiembre, «Explica API004128» respondía «no lo encuentro… por ejemplo, «Explica API004128»». Ahora sugiere un id que existe en la ejecución activa (la primera factura de AP, o el id completo de cualquier partida), también en la respuesta de «no sé responder». El placeholder ya no cita un id: «¿Qué tengo que revisar?», «¿Cómo está BIN-1100?». Test nuevo en `src/features/assistant/engine/local.test.ts`. `src/features/assistant/engine/local.ts`, `src/features/assistant/Chat.tsx`.
+- **Atención en EUR, como Resumen y Asistente.** La cabecera decía «Quedan 60 · 6,9 M€ + 49,7 M MXN» mientras Resumen y Asistente decían «60 · 9,4 M€». Ahora suma en EUR con `attentionSummary` y `eurConverter` de `features/overview/model`. `src/features/attention/AttentionPage.tsx`.
+- **Hueco del balance de Entregables en EUR** desde `trialBalance.eur` (69,8 M€ en julio, igual que Resumen y Balance). Las cifras crudas de `score.py` llevan «(score.py, MXN sin convertir)» y van sin símbolo de moneda. `src/features/deliverables/ScoreCard.tsx`.
+- **Asiento en el panel estrecho:** `JournalEntryView` ya no corta Debe y Haber. `src/features/item/kit/JournalEntryView.tsx` y `.module.css`.
+- **Asistente sin ids de julio:** sugiere un id que existe en la ejecución activa; el placeholder ya no cita un id. `src/features/assistant/engine/local.ts` (con test), `src/features/assistant/Chat.tsx`.
+
+Tanda 2 (esta PR):
+
+- **Contraste**, en `overview`, `attention`, `activity`, `item`, `runs`, `deliverables`, `compare`, `observability` y `assistant`:
+  - texto con `--ink-4` pasa a `--ink-3`: artículos de columna y ramas vacías de `ProcessMap`, «—» de `MasterCompare` y `JournalEntryView`, peso de `TaskScores` y nota de la caja de pregunta del Asistente;
+  - recuento de los segmentos de Atención a `--ink-2`;
+  - selección, foco y controles con `--brand` pasan a `--brand-line`: bordes de selección, `box-shadow` de la fila seleccionada de Atención, anillos de foco (`outline`), foco de la caja del Asistente, foco de nodos de `PipelineDag`, y línea y deslizador del umbral de Coste. Ya no queda `var(--brand)` en el CSS de estas carpetas.
+- **Errores de lectura de evidencias con `role="alert"`**, solo en los estados de error: `item/kit/EvidenceList.tsx` (diario), `item/kit/RawBankRecord.tsx` (extracto) y `item/tabs/evidenceEntries.tsx` (entradas de mercancía y diario).
+- **Fecha de la cesión al factor** con `formatDate` en `item/kit/MasterCompare.tsx` («desde 12 mar 2025», antes «desde 2025-03-12»). Lo pidió qa-tasks.
 
 ## Verificación
 
-- `npm run typecheck` (salida 0), `npm run lint` (oxlint, salida 0), `npm run test` (55 ficheros, 355 tests en verde), `npm run build` correcto. Tras `git merge origin/hackathon/frontend`.
-- Navegador, puerto 5176, **septiembre** (`phase_test` + `phase_test-research-qa`, 719 partidas, 60 en atención):
-  - Resumen, Atención y Asistente dan las mismas cifras: 645 de 719 resueltas, 89,7 %, 60 en atención por 9,4 M€, P0 2 · P1 14 · P2 44. Aceptar una con `a` en Atención baja a 59 en Atención y en la barra lateral; deshecho después.
-  - Asistente, preguntas 1 a 4 sin golden: resumen con «Sin golden no hay nota»; revisar con 60 y 9,4 M€; balance con «Sin golden no se conoce el balance correcto» y el movimiento por tarea (78,3 M€, igual que el indicador del Resumen); proceso AP con 297 partidas y el mapa.
-  - Sin golden: Comparar muestra su estado vacío («Sin referencia con la que comparar»), el panel no tiene pestaña Golden y `?pestana=golden` cae en Razonamiento, Entregables da «Lista» y «sin golden/ no hay nota», Coste explica que el manifiesto no trae coste, tiempos ni confianza. Ejecuciones y su detalle (`/ejecuciones/:id`) cargan.
-  - Teclado: `j`/`k` y `Enter` en Actividad abren el panel; con el panel abierto `j` lo mueve a la siguiente partida; `Esc` lo cierra; ⌘K encuentra y abre `API005263`; ⌘J abre el Asistente lateral con el historial.
-  - Cero errores en consola en todas estas pantallas.
-- Navegador, **julio** con golden: Entregables da 100,00 y «Hueco del balance: registrado 69,8 M€ → 0 €».
+- Tras `git merge origin/hackathon/frontend`: `npm run typecheck` (salida 0), `npm run lint` (oxlint, salida 0), `npm run test` (55 ficheros, 360 tests en verde) y `npm run build` correcto.
+- Navegador, puerto 5176, **septiembre** (`phase_test` + `phase_test-research-qa`):
+  - Resumen, Atención y Asistente dan las mismas cifras: 645 de 719 partidas resueltas, 60 en atención por 9,4 M€, y P0 2 · P1 14 · P2 44. Las preguntas 1 a 4 del Asistente responden sin golden.
+  - Sin golden, Comparar, la pestaña Golden, Entregables y Coste explican lo que falta. Cero errores en consola.
+  - Casos nuevos abiertos en el panel, con todas sus pestañas y sin errores: DUA en USD `API004940` (documento en 28.800 US$, asiento cuadrado en EUR), embargo `API005192`, y dominios parecidos `API005263` y `API005264`.
+  - Teclado: `j`/`k`, `Enter` y `Esc` en Actividad y en el panel; `j`, `a` y «Deshacer» en Atención; ⌘K y ⌘J.
+- Navegador, **julio** con golden:
+  - Entregables da 100,00 y un hueco de 69,8 M€ → 0 €.
+  - La cesión de `API004175` sale «desde 12 mar 2025».
+  - Color calculado en el DOM: recuento de segmentos `rgb(75, 85, 99)` y selección de Atención `rgb(234, 88, 12)`.
+  - Tras el merge, Resumen, Atención, Entregables, Comparar, Coste y Asistente cargan sin errores en consola.
 
 ## Sin verificar
 
-- Estado de carga y de error de cada pantalla: solo los he visto de paso (las páginas cargan en menos de un segundo con datos en IndexedDB).
-- Modo Profundo del Asistente: en este worktree no hay clave y responde el motor local, como se espera.
+- No se ha abierto una partida por cada resultado de cada tarea en julio. Las vistas por tarea son de qa-tasks.
+- Estados de carga y de error de cada pantalla: solo se han visto de paso.
+- Modo Profundo del Asistente: en este worktree no hay clave, así que responde el motor local, como se espera.
+
+## Pendiente (cosmético, sin arreglar)
+
+- Comparar muestra el selector «Solo diferencias / Todo» también en el estado vacío sin golden.
+- `ProcessMap` dentro del Asistente lateral (⌘J) se corta en horizontal y hay que desplazarlo.
+- Con el panel muy estrecho, `JournalEntryView` oculta la etiqueta de la cuenta y deja solo el número; el pie «4 líneas · EUR» pasa a dos líneas.
+- Quedan textos auxiliares con `--ink-4` fuera de la lista de la coordinadora: texto de línea y asignación del asiento, `MasterCompare .state` y el placeholder del Asistente.
 
 ## Peticiones a la coordinadora
 
-- `src/lib/format.ts` (qa-shell-demo): `formatMoney` pinta el cero negativo. En el Resumen de septiembre, Intragrupo neto dice «Cash pooling -0 €» (−0,3 céntimos tras convertir MXN). Propuesta: `signDisplay: opts.signed ? 'exceptZero' : 'negative'` en `formatMoney` y `formatCompactMoney`.
-- Shell (qa-shell-demo): con el panel del navegador muy estrecho (~400 px) la barra lateral no se pliega y el título de las páginas se parte letra a letra. Fuera del alcance de escritorio; lo anoto por si entra en el pulido.
+- Ninguna abierta. El «-0 €» de `formatMoney` ya lo resolvió la PR #162.
 
 ## Commits
 
@@ -36,3 +57,7 @@ Tanda 1: cifras que cuadran entre pantallas y arreglos encontrados con septiembr
 - `07814c3 fix: show the pending attention total in EUR like the overview`
 - `1ad2720 fix: suggest item ids that exist in the active run in the assistant`
 - `4ee8d57 fix: show the deliverables balance gap in EUR and label the scorer units`
+- `0d1b76f docs: report the first qa-core batch`
+- `28e71a0 fix: raise text and selection contrast in the core views`
+- `db93862 fix: announce evidence read errors as alerts`
+- `7f7b782 fix: format the factoring assignment date in the master comparison`
