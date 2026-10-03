@@ -1,43 +1,84 @@
 # fe/tasks-ap-bank — 3.A Bandeja AP y 3.D Bancos
 
-Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177 (entrada `fe-tasks-ap-bank` en `/Users/alfonsomayoral/Talky/.claude/launch.json`). Rama basada en `hackathon/frontend` 200692c; aún sin el merge de lo posterior (kit 2.C en 3cb7318).
+Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177. Rama con `hackathon/frontend` 6d8e1ce ya integrado (merge 6fc315b, kit 2.C incluido). **Lista para integrar.**
 
 ## Hecho
 
 **AP (`src/features/tasks/ap/`)**
-- `model.ts`: sankey tipo de documento → decisión (`apSankey`), facetas y filtro (`facetCounts`, `filterRows`; el recuento de cada faceta ignora su propia selección), documento frente al maestro (`masterCompare`: proveedor, NIF del emisor, destinatario, dominio del remitente, IBAN contra ficha, histórico y factor, moneda, retención y certificado art. 43), casación línea a línea con pedido y entradas (`lineMatches`, tolerancia 2 % o 150 €), destino del duplicado (`duplicateTarget`: del mes, histórico o ausente) y `prettyXml`.
-- `ApPage.tsx`: cabecera, sankey (`ApSankey.tsx`; pulsar banda o nodo fija las facetas Tipo/Decisión), lista `DataTable` con facetas Decisión, Motivo y Tipo más búsqueda; la ficha se elige con `?doc=<doc_id>`.
-- `ApDocCard.tsx`: ficha con el documento al lado (`DocumentPane.tsx`: PDF en iframe con blob, XML formateado, mensaje), cabecera extraída, tabla frente al maestro, casación por línea, beneficiario y bloqueo, abono rectificado y enlace al duplicado. Botón «Razonamiento y asiento» abre el peek (`useOpenItem`).
-- `useDocContext.ts`: lee la Facturae/CFDI (`api.einvoice`) y las entradas de los pedidos (`api.goodsReceipts`).
+- `ApPage.tsx`: abre con el `ProcessMap` del kit (`useProcessFlow('ap')`). El nodo elegido va en `?nodo=` y filtra la lista con `findFlowFilter(...).items` a través de `ApFilter.only`; «Limpiar» también quita el nodo. Debajo:
+  - el sankey tipo de documento → decisión (`ApSankey.tsx`); pulsar una banda o un nodo fija las facetas Tipo y Decisión;
+  - la lista `DataTable` con facetas Decisión, Motivo y Tipo, más búsqueda;
+  - la ficha, que se elige con `?doc=<doc_id>`.
+- `ApDocCard.tsx`: ficha con estas secciones:
+  - el documento al lado;
+  - la cabecera extraída;
+  - la **cascada §2.2** (`PolicyCascade` + `apCascade(row, events)` del kit);
+  - documento frente al maestro;
+  - casación línea a línea con pedido y entradas;
+  - beneficiario y bloqueo;
+  - abono rectificado y duplicado.
+  - Además, el botón «Razonamiento y asiento» abre el `ItemPanel`.
+- `DocumentPane.tsx`: una pestaña por fichero con `DocumentViewer` del kit (PDF, XML con resumen de e-factura, JSON) y otra con `EmailView` para el mensaje.
+- `model.ts`: `apSankey`, `facetCounts`/`filterRows`, `masterCompare`, `lineMatches` (tolerancia 2 % o 150 €), `duplicateTarget`, `duplicatesOf`.
+  - `masterCompare` sigue siendo local, porque `MasterCompare` del kit compara por igualdad de texto. No distingue «distinto pero justificado» (IBAN del factor) ni equipara NIF y NIF-IVA, y marcaría ✗ falsos.
+- `useDocContext.ts`: Facturae/CFDI y entradas de los pedidos.
 
 **Bancos (`src/features/tasks/bank/`)**
-- `model.ts`: apuntes de la 572 en la moneda de la cuenta (`bookLinesOf`; USD con `amount_doc` y sin las líneas de valoración MXN), vista enfrentada por bloques (`recView`, forma banco:libro 1:1, N:1, 1:N), sin casar por categoría con «con ajuste / falta el ajuste / queda abierta», ajustes y su efecto en la 572 (`adjustmentsOf`, `glAdjustments` incluye los ajustes de otras filas que mueven esta 572), puente de saldo (`balanceBridge`) y resumen por cuenta (`accountSummary`).
-- `BankPage.tsx`: rejilla de las 12 cuentas con estado, saldo del extracto, líneas casadas, sin casar, ajustes y abiertas sin ajuste.
-- `unmatchedByCategory(view, glAdjustments, sameCurrency)`: por categoría, lo que sus ajustes dejan sin cubrir en importe (`uncovered`), contando los ajustes archivados en otra cuenta. Los ajustes no nombran su línea y uno puede cubrir varias (recibo devuelto + comisión), por eso por importe y no por recuento; en la cuenta USD (ajustes en MXN) `uncovered` es null. La insignia dice «Con ajuste», «Falta ajuste por X», «Falta el ajuste» o «Sin ajuste: queda abierta».
-- `BankAccountPage.tsx` + `RecFaceView.tsx`: puente, sin casar por categoría, extracto frente a libro con conectores SVG por bloque y filtro Todo/Casadas/Sin casar, registro crudo N43/CAMT (`api.rawBankDetails`) de la línea elegida y ajustes.
-- `useAccountData.ts`: diario de la 572 hasta fin de mes (`queryJournal` paginado), apuntes referenciados fuera del mes (`getJournalEntries`) y detalle crudo.
+- `BankPage.tsx`: abre con el `ProcessMap` del kit (`useProcessFlow('bank_rec')`). El nodo va en `?nodo=` y deja en la rejilla solo las cuentas con partidas en ese nodo. Debajo, la rejilla de las 12 cuentas.
+- `BankAccountPage.tsx` + `RecFaceView.tsx`:
+  - puente de saldo;
+  - sin casar por categoría;
+  - extracto frente a libro con conectores 1:1, N:1 y 1:N;
+  - registro crudo con `RawBankRecord` del kit;
+  - ajustes con `JournalEntryView` del kit, cuadre por asiento incluido, más los ajustes de otras cuentas que mueven esta 572.
+- `model.ts`:
+  - `bookLinesOf`/`bookAmount`, con USD por `amount_doc`;
+  - `recView`;
+  - `unmatchedByCategory(view, glAdjustments, sameCurrency)`: lo que los ajustes dejan sin cubrir, por importe, contando los archivados en otra cuenta. Uno puede cubrir varias líneas (recibo devuelto + comisión). En la cuenta USD, con ajustes en MXN, el importe es null;
+  - `adjustmentsOf`/`glAdjustments`;
+  - `balanceBridge`;
+  - `accountSummary`.
+- `useAccountData.ts`: diario de la 572 hasta fin de mes y apuntes referenciados fuera del mes. El registro crudo ya lo lee `RawBankRecord`.
 
 ## Verificación
-- `npm run typecheck`, `npm run lint` y `npm run build` en verde. `npm run test`: 127 en verde, 36 omitidas, y 1 fichero que falla al cargar, `src/engine/score/parity.test.ts`. Ese fallo no es de esta rama: lee `null!.deliverables` cuando no hay fixture y ya está arreglado en `hackathon/frontend` (64d4011), así que se va con el merge. `npx vitest run src/features/tasks`: 30 en verde (AP 16, bancos 14).
-- Navegador (5177, julio + referencia golden, sin errores de consola en AP):
-  - AP: sankey 305 documentos; `API005229` (fraude: dominio `ffiinstalacionesel-es.es` frente a `ffiinstalacionesel.es` e IBAN marcados), `API005209` (duplicado de `API005148`, histórico, con factura y asiento), `API005587` (abono), `API005230` (26 líneas casadas con entradas).
-  - AP: pulsar el nodo «Duplicado» del sankey deja 14; la faceta Motivo «Destinatario incorrecto» deja 3 (API005225, API005226, API005227); «Limpiar» vuelve a 305.
-  - Bancos, las 12 cuentas recorridas: ninguna con «Sin explicar». CMA-1100 con residuo −3.228,89 y «Desde BIN-1100: Cuenta bancaria equivocada…» en Ajustes. Los «Falta ajuste por» coinciden con el residuo, que es el control de research: CMA-1100 −3.228,89 (domiciliaciones BL0001846/BL0001847, facturas rechazadas por AP, p. ej. API005227) y CMA-1200 −2.644,96. «Recibo devuelto» de CMA-1200 sale «Con ajuste»: 4 líneas, 2 ajustes. Consola: las únicas entradas son de un recargado en caliente a mitad de edición (`view.blocks is not iterable`, firma antigua); al recorrer las 12 cuentas no salió ninguna nueva.
-  - Bancos: rejilla con saldos iguales al golden; BIN-1200 con N:1 (nómina en dos lotes BL0004009/BL0004010), 1:N (remesa SEPA BL0003036 contra 19 pagos), comisiones sin contabilizar con ajuste y registro N43 22/23; puente que cuadra al céntimo en 11 de 12 cuentas (residuos iguales al informe de research: CMA-1000 −5.265,44; BIN-1100 +70.117; BAE-1100 −900.000).
+- `npm run typecheck`, `npm run lint`, `npm run test` (37 ficheros, 247 pruebas) y `npm run build` en verde tras el merge de 6d8e1ce y la integración del kit.
+- Navegador (5177, julio + referencia golden, nota 100):
+  - **AP, mapa y lista:**
+    - el mapa muestra 305 recibidos, 12 no son factura, 14 duplicados, 18 rechazadas y 19 retenidas;
+    - pulsar «Rechazadas» pone `?nodo=ap/reject` y deja 18;
+    - el nodo «Duplicado» del sankey deja 14;
+    - la faceta Motivo «Destinatario incorrecto» deja 3.
+  - **AP, fichas:**
+    - `API005229`: la cascada corta en «IBAN frente a la ficha», el dominio `ffiinstalacionesel-es.es` aparece marcado y el PDF abre en `DocumentViewer`;
+    - `API004128`: el panel muestra razonamiento, «Asiento 7» y «Golden ✓».
+  - **Bancos, mapa:** pulsar «Traspaso en tránsito» deja solo BAE-1100.
+  - **Bancos, las 12 cuentas:**
+    - ninguna tiene «Sin explicar»;
+    - residuos iguales a research: CMA-1000 −5.265,44; BIN-1100 +70.117; BAE-1100 −900.000; CMA-1100 −3.228,89; CMA-1200 −2.644,96; el resto, 0;
+    - «Falta ajuste por» coincide con el residuo en CMA-1100 y CMA-1200;
+    - CMA-1100 muestra «Desde BIN-1100: Cuenta bancaria equivocada…».
+  - **Bancos, piezas del kit:**
+    - `BL0003651` muestra sus registros N43 22/23 en `RawBankRecord`;
+    - los ajustes se ven en `JournalEntryView` con nombre de cuenta, socio, asignación y «Cuadrado»;
+    - en BANH-3100-USD los ajustes salen en MXN.
+  - **Septiembre** (`phase_test`, sin ejecución): las tres rutas muestran «Sin ejecución activa», sin errores.
+  - **Consola:** ningún error nuevo. Las únicas entradas son de un recargado en caliente a mitad de edición, con la firma antigua de `unmatchedByCategory` (`view.blocks is not iterable`).
 
 ## Sin verificar
-- Septiembre (resultados importados) sin probar.
-- La rejilla de bancos sigue usando `accountSummary` con el estado de las partidas del motor; no cambia con este arreglo.
-
-## A medias
-1. **ProcessMap en las dos páginas.** El kit (`src/features/item/kit/`) está en `hackathon/frontend` 3cb7318 (wip). A 03/10 la coordinadora aún no ha avisado: le faltan lint, test y el README del kit. No se hace el merge hasta el aviso. Siguiente paso: `git merge hackathon/frontend`; en `ApPage.tsx` y `BankPage.tsx` añadir arriba `<ProcessMap flow={processFlow('ap' | 'bank_rec', data, api.core, run)} selectedId={…} onSelect={…} />`; en AP, al seleccionar un nodo poner `filter.only = findFlowFilter(flow, id)?.items` (el campo `only` de `ApFilter` ya existe y ya filtra); en bancos, filtrar la rejilla por las cuentas de los items del nodo.
-2. **Usar el kit en lugar de lo local**, si su API lo permite: `JournalEntryView` para los ajustes (`BankAccountPage.tsx`, sección «Ajustes», hoy tabla propia), `RawBankRecord` para el registro crudo, `MasterCompare`/`EvidenceList` si cubren lo de `ApDocCard.tsx`/`DocumentPane.tsx`. No es obligatorio: lo local funciona.
-3. **Cerrar paquetes:** suite completa (`npm run typecheck && npm run lint && npm run test && npm run build`), recorrido sin errores de consola y rehacer los dos commits `wip:` como `feat: add ap inbox view` y `feat: add bank reconciliation views` Los `wip:` ya están en `origin/fe/tasks-ap-bank`, así que reescribirlos (`git reset --soft 200692c`) obligaría a un push forzado: decidir con la coordinadora o dejarlos y que el merge `--no-ff` lleve un asunto `feat:`.
+- Septiembre con resultados: el backend aún no ha producido ninguna ejecución de `phase_test`.
+- `ReasoningView` y `EvidenceList` no se usan dentro de las vistas: los muestra el `ItemPanel` que abre cada ficha o línea, y en las vistas no había tablas locales que sustituyeran.
 
 ## Peticiones a la coordinadora
-- Ninguna sobre ficheros compartidos. Nota: `PROBLEM.md` llama N:1 a «una remesa contra varios pagos»; la vista usa banco:libro, así que la remesa SEPA sale como 1:N y la nómina en dos lotes como N:1.
+- Ninguna sobre ficheros compartidos.
+- Los `wip:` 3823989 y a98507d se quedan como están, como pidió la coordinadora. Los `feat:` de encima cierran cada paquete.
+- Nota de vocabulario: `PROBLEM.md` llama N:1 a «una remesa contra varios pagos». La vista usa banco:libro, así que la remesa SEPA sale como 1:N y la nómina en dos lotes como N:1.
 
 ## Commits
 - `3823989 wip: ap inbox with sankey, faceted list and document ficha`
 - `a98507d wip: bank account grid and face-to-face reconciliation with balance bridge`
+- `f03d696 docs: record ap and bank status for relay`
 - `3b12453 fix: show what each bank category leaves without adjustment, by amount and across accounts`
+- `5c9bb73 docs: record bank category fix and browser checks in status`
+- `6fc315b Merge branch 'hackathon/frontend' into fe/tasks-ap-bank`
+- `8226d9d feat: add ap inbox view with process map, policy cascade and kit document viewer`
+- `8b472c5 feat: add bank reconciliation views with process map, kit raw record and journal entries`
