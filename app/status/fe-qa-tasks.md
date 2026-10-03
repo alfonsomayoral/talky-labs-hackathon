@@ -1,31 +1,46 @@
 # fe/qa-tasks — 5.A + 5.B QA y pulido: tareas y datos
 
-Recorrido de `/tareas/*`, `/balance`, `/datos/*`, `/comparar` y `/coste` con julio (golden) y con la ejecución de septiembre `phase_test-research-qa` (prototipos del research, 719 partidas).
+Recorrido de `/tareas/*`, `/balance` y `/datos/*` con julio (golden) y con la ejecución de septiembre `phase_test-research-qa` (prototipos del research, 719 partidas, sin golden). Comparar y Coste son de `fe/qa-core`: solo se recorrieron, sin tocarlos.
 
 ## Hecho
 
+### PR #154 (fusionada)
+
 - **Importes MXN recortados en las tablas.** Las columnas de importe no cabían con importes de 3100 y la tabla recortaba por la izquierda: `-15.603.148,68 MXN` se leía `5.603.148,68 MXN`. Anchos ajustados al mayor importe de julio y septiembre en `tasks/ap/ApPage.tsx`, `tasks/ar-billing/ArBillingPage.tsx`, `tasks/ar-cash/ArCashPage.tsx`, `tasks/close/ClosePage.tsx`, `data-explorer/JournalPage.tsx` y `data-explorer/StatementsPage.tsx`.
 - **Balance, tabla de cuentas** (`ledger/LedgerPage.tsx`): columna «Moneda» e importes sin divisa para que quepan las 5 columnas sin scroll horizontal; ordenar por Registrado, Después o Correcto compara en EUR.
-- **Balance sin golden** (`ledger/LedgerPage.tsx`): la sección vacía «Hueco cerrado por tarea» pasa a «Movimiento por tarea» (Σ|asientos| de cada tarea en EUR, de `trialBalance.eur.movementByTask`); subtítulo y descripción ya no hablan de un balance correcto que no existe.
-- **AP, art. 43** (`tasks/ap/model.ts`): las fechas del certificado salen como fechas (`31 ago 2026`, «Vigente hasta 15 ago 2026»), no en ISO. Test en `model.test.ts`.
-- **AP, ordenar por Total** (`tasks/ap/ApPage.tsx`): ordena por el valor en EUR; antes las facturas en MXN subían arriba.
-- **Cierre, deterioro** (`tasks/close/ClosePage.tsx`): «Partidas abiertas» de la provisión con `Amount` en vez de un número sin moneda.
+- **Balance sin golden** (`ledger/LedgerPage.tsx`): la sección vacía «Hueco cerrado por tarea» pasa a «Movimiento por tarea» (Σ|asientos| de cada tarea en EUR); subtítulo y descripción ya no hablan de un balance correcto que no existe.
+- **AP, art. 43** (`tasks/ap/model.ts`): fechas del certificado como fechas, no en ISO.
+- **AP, ordenar por Total** (`tasks/ap/ApPage.tsx`): por valor en EUR.
+- **Cierre, deterioro** (`tasks/close/ClosePage.tsx`): «Partidas abiertas» de la provisión con `Amount`.
+
+### Esta PR
+
+- **AP, datos de cada acción del maestro** (`tasks/ap/model.ts` → `actionDetails`, `tasks/ap/ApDocCard.tsx`): la ficha enseñaba solo «Registrar embargo» o «Actualizar datos bancarios». Ahora muestra lo que trae `action_data`: referencia e importe del embargo (`API005192`, 61.930,20 €), IBAN anterior y nuevo con certificado y fecha (`API005196`), factor, IBAN y fecha de la cesión (`API005190`), vigencia y referencia del certificado art. 43 (`API005622`), validez de la proforma. Fechas con `formatDate`, importe con `Amount`, IBAN y referencias con `Mono`. Tests en `model.test.ts`.
+- **Contraste** (petición de qa-shell-demo, `--brand-line` de #153): `--ink-4` → `--ink-3` en el «—» de AP y del mapa de calor, nombres de grupo del mapa de calor, recuento de cada maestro y placeholder del diario; bordes de selección y foco de `--brand` a `--brand-line` en ledger, ar-cash, ap, bank, ar-billing, ic y data-explorer.
 
 ## Verificación
 
-- `npm run typecheck`, `npm run lint`, `npm run test` (52 ficheros, 346 tests) y `npm run build`: en verde.
-- Navegador, julio + golden: las 14 rutas abren sin errores de consola; las vistas de tarea abren con su mapa de decisión. 321 de 726 partidas abiertas en su panel en las 5 pestañas (todo AP y Facturación, parte de Cobros) sin errores ni textos rotos.
-- Navegador, septiembre: las 16 rutas (incluidas `BANH-3100-MXN`, `BANH-3100-USD` y `BIN-1200`) sin errores de consola. Barrido de todas las filas de cada tabla (con scroll) sin importes desbordados. Balance sin golden revisado con captura.
-- Casos nuevos de septiembre en AP: art. 43 caducado `API004580` (cascada §2.2.4, bloqueo de pago, certificado frente al maestro).
+- `npm run typecheck`, `npm run lint`, `npm run test` (55 ficheros, 357 tests) y `npm run build`: en verde tras fusionar `origin/hackathon/frontend`.
+- **Septiembre:** las 719 partidas abiertas en su panel en las 5 pestañas (Razonamiento, Resumen, Asiento, Evidencia, Golden) sin errores de consola ni textos rotos (`NaN`, `undefined`, «no existe»). Las 16 rutas sin errores; todas las filas de cada tabla (con scroll) sin importes desbordados.
+- **Julio:** las 726 partidas abiertas en sus 5 pestañas sin incidencias; las 14 rutas sin errores de consola; Balance con 8 columnas sin scroll horizontal.
+- **Casos nuevos de septiembre:**
+  - art. 43 caducado (`API004580`, `API004661`, `API004702`): nodo «Bloqueo de pago 3» en el mapa, cascada §2.2.4 y certificado frente al maestro;
+  - DUA y facturas en USD (`API004940`, `API004952`–`API004954`): ficha en US$ y asiento en EUR de la sociedad en el panel;
+  - embargo (`API005192`): referencia e importe en la ficha;
+  - dominio parecido (`API005263`): `señalizaci0nesvial.es` frente a la ficha, «posible suplantación»;
+  - intereses: están en Bancos, 7 partidas (`INTEREST_NOT_BOOKED` y `LOAN_INTEREST_NOT_BOOKED`, por ejemplo `BIN-1000/BL0004088`, −466.875 €), resueltas con su ajuste y con su nodo en el mapa; 12 de 12 cuentas conciliadas. Intragrupo no trae diferencia de intereses en septiembre, así que la tarjeta act/360 no aparece.
+  - `BANH-3100-USD`: puente en US$ y ajustes en MXN de la sociedad.
+- Contraste comprobado en el navegador: selección del mapa de calor `#ea580c` y textos atenuados en `--ink-3`.
 
 ## Sin verificar
 
-- El resto de partidas de julio en su panel (de la 322 a la 726) y las de septiembre: en curso.
-- DUA en USD (`API004940`, `API004952`–`API004954`), embargo (`API005192`) y dominios parecidos (`API005263`, `API005264`): en curso.
+- Recorrido con teclado y lector de pantalla de cada vista: solo se revisó con ratón y texto.
+- Listas en anchos menores de 1440 px.
 
 ## Peticiones a la coordinadora
 
-- **`DataTable` (sesión de shell):** una celda alineada a la derecha cuyo contenido no cabe se recorta por la izquierda y se pierden los primeros dígitos del importe, sin elipsis. Mis columnas ya caben, pero cualquier tabla nueva puede repetirlo.
+- **`DataTable` (qa-shell-demo):** una celda alineada a la derecha cuyo contenido no cabe se recorta por la izquierda y se pierden los primeros dígitos, sin elipsis. Ya pasada por la coordinadora.
+- **Kit, `MasterCompare.tsx:106` (qa-core):** la nota de cesión dice «desde 2026-07-14» en ISO; debería usar `formatDate`. Sale en Razonamiento y Golden de las facturas con pago al factor (`API004636`, `API004656`, `API004689`, `API004912`).
 
 ## Commits
 
@@ -34,3 +49,5 @@ Recorrido de `/tareas/*`, `/balance`, `/datos/*`, `/comparar` y `/coste` con jul
 - `74a71b7 fix: show the provision from open items as money in the bad debt view`
 - `acfc2ca fix: sort the AP inbox totals by their value in EUR`
 - `add181d feat: show how much each task moves the ledger when there is no golden`
+- `f758c0b feat: show what each master data action carries in the AP card`
+- `f44d060 fix: raise the contrast of muted text and selection borders in task, balance and data views`

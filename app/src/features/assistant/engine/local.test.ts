@@ -88,6 +88,13 @@ describe('answerLocally on the fixture', () => {
     expect(answerLocally('Explica XYZ999999', ctx).text).toMatch(/No encuentro XYZ999999/)
   })
 
+  it('an unknown id suggests one that exists in the active run', () => {
+    const suggested = answerLocally('Explica XYZ999999', ctx).text.match(/«Explica ([^»]+)»/)?.[1]
+    expect(suggested).toBeDefined()
+    expect(answerLocally(`Explica ${suggested}`, ctx).intent).toBe('explain')
+    expect(card(answerLocally(`Explica ${suggested}`, ctx), 'reasoning')).toBeDefined()
+  })
+
   it('bank account status agrees with the close controls', () => {
     const a = answerLocally('¿Cómo está BIN-1000?', ctx)
     const control = banksControl(core.tasks.bank_accounts, run.deliverables.bank_rec, ctx.data.items)

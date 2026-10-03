@@ -295,6 +295,45 @@ export function masterCompare({ row, vendor, company, einvoice, certificates, se
   return out
 }
 
+// ---------------------------------------------------------------- action data of a NOT_INVOICE document
+
+export interface ActionDetail {
+  label: string
+  value: string | number
+  kind: 'text' | 'mono' | 'money'
+}
+
+const ACTION_FIELDS: Record<string, { label: string; kind: 'text' | 'mono' | 'money' | 'date' | 'days' | 'bool' }> = {
+  ref: { label: 'Referencia', kind: 'mono' },
+  reference: { label: 'Referencia', kind: 'mono' },
+  amount: { label: 'Importe', kind: 'money' },
+  factor: { label: 'Factor', kind: 'text' },
+  iban: { label: 'IBAN', kind: 'mono' },
+  old_iban: { label: 'IBAN anterior', kind: 'mono' },
+  new_iban: { label: 'IBAN nuevo', kind: 'mono' },
+  certificate: { label: 'Certificado bancario', kind: 'bool' },
+  effective: { label: 'Desde', kind: 'date' },
+  valid_until: { label: 'Vigente hasta', kind: 'date' },
+  as_of: { label: 'A fecha de', kind: 'date' },
+  valid_days: { label: 'Validez', kind: 'days' },
+}
+
+/** `action_data` of the delivered row as label/value pairs, in the order the agent wrote them. */
+export function actionDetails(data: unknown): ActionDetail[] {
+  if (!data || typeof data !== 'object') return []
+  return Object.entries(data as Record<string, unknown>)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]): ActionDetail => {
+      const f = ACTION_FIELDS[k]
+      if (!f) return { label: k, value: typeof v === 'object' ? JSON.stringify(v) : String(v), kind: 'text' }
+      if (f.kind === 'money' && typeof v === 'number') return { label: f.label, value: v, kind: 'money' }
+      if (f.kind === 'date') return { label: f.label, value: formatDate(String(v)), kind: 'text' }
+      if (f.kind === 'days') return { label: f.label, value: `${v} días`, kind: 'text' }
+      if (f.kind === 'bool') return { label: f.label, value: v ? 'Sí' : 'No', kind: 'text' }
+      return { label: f.label, value: String(v), kind: f.kind === 'mono' ? 'mono' : 'text' }
+    })
+}
+
 // ---------------------------------------------------------------- line-by-line match with PO and goods receipt
 export const PRICE_TOLERANCE_RATIO = 0.02
 export const PRICE_TOLERANCE_CENTS = 15_000

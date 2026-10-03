@@ -63,7 +63,7 @@
 }
 
 .search:focus-within {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
 }
 
 .search input {
@@ -76,7 +76,7 @@
 }
 
 .muted {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 /* ---------------------------------------------------------------- ficha */

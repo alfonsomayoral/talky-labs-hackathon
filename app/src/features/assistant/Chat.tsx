@@ -83,7 +83,7 @@ export function Composer({ onAsk, mode, onModeChange, disabled, busy, autoFocus 
         className={styles.input}
         rows={1}
         value={value}
-        placeholder="Pregunta sobre el cierre: «Explica API004128», «¿Cómo está BIN-1100?»…"
+        placeholder="Pregunta sobre el cierre: «¿Qué tengo que revisar?», «¿Cómo está BIN-1100?»…"
         aria-label="Pregunta al asistente"
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}

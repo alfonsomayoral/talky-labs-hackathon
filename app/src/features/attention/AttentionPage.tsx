@@ -21,7 +21,9 @@ import {
   type FilterOption,
 } from '@/components'
 import { ATTENTION_KINDS, TASK_KEYS, type DerivedRun } from '@/domain/types'
+import { useDatasetStore } from '@/data/stores'
 import { useDerivedRun } from '@/engine'
+import { attentionSummary, eurConverter } from '@/features/overview/model'
 import { formatDateTime, formatNumber } from '@/lib/format'
 import { shouldIgnoreHotkey, usePageShortcuts } from '@/lib/keyboard'
 import { PageActions } from '@/shell/PageActions'
@@ -114,6 +116,13 @@ function AttentionQueue({ run }: { run: DerivedRun }) {
 
   const rows = useMemo(() => buildRows(run.attention, run.itemsById, overrides), [run, overrides])
   const pendingAll = useMemo(() => rows.filter((r) => r.resolution === 'pending'), [rows])
+  const api = useDatasetStore((s) => s.api)
+  // Same EUR total as Resumen and the assistant: 3100 converted at the closing rate.
+  const pendingEur = useMemo(() => {
+    if (!api) return null
+    const toEur = eurConverter(api.core.companies, api.core.fxRates, api.meta.month)
+    return Math.round(attentionSummary(pendingAll.map((r) => r.a), run.itemsById, toEur).impactEur)
+  }, [api, pendingAll, run.itemsById])
   const visible = useMemo(() => rows.filter((r) => matchesFilters(r, filters)), [rows, filters])
   const pending = visible.filter((r) => r.resolution === 'pending')
   const snoozed = visible.filter((r) => r.resolution === 'snoozed')
@@ -284,7 +293,7 @@ function AttentionQueue({ run }: { run: DerivedRun }) {
               {pendingAll.length > 0 && (
                 <>
                   {' · '}
-                  <Totals totals={totalsByCurrency(pendingAll)} compact />
+                  {pendingEur == null ? <Totals totals={totalsByCurrency(pendingAll)} compact /> : <Amount cents={pendingEur} compact />}
                 </>
               )}
             </span>
