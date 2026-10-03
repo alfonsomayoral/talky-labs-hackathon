@@ -319,6 +319,8 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         company = a['company']
         if a.get('currency') == company_local_currency(company) or not a.get('vendor'):
             continue
+        if str(a.get('kind') or a.get('document_type') or 'invoice').lower() != 'invoice':
+            continue
         journal = a.get('journal_entry')
         journal = original.get(journal, {}) if isinstance(journal, str) else journal or {}
         liabilities = [l for l in journal.get('lines', []) if l['account'] in {'40000000', '41000000', '40300000'}
