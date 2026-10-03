@@ -177,7 +177,8 @@ async def capture(args):
                             item = {'path': entry['path'], 'sha256': entry['sha256'], 'status': 'completed'}
                             try:
                                 document = router.parse(Path(entry['path']).relative_to('phase_dev').as_posix())
-                                if processor is not None:
+                                if processor is not None and document.media_type == 'application/pdf' and any(
+                                        warning.endswith(':vision_required') for warning in document.warnings):
                                     document = await asyncio.to_thread(processor.process, document,
                                         artifact_dir=directory / 'pdf-tools' / entry['sha256'])
                                 source_archive = directory / 'sources' / (entry['sha256'] + '.json')
