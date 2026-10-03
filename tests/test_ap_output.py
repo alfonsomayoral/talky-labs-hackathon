@@ -6,10 +6,14 @@ import tempfile
 import unittest
 
 from kalmora.ap_output import APHeader, build_ap_row, validate_ap_row, write_ap_jsonl
+from kalmora.ap_tax import TaxCatalog
 
 
 class APOutputTests(unittest.TestCase):
     def setUp(self):
+        self.tax_catalog = TaxCatalog({"tax_codes": {"S21": {"country": "ES", "kind": "input", "rate": 2100},
+            "SEX": {"country": "ES", "kind": "exempt", "rate": 0}, "SND": {"country": "ES", "kind": "nondeductible", "rate": 2100},
+            "SISP": {"country": "ES", "kind": "reverse", "rate": 2100}}})
         self.header = APHeader("1100", "V1", "INV1", "2026-07-01", "EUR", 10000, 2100, 12100, 1500, 0, 10600)
         self.lines = [{"amount": 10000, "account": "62300000", "cost_center": "CC1", "wbs": None,
                        "tax_code": "S21", "po": None, "po_item": None}]
@@ -23,13 +27,13 @@ class APOutputTests(unittest.TestCase):
 
     def posted(self, **kw):
         options = dict(doc_id="DOC1", document_type="INVOICE", decision="POST", header=self.header, lines=self.lines,
-                       journal_entry=self.entry, context=self.context)
+                       journal_entry=self.entry, context=self.context, tax_catalog=self.tax_catalog)
         options.update(kw)
         return build_ap_row(**options)
 
     def test_post_credit_and_payment_block_are_valid_and_snapshot_inputs(self):
         row = self.posted()
-        self.assertEqual(validate_ap_row(row, self.context), ())
+        self.assertEqual(validate_ap_row(row, self.context, tax_catalog=self.tax_catalog), ())
         row["journal_entry"]["lines"][0]["debit"] = 1
         self.assertEqual(self.entry["lines"][0]["debit"], 10000)
         credit = deepcopy(self.entry)
@@ -96,7 +100,7 @@ class APOutputTests(unittest.TestCase):
         for field in ("accounts", "partners", "companies", "cost_centers", "wbs", "min_date", "max_date"):
             self.assertTrue(validate_ap_row(row, {field: None}))
         self.assertTrue(validate_ap_row(row, []))
-        self.assertEqual(validate_ap_row(row, {"accounts": list(self.context["accounts"])}), ())
+        self.assertEqual(validate_ap_row(row, {"accounts": list(self.context["accounts"])}, tax_catalog=self.tax_catalog), ())
 
     def test_gr_ir_requires_coded_order_and_resolved_assignment(self):
         header = APHeader("1100", "V1", "INV1", "2026-07-01", "EUR", 10000, 0, 10000, 0, 0, 10000)
@@ -109,6 +113,25 @@ class APOutputTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.posted(header=header, lines=bad, journal_entry=entry, context=None)
 
+    def test_document_base_vat_and_deductions_conserve_each_header_component(self):
+        for base, quota, withholding, guarantee in ((0, 12100, 1500, 0), (11000, 1100, 1500, 0),
+                                                    (9000, 2100, 500, 0), (11000, 2100, 1500, 1000)):
+            entry = deepcopy(self.entry)
+            entry["lines"][0]["debit"] = base
+            entry["lines"][1]["debit"] = quota
+            entry["lines"][2]["credit"] = withholding
+            if guarantee:
+                entry["lines"].append({"account": "40000900", "debit": 0, "credit": guarantee, "partner": "V1"})
+            with self.assertRaises(ValueError):
+                self.posted(journal_entry=entry, context=None)
+        nondeductible = deepcopy(self.entry)
+        nondeductible["lines"][0]["debit"] = 12100
+        del nondeductible["lines"][1]
+        lines = [{**self.lines[0], "tax_code": "SND"}]
+        self.posted(lines=lines, journal_entry=nondeductible, context=None)
+        with self.assertRaises(ValueError):
+            self.posted(tax_catalog=None)
+
     def test_advance_request_requires_the_policy_journal(self):
         header = APHeader("1100", "V1", "INV1", "2026-07-01", "USD", 10000, 0, 10000, 0, 0, 10000)
         lines = [{"amount": 10000, "account": "40700000", "tax_code": "SEX", "po": "PO1", "po_item": 10}]
@@ -120,14 +143,94 @@ class APOutputTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.posted(document_type="DOWN_PAYMENT_REQUEST", header=header, lines=lines, journal_entry=entry, context=None)
 
+    def test_document_dimensions_cannot_absorb_each_other_or_unrelated_gr_ir(self):
+        header = replace(self.header, tax=0, gross=10000, withholding=0, payable=10000)
+        lines = [{**self.lines[0], "amount": amount, "tax_code": "SEX", "cost_center": cc}
+                 for amount, cc in ((6000, "CC1"), (4000, "CC2"))]
+        entry = {"company": "1100", "lines": [
+            {"account": "62300000", "debit": 6000, "credit": 0, "cost_center": "CC1"},
+            {"account": "62300000", "debit": 4000, "credit": 0, "cost_center": "CC2"},
+            {"account": "41000000", "debit": 0, "credit": 10000, "partner": "V1"}]}
+        self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+        swapped = deepcopy(entry)
+        swapped["lines"][0]["debit"], swapped["lines"][1]["debit"] = 4000, 6000
+        with self.assertRaisesRegex(ValueError, "coded cost dimension"):
+            self.posted(header=header, lines=lines, journal_entry=swapped, context=None)
+        po_lines = [{**lines[0], "po": "PO1", "po_item": 10}, lines[1]]
+        gr_ir = deepcopy(entry)
+        gr_ir["lines"][0] = {"account": "40090000", "debit": 10000, "credit": 0,
+                              "partner": "V1", "assignment": "PO1/10"}
+        gr_ir["lines"][1]["debit"] = 0
+        with self.assertRaisesRegex(ValueError, "coded cost dimension"):
+            self.posted(header=header, lines=po_lines, journal_entry=gr_ir, context=None)
+        # PO price can exceed invoiced net: the price difference credits expense.
+        gr_ir["lines"][0]["debit"] = 6500
+        gr_ir["lines"][1]["debit"] = 4000
+        gr_ir["lines"].insert(1, {"account": "62300000", "debit": 0, "credit": 500, "cost_center": "CC1"})
+        self.posted(header=header, lines=po_lines, journal_entry=gr_ir, context=None)
+
+    def test_mixed_nondeductible_tax_is_confined_to_its_cost_dimensions(self):
+        header = replace(self.header, withholding=0, payable=12100)
+        lines = [{**self.lines[0], "amount": 9000},
+                 {**self.lines[0], "amount": 1000, "cost_center": "CC2", "tax_code": "SND"}]
+        entry = {"company": "1100", "lines": [
+            {"account": "62300000", "debit": 9000, "credit": 0, "cost_center": "CC1"},
+            {"account": "62300000", "debit": 1210, "credit": 0, "cost_center": "CC2"},
+            {"account": "47200000", "debit": 1890, "credit": 0, "tax_code": "S21"},
+            {"account": "41000000", "debit": 0, "credit": 12100, "partner": "V1"}]}
+        self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+        misplaced = deepcopy(entry)
+        misplaced["lines"][0]["debit"] += 210
+        misplaced["lines"][1]["debit"] -= 210
+        with self.assertRaisesRegex(ValueError, "coded cost dimension"):
+            self.posted(header=header, lines=lines, journal_entry=misplaced, context=None)
+        excessive = deepcopy(entry)
+        excessive["lines"][1]["debit"] = 3100
+        del excessive["lines"][2]
+        with self.assertRaisesRegex(ValueError, "charged VAT"):
+            self.posted(header=header, lines=lines, journal_entry=excessive, context=None)
+
+    def test_reverse_charge_pairs_require_ap_code_scope_amounts_and_sides(self):
+        header = replace(self.header, tax=0, gross=10000, withholding=0, payable=10000)
+        lines = [{**self.lines[0], "tax_code": "SISP"}]
+        entry = {"company": "1100", "lines": [
+            {"account": "62300000", "debit": 10000, "credit": 0, "cost_center": "CC1"},
+            {"account": "47210000", "debit": 2100, "credit": 0, "tax_code": "SISP"},
+            {"account": "47710000", "debit": 0, "credit": 2100, "tax_code": "SISP"},
+            {"account": "41000000", "debit": 0, "credit": 10000, "partner": "V1"}]}
+        self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+        for code in ("S21", "UNKNOWN"):
+            invalid = deepcopy(entry)
+            invalid["lines"][1]["tax_code"] = invalid["lines"][2]["tax_code"] = code
+            with self.assertRaises(ValueError):
+                self.posted(header=header, lines=lines, journal_entry=invalid, context=None)
+        wrong = deepcopy(entry)
+        wrong["lines"][1]["credit"], wrong["lines"][1]["debit"] = 2100, 0
+        wrong["lines"][2]["debit"], wrong["lines"][2]["credit"] = 2100, 0
+        with self.assertRaisesRegex(ValueError, "self-assessed VAT pairs"):
+            self.posted(header=header, lines=lines, journal_entry=wrong, context=None)
+        self.assertEqual(validate_ap_row(self.posted(), tax_catalog={}), ("active tax catalogue must be TaxCatalog",))
+
+    def test_positive_foreign_document_component_cannot_lose_its_local_side(self):
+        header = replace(self.header, currency="USD", net=1, tax=0, gross=1, withholding=0, payable=1)
+        lines = [{**self.lines[0], "amount": 1, "tax_code": "SEX"}]
+        entry = {"company": "1100", "currency": "USD", "lines": [
+            {"account": "62300000", "debit": 0, "credit": 0, "cost_center": "CC1", "amount_doc": 1, "currency": "USD"},
+            {"account": "41000000", "debit": 0, "credit": 0, "partner": "V1", "amount_doc": 1, "currency": "USD"}]}
+        with self.assertRaisesRegex(ValueError, "zero local side"):
+            self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+
     def test_foreign_advance_application_conserves_document_payable(self):
         header = APHeader("1100", "V1", "INV1", "2026-07-01", "USD", 10000, 0, 10000, 0, 0, 7000)
         lines = [{**self.lines[0], "tax_code": "SEX"}]
         entry = {"company": "1100", "currency": "USD", "document_date": header.invoice_date, "reference": header.invoice_number, "lines": [
-            {"account": "62300000", "debit": 9050, "credit": 0, "cost_center": "CC1"},
+            {"account": "62300000", "debit": 9050, "credit": 0, "cost_center": "CC1", "amount_doc": 10000, "currency": "USD"},
             {"account": "40700000", "debit": 0, "credit": 2690, "partner": "V1", "amount_doc": 3000, "currency": "USD"},
             {"account": "41000000", "debit": 0, "credit": 6360, "partner": "V1", "amount_doc": 7000, "currency": "USD"}]}
         self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+        inverse = deepcopy(entry)
+        inverse["lines"] = [{**line, "debit": line["credit"], "credit": line["debit"]} for line in inverse["lines"]]
+        self.posted(document_type="CREDIT_NOTE", header=header, lines=lines, journal_entry=inverse, context=None)
         entry["lines"][1]["amount_doc"] = 2999
         with self.assertRaises(ValueError):
             self.posted(header=header, lines=lines, journal_entry=entry, context=None)
@@ -137,18 +240,18 @@ class APOutputTests(unittest.TestCase):
         b = build_ap_row(doc_id="DOC2", document_type="PROFORMA", decision="NOT_INVOICE", action="NONE")
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "ap.jsonl"
-            write_ap_jsonl(path, [b, a], expected_doc_ids=["DOC1", "DOC2"])
+            write_ap_jsonl(path, [b, a], expected_doc_ids=["DOC1", "DOC2"], tax_catalog=self.tax_catalog)
             original = path.read_bytes()
             self.assertEqual([json.loads(line)["doc_id"] for line in original.splitlines()], ["DOC1", "DOC2"])
-            write_ap_jsonl(path, [a, b], expected_doc_ids=["DOC2", "DOC1"], overwrite=True)
+            write_ap_jsonl(path, [a, b], expected_doc_ids=["DOC2", "DOC1"], overwrite=True, tax_catalog=self.tax_catalog)
             self.assertEqual(path.read_bytes(), original)
             for rows, expected in (([a], ["DOC1", "DOC2"]), ([a, a], ["DOC1"]), ([a, b], ["DOC1"]),
                                    ([{**a, "decision": "HOLD"}, b], ["DOC1", "DOC2"])):
                 with self.assertRaises(ValueError):
-                    write_ap_jsonl(path, rows, expected_doc_ids=expected, overwrite=True)
+                    write_ap_jsonl(path, rows, expected_doc_ids=expected, overwrite=True, tax_catalog=self.tax_catalog)
                 self.assertEqual(path.read_bytes(), original)
             with self.assertRaises(FileExistsError):
-                write_ap_jsonl(path, [a, b], expected_doc_ids=["DOC1", "DOC2"])
+                write_ap_jsonl(path, [a, b], expected_doc_ids=["DOC1", "DOC2"], tax_catalog=self.tax_catalog)
             self.assertEqual(list(Path(folder).glob(".ap-*.tmp")), [])
 
 

@@ -15,6 +15,7 @@ import tempfile
 
 from .ap_rejections import REJECTION_CODES
 from .ap_holds import HOLD_CODES
+from .ap_tax import TaxCatalog
 from .evaluation.structure import check_structure
 from .model.journal_entry import JournalEntry
 from .model.validation_context import ValidationContext
@@ -52,7 +53,8 @@ def _text(value):
     return isinstance(value, str) and bool(value.strip())
 
 
-def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tuple[str, ...]:
+def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
+                    tax_catalog: TaxCatalog | None = None) -> tuple[str, ...]:
     """Validate shape, decision invariants, dimensions and monetary conservation.
 
     An explicit header is in document cents, including unsigned credit-note
@@ -61,6 +63,8 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
     """
     if not isinstance(row, dict):
         return ("AP row must be an object",)
+    if tax_catalog is not None and not isinstance(tax_catalog, TaxCatalog):
+        return ("active tax catalogue must be TaxCatalog",)
     if context is not None:
         if not isinstance(context, Mapping):
             return ("master context must be a mapping",)
@@ -123,6 +127,13 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
     if row["net"] + row["tax"] != row["gross"]:
         errors.append("gross must equal net plus charged tax")
     lines = row["lines"]
+    if tax_catalog is None:
+        errors.append("posted rows require the active AP tax catalogue")
+    nondeductible = False
+    nondeductible_base = 0
+    nondeductible_dimensions, reverse_codes = set(), set()
+    expected_dimensions, position_dimensions = {}, {}
+    country = "MX" if row["company"] == "3100" else "PT" if row["company"] == "2100" else "ES"
     if not lines or sum(line["amount"] for line in lines) != row["net"]:
         errors.append("coded lines must conserve document net")
     for line in lines:
@@ -135,12 +146,28 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
             errors.append("coded expense/asset requires exactly one cost object")
         if line["amount"] < 0 or not _text(line["tax_code"]):
             errors.append("coded line requires unsigned cents and resolved tax code")
+        if tax_catalog is not None:
+            try:
+                treatment = tax_catalog.get(line["tax_code"], country)
+                nondeductible = nondeductible or treatment.kind == "nondeductible"
+                dim = (line["account"], line.get("cost_center"), line.get("wbs"))
+                if treatment.kind == "nondeductible":
+                    nondeductible_base += line["amount"]
+                    nondeductible_dimensions.add(dim)
+                if treatment.kind == "reverse":
+                    reverse_codes.add(line["tax_code"])
+            except ValueError as error:
+                errors.append(str(error))
         for field in ("cost_center", "wbs"):
             if line.get(field) is not None and not _text(line[field]):
                 errors.append(f"coded-line {field} must be nonempty or null")
         po, item = line.get("po"), line.get("po_item")
         if (po is None) != (item is None) or (po is not None and (not _text(po) or item <= 0)):
             errors.append("PO number and positive position must be paired")
+        dim = (account, line.get("cost_center"), line.get("wbs"))
+        expected_dimensions[dim] = expected_dimensions.get(dim, 0) + line["amount"]
+        if po is not None and item is not None:
+            position_dimensions.setdefault(f"{po}/{item}", set()).add(dim)
         if context:
             for field, registry in (("account", "accounts"), ("cost_center", "cost_centers"), ("wbs", "wbs")):
                 value = line.get(field)
@@ -158,7 +185,21 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
     if any(line.get("po") is not None for line in lines):
         monetary_accounts.add("40090000")
     signed_base = 0
+    base_doc = charged_tax_doc = withholding_doc = retention_doc = 0
+    actual_dimensions, reverse_pairs = {}, {}
+    reversal = -1 if kind == "CREDIT_NOTE" else 1
+    def document_amount(line):
+        value = line.get("amount_doc")
+        if value is None:
+            if line.get("currency", row["currency"]) == local:
+                return max(line["debit"], line["credit"])
+            errors.append("foreign journal components require document cents")
+            return 0
+        return value
     for line in entry["lines"]:
+        direction = 1 if line["debit"] else -1
+        if line.get("amount_doc", 0) > 0 and line["debit"] == line["credit"] == 0:
+            errors.append("positive document cents with zero local side are not representable by the AP journal")
         if "amount_doc" in line and line["amount_doc"] < 0:
             errors.append("journal document cents must be unsigned")
         if line.get("currency", row["currency"]) == local and "amount_doc" in line and line["amount_doc"] != max(line["debit"], line["credit"]):
@@ -169,6 +210,11 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
             if (line["account"], line.get("cost_center"), line.get("wbs")) not in dimensions:
                 errors.append("journal base imputation is absent from coded lines")
             signed_base += line["debit"] - line["credit"]
+            if line.get("currency", row["currency"]) == row["currency"]:
+                amount = reversal * direction * document_amount(line)
+                base_doc += amount
+                dim = (line["account"], line.get("cost_center"), line.get("wbs"))
+                actual_dimensions[dim] = actual_dimensions.get(dim, 0) + amount
         elif line["account"] == "40090000":
             if "40090000" not in monetary_accounts:
                 errors.append("GR/IR requires an explicitly coded PO portion")
@@ -176,8 +222,65 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
             if line.get("assignment") is not None and line["assignment"] not in positions:
                 errors.append("GR/IR assignment differs from coded PO positions")
             signed_base += line["debit"] - line["credit"]
+            amount = reversal * direction * document_amount(line)
+            base_doc += amount
+            eligible_dims = position_dimensions.get(line.get("assignment"), set()) if line.get("assignment") is not None else set().union(*position_dimensions.values()) if position_dimensions else set()
+            if len(eligible_dims) != 1:
+                errors.append("GR/IR needs unambiguous coded cost correspondence")
+            else:
+                dim = next(iter(eligible_dims))
+                expected_dimensions[dim] -= amount
         elif line["account"] not in monetary_accounts:
             errors.append("account is outside the AP journal components")
+        if line["account"] in {"47200000", "47510000", "40000900"}:
+            if line.get("currency", row["currency"]) != row["currency"]:
+                errors.append("fiscal deduction/quota currency differs from invoice")
+            amount = reversal * direction * document_amount(line)
+            if line["account"] == "47200000":
+                charged_tax_doc += amount
+            elif line["account"] == "47510000":
+                withholding_doc -= amount
+            else:
+                retention_doc -= amount
+        code = line.get("tax_code")
+        if code is not None and line["account"] != "47510000" and tax_catalog is not None:
+            try:
+                treatment = tax_catalog.get(code, country)
+                if code not in {coded["tax_code"] for coded in lines}:
+                    errors.append("journal tax code is absent from coded lines")
+                if line["account"] == "47200000" and treatment.kind not in {"input", "import"}:
+                    errors.append("deductible/import quota carries incompatible tax code")
+                if line["account"] in {"47210000", "47710000"} and treatment.kind != "reverse":
+                    errors.append("self-assessed VAT carries incompatible tax code")
+            except ValueError as error:
+                errors.append(str(error))
+        if line["account"] in {"47210000", "47710000"}:
+            if not reverse_codes or (code is not None and code not in reverse_codes):
+                errors.append("self-assessed VAT has no coded reverse-charge treatment")
+            if line.get("currency", row["currency"]) != row["currency"]:
+                errors.append("self-assessed VAT currency differs from invoice")
+            key = (code, line.get("currency", row["currency"]))
+            pair = reverse_pairs.setdefault(key, [0, 0, 0, 0])
+            offset = 0 if line["account"] == "47210000" else 2
+            pair[offset] += reversal * direction * document_amount(line)
+            pair[offset + 1] += reversal * (line["debit"] - line["credit"])
+    if any(doc_in + doc_out or local_in + local_out or doc_in < 0 or doc_out > 0 for doc_in, local_in, doc_out, local_out in reverse_pairs.values()):
+        errors.append("self-assessed VAT pairs do not conserve document/local amounts and sides")
+    if withholding_doc != row["withholding"] or retention_doc != row["retention"]:
+        errors.append("journal document withholding/guarantee differs from header")
+    nondeductible_tax = row["tax"] - charged_tax_doc
+    if nondeductible_tax < 0 or nondeductible_tax > nondeductible_base or (nondeductible_tax and not nondeductible):
+        errors.append("charged VAT does not match deductible/import or capitalized treatment")
+    if kind != "DOWN_PAYMENT_REQUEST" and base_doc != row["net"] + nondeductible_tax:
+        errors.append("journal document base does not conserve coded net and capitalized VAT")
+    if kind != "DOWN_PAYMENT_REQUEST":
+        for dim, expected in expected_dimensions.items():
+            actual = actual_dimensions.get(dim, 0)
+            if dim in nondeductible_dimensions:
+                if actual < expected:
+                    errors.append("coded cost dimension loses its document base")
+            elif actual != expected:
+                errors.append("journal document amount differs from coded cost dimension")
     if kind == "CREDIT_NOTE" and signed_base > 0 or kind == "INVOICE" and signed_base < 0:
         errors.append("journal base side contradicts invoice/credit-note type")
     if kind == "DOWN_PAYMENT_REQUEST":
@@ -216,7 +319,8 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
                 errors.append("journal line currency is outside invoice/local scope")
         if supplier.get("assignment") not in (None, row["invoice_number"]):
             errors.append("supplier assignment differs from invoice number")
-    applied = [line for line in entry["lines"] if line["account"] == "40700000" and line["credit"]]
+    advance_side = "debit" if kind == "CREDIT_NOTE" else "credit"
+    applied = [line for line in entry["lines"] if line["account"] == "40700000" and line[advance_side]]
     if any(type(line.get("amount_doc")) is not int or line.get("currency", row["currency"]) != row["currency"] for line in applied):
         errors.append("advance applications require scoped document cents")
     else:
@@ -231,7 +335,7 @@ def build_ap_row(*, doc_id: str, document_type: str, decision: str,
                  lines: Sequence[ApLine] | None = None, journal_entry: JournalEntry | None = None,
                  duplicate_of: str | None = None, payee: ApPayee | None = None,
                  payment_block: str | None = None, action: str | None = None,
-                 context: ValidationContext | None = None) -> ApRow:
+                 context: ValidationContext | None = None, tax_catalog: TaxCatalog | None = None) -> ApRow:
     row = {"doc_id": doc_id, "document_type": document_type, "decision": decision,
            "reasons": list(reasons)}
     if header is not None:
@@ -240,14 +344,15 @@ def build_ap_row(*, doc_id: str, document_type: str, decision: str,
                        ("duplicate_of", duplicate_of), ("payee", payee), ("payment_block", payment_block), ("action", action)):
         if value is not None:
             row[key] = deepcopy(value)
-    errors = validate_ap_row(row, context)
+    errors = validate_ap_row(row, context, tax_catalog=tax_catalog)
     if errors:
         raise ValueError("; ".join(errors))
     return row
 
 
 def write_ap_jsonl(path: Path, rows: Iterable[ApRow], *, expected_doc_ids: Iterable[str],
-                   context: ValidationContext | None = None, overwrite: bool = False) -> None:
+                   context: ValidationContext | None = None, tax_catalog: TaxCatalog | None = None,
+                   overwrite: bool = False) -> None:
     """Validate the entire task inventory before writing any destination bytes.
 
     Sort by task ID for reproducibility. A missing, extra, duplicate, unresolved
@@ -260,7 +365,7 @@ def write_ap_jsonl(path: Path, rows: Iterable[ApRow], *, expected_doc_ids: Itera
     records = {}
     for original in rows:
         row = deepcopy(original)
-        errors = validate_ap_row(row, context)
+        errors = validate_ap_row(row, context, tax_catalog=tax_catalog)
         if errors:
             raise ValueError("; ".join(errors))
         if row["doc_id"] in records:

@@ -13,6 +13,21 @@ must match gross less withholdings, guarantee and explicit 407 applications;
 foreign-currency headers are never replaced by local journal amounts. Unsigned
 credit-note amounts retain their inverse debit/credit sides. Explicit MULTI_PO
 portions remain supplied lines; export cannot invent their split.
+The active `TaxCatalog` is required for posted rows, to validate AP codes and
+distinguish capitalized VAT from deductible/import quotas. Document base, charged
+VAT, withholding and guarantee totals must each conserve the header. This uses
+catalogue classifications and supplied journal amounts, not a second tax/FX
+calculation. Local-currency `amount_doc` must equal its debit/credit magnitude;
+foreign base/fiscal components must explicitly preserve document cents. An
+approved advance request must retain the exact Dr407/Cr400 policy entry.
+Cost dimensions conserve their own document amounts; an unrelated PO or CC/PEP
+cannot absorb a direct portion. GR/IR may exceed invoiced net when the explicit
+price difference credits the same cost dimension. Capitalized VAT stays in
+non-deductible dimensions. Self-assessed VAT uses reverse-charge AP codes and
+balanced document/local pairs with the proper sides.
+Positive document cents with both local sides zero are rejected explicitly:
+the current M0 contract cannot retain their accounting direction. The caller
+must preserve this diagnostic and abstain rather than drop the component.
 
 Non-posting decisions carry no journal or coded lines. REJECT/HOLD need the
 single winning policy reason; DUPLICATE needs another original `doc_id`.
@@ -42,10 +57,10 @@ row = build_ap_row(
     journal_entry=journal_result.journal_entry,
     payment_block=payment.payment_block,
     payee={"type": payment.payee} if payment.payee else None,
-    context=master_context,
+    context=master_context, tax_catalog=active_tax_catalog,
 )
 write_ap_jsonl(output_dir / "ap.jsonl", rows, expected_doc_ids=task_ids,
-               context=master_context)
+               context=master_context, tax_catalog=active_tax_catalog)
 ```
 
 Focused checks: `.venv/bin/python -m unittest tests.test_ap_output -v`.
