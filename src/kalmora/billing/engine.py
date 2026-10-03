@@ -74,13 +74,16 @@ def _month_range(first: str, last_exclusive: str) -> list[str]:
 class _Context:
     """Masters and history of one phase, with point-in-time lookups."""
 
-    def __init__(self, data: PhaseData, strict: bool) -> None:
+    def __init__(self, data: PhaseData, strict: bool,
+                 invoice_numbers: Mapping[str, str] | None = None) -> None:
         self.data, self.strict = data, strict
         self.rates = {code: row for code, row in data.table("tax_codes")["tax_codes"].items()
                       if row["kind"] in {"output", "output_reverse"}}
         self.country = {c["code"]: c["country"] for c in data.companies}
         self.advance_used: dict[tuple[str, str], int] = {}
         self.series: dict[str, int] = {}
+        self.invoice_numbers = dict(invoice_numbers or {})
+        self.claimed_numbers: set[tuple[str, str, int]] = set()
         self._invoices: dict[str, list[dict[str, Any]]] = {}
         self.revised_fees: dict[tuple[str, str, str], int] = {}
 
@@ -263,6 +266,19 @@ def _next_number(ctx: _Context, item: BillingItem, day: str) -> str:
         year = day[:4]
         if from_year and year != from_year:
             prefix = prefix.replace(from_year, year).replace(from_year[2:], year[2:])
+    if item.id in ctx.invoice_numbers:
+        number = ctx.invoice_numbers[item.id]
+        selected = re.fullmatch(r"(.*?)([0-9]+)", number)
+        if selected is None or selected[1] != prefix or int(selected[2]) < 1:
+            raise _Blocked("invoice number override differs from the ERP-derived series")
+        position = (item.company, prefix, int(selected[2]))
+        occupied = any((match := re.fullmatch(r"(.*?)([0-9]+)", row["id"]))
+                       and match[1] == prefix and int(match[2]) == position[2]
+                       for row in ctx.data.find("ar_invoices", company=item.company))
+        if occupied or position in ctx.claimed_numbers:
+            raise _Blocked("invoice number override collides with an existing or current invoice")
+        ctx.claimed_numbers.add(position)
+        return number
     if prefix not in ctx.series:
         top = 0
         for company_row in ctx.data.find("ar_invoices", company=item.company):
@@ -271,6 +287,9 @@ def _next_number(ctx: _Context, item: BillingItem, day: str) -> str:
                 top = max(top, int(tail.group(2)))
         ctx.series[prefix] = top
     ctx.series[prefix] += 1
+    while (item.company, prefix, ctx.series[prefix]) in ctx.claimed_numbers:
+        ctx.series[prefix] += 1
+    ctx.claimed_numbers.add((item.company, prefix, ctx.series[prefix]))
     return f"{prefix}{ctx.series[prefix]:05d}"
 
 
@@ -316,12 +335,22 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
 
 
 def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mapping[str, BillingFacts],
-                     *, strict_duplicates: bool = True) -> BillingRun:
+                     *, strict_duplicates: bool = True,
+                     invoice_numbers: Mapping[str, str] | None = None) -> BillingRun:
     """Resolve every item that has facts. ``strict_duplicates=False`` replays past months
-    (invoices on or after the item's date are ignored instead of rejected)."""
+    (invoices on or after the item's date are ignored instead of rejected).
+    Optional explicit numbers preserve an upstream task-order allocation; each
+    number is checked against the ERP-derived series and existing/current IDs.
+    Without overrides the historical max-plus-one convention is unchanged.
+    """
     if len({i.id for i in items}) != len(items):
         raise ValueError("billing item IDs must be unique")
-    ctx = _Context(data, strict_duplicates)
+    if invoice_numbers is not None:
+        if (not isinstance(invoice_numbers, Mapping) or not set(invoice_numbers) <= {i.id for i in items}
+                or any(not isinstance(number, str) or not number.strip() for number in invoice_numbers.values())):
+            raise ValueError("invoice numbers require known billing item IDs and nonempty strings")
+        invoice_numbers = dict(invoice_numbers)
+    ctx = _Context(data, strict_duplicates, invoice_numbers)
     drafts: list[tuple[BillingItem, _Draft | _Blocked, Mapping[str, Any] | None]] = []
     coverage: set[tuple[str, str, BillingType, str]] = set()
     # The decree is checked before monthly service, independent of task order.

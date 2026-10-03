@@ -61,9 +61,14 @@ def main(argv: list[str] | None = None) -> int:
     solve_ap = commands.add_parser("solve-ap", help="Decide, code and post every AP task (v0 rules)")
     solve_ap.add_argument("phase", type=Path)
     solve_ap.add_argument("--output", type=Path, required=True, help="Destination ap.jsonl")
-    solve_billing = commands.add_parser("solve-ar-billing", help="Invoice every AR billing item from its documents (v0 rules)")
+    solve_billing = commands.add_parser("solve-ar-billing", help="Extract evidenced AR facts and invoice current tasks")
     solve_billing.add_argument("phase", type=Path)
     solve_billing.add_argument("--output", type=Path, required=True, help="Destination ar_billing.jsonl")
+    solve_billing.add_argument("--work-dir", type=Path, help="AR recordings and evidence (default: next to output)")
+    solve_billing.add_argument("--mode", choices=("record", "replay"), default="record",
+                               help="Capture local source extraction or replay saved literal facts")
+    solve_billing.add_argument("--engine", choices=("sources", "v0"), default="sources",
+                               help="Use the evidenced billing engine (default) or explicit legacy v0")
     close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
     close.add_argument("phase", type=Path)
     close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
@@ -125,6 +130,18 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--no-warm-up", action="store_true", help="Do not prefill the model's prompt cache at start")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
+    if args.command == "solve-ar-billing":
+        phase = args.phase.resolve()
+        work = args.work_dir or args.output.parent / ".ar-billing-state"
+        for destination in (args.output, args.output.with_name("pending_wip.jsonl"), work, args.run_dir):
+            resolved = destination.resolve()
+            if resolved.is_relative_to(phase) or any(part.lower() == "golden" for part in resolved.parts):
+                print(json.dumps({"error": "AR outputs, recordings and run reports must be outside source data and golden"}),
+                      file=sys.stderr)
+                return 1
+        if args.engine == "v0" and args.mode == "replay":
+            print(json.dumps({"error": "v0 does not implement AR capture replay"}), file=sys.stderr)
+            return 1
     if args.command in {"prepare-ap", "plan-ap", "run-ap"}:
         destinations = [args.run_dir] + ([args.output] if args.command == "plan-ap" else [])
         if args.command == "run-ap":
@@ -358,6 +375,27 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "with_decision": resolved,
                           "unresolved": len(run.results) - resolved,
                           "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
+        return 0
+    if args.command == "solve-ar-billing" and args.engine == "sources":
+        import asyncio
+        from .billing.source_runner import build_billing_from_sources
+        from .billing.io import write_billing_files
+        from .data import PhaseData
+        try:
+            source = asyncio.run(build_billing_from_sources(PhaseData(args.phase.resolve()),
+                work_dir=args.work_dir or args.output.parent / ".ar-billing-state", mode=args.mode))
+            if not source.complete:
+                print(json.dumps({"error": "AR billing has unresolved sources or accounting inputs",
+                                  "report": str(source.report_path), "coverage": source.report["coverage"]}),
+                      file=sys.stderr)
+                return 1
+            written = write_billing_files(source.billing, args.output)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"output": str(written), "rows": len(source.billing.results),
+                          "pending_wip": len(source.billing.pending_wip), "report": str(source.report_path),
+                          "stable_output_sha256": source.stable_sha256, "mode": args.mode}))
         return 0
     if args.command in ("solve-ap", "solve-ar-billing"):
         from .v0.solve import solve_ap, solve_billing, write_jsonl
