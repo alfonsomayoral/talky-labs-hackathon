@@ -122,6 +122,7 @@ export function SidePanel({
         aria-label="Cambiar ancho del panel"
         aria-valuenow={shown}
         aria-valuemin={minWidth}
+        aria-valuemax={Math.round(window.innerWidth * MAX_RATIO)}
         tabIndex={0}
         className={styles.handle}
         onPointerDown={onPointerDown}

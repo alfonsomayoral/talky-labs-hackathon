@@ -69,7 +69,7 @@ function ToastItem({ t }: { t: ToastRecord }) {
     <li
       className={styles.toast}
       data-tone={tone}
-      role={tone === 'danger' ? 'alert' : 'status'}
+      role={tone === 'danger' ? 'alert' : undefined}
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -103,7 +103,8 @@ function ToastItem({ t }: { t: ToastRecord }) {
 export function Toaster() {
   const items = useSyncExternalStore(subscribe, () => toasts, () => toasts)
   return createPortal(
-    <ol className={styles.region} aria-label="Avisos">
+    // Always mounted and polite, so each new toast is announced; errors (role=alert) interrupt.
+    <ol className={styles.region} aria-label="Avisos" aria-live="polite">
       {items.map((t) => (
         <ToastItem key={t.id} t={t} />
       ))}
