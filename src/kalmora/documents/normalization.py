@@ -163,7 +163,7 @@ def _convert(key: str, fact: Fact) -> tuple[str, object, bool]:
         if rounded and suffix != "_cents":
             raise ValueError("Precision exceeds normalized units")
         return target, int(integral), rounded
-    if leaf.endswith("_date") or leaf in {"period_start", "period_end", "valid_from", "valid_until"}:
+    if leaf.endswith(("_date", "valid_from", "valid_until")) or leaf in {"period_start", "period_end"}:
         return key, _date(value), False
     if leaf == "currency":
         if not isinstance(value, str):
@@ -175,7 +175,7 @@ def _convert(key: str, fact: Fact) -> tuple[str, object, bool]:
         return key, currency, False
     if _contains_float(value):
         raise ValueError("Float facts are forbidden")
-    if leaf.endswith("_tax_id") or leaf == "iban":
+    if leaf.endswith(("_tax_id", "iban")):
         if not isinstance(value, str):
             raise ValueError("Identity requires source string")
         return key, re.sub(r"[\s.\-]", "", value).upper(), False
