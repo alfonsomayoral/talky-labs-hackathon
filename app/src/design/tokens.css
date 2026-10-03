@@ -7,6 +7,10 @@
   --brand-border: #fed7aa;
   /* Orange for small text on white: #f97316 only reaches 2.8:1, this reaches 5.2:1. */
   --brand-ink: #c2410c;
+  /* Orange for non-text indicators (focus ring, selected underline, checks): 3.2–3.6:1 on white and ground. */
+  --brand-line: #ea580c;
+  /* Hover and active of the primary button, whose fill is --brand-ink so white text reaches 5.2:1. */
+  --brand-strong: #9a3412;
 
   /* Ink */
   --ink: #09090b;

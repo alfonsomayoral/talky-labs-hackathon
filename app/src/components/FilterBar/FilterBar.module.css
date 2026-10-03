@@ -84,7 +84,7 @@
   align-items: center;
   padding: 0 var(--space-1-5);
   border-left: 1px solid var(--line);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .clear svg {
@@ -157,8 +157,8 @@
 }
 
 .checked {
-  border-color: var(--brand);
-  background: var(--brand);
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
   color: var(--ink-inverse);
 }
 
