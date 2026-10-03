@@ -1,0 +1,73 @@
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+}
+
+.hint {
+  display: inline-flex;
+  color: var(--ink-4);
+  border-radius: var(--radius-pill);
+  cursor: help;
+}
+
+.hint svg {
+  width: 13px;
+  height: 13px;
+}
+
+.value {
+  color: var(--ink-strong);
+  font-size: var(--text-24);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lg .value {
+  font-size: var(--text-32);
+  letter-spacing: -0.025em;
+}
+
+.footer {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  font-size: var(--text-12);
+}
+
+.delta {
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.delta[data-tone='ok'] {
+  color: var(--ok-ink);
+}
+.delta[data-tone='danger'] {
+  color: var(--danger-ink);
+}
+.delta[data-tone='neutral'] {
+  color: var(--ink-2);
+}
+
+.comparison {
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

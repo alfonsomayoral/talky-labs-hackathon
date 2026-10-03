@@ -1,0 +1,51 @@
+.group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  height: var(--control-height-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+}
+
+.sm {
+  height: var(--control-height-sm);
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.sm .option {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+}
+
+.option svg {
+  width: 14px;
+  height: 14px;
+}
+
+.option:hover {
+  color: var(--ink);
+}
+
+.checked,
+.checked:hover {
+  background: var(--bg);
+  color: var(--ink-strong);
+  box-shadow:
+    0 0 0 1px var(--line),
+    var(--shadow-xs);
+}

@@ -1,0 +1,133 @@
+.dialog {
+  max-width: 600px;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.searchIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--ink-4);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  font-size: var(--text-14);
+  color: var(--ink);
+}
+
+.input::placeholder {
+  color: var(--ink-4);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.list {
+  max-height: min(420px, 56vh);
+  overflow: auto;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  overscroll-behavior: contain;
+}
+
+.empty {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.group [cmdk-group-heading] {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  color: var(--ink-4);
+  font-size: var(--text-11);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.item[data-selected='true'] {
+  background: var(--bg-muted);
+}
+
+.item[data-selected='true'] .icon {
+  color: var(--ink-2);
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--ink-3);
+}
+
+.icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+.shortcut {
+  display: inline-flex;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border-top: 1px solid var(--line-soft);
+  background: var(--bg-subtle);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.footerEnd {
+  margin-left: auto;
+}

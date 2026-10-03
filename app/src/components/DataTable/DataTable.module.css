@@ -1,0 +1,193 @@
+.root {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100vh;
+  overflow: auto;
+  background: var(--bg);
+  font-size: var(--text-13);
+  overscroll-behavior: contain;
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--brand-border);
+  outline-offset: -2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--dt-cols);
+  align-items: center;
+  min-width: var(--dt-min-width);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+}
+
+.headerText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  margin: 0 calc(var(--space-1) * -1);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-xs);
+  color: inherit;
+  font-weight: inherit;
+}
+
+.sortButton:hover {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.sortButton svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sorted {
+  color: var(--ink-strong);
+}
+
+.right .sortButton {
+  flex-direction: row-reverse;
+}
+
+.body {
+  position: relative;
+  min-width: var(--dt-min-width);
+}
+
+.dataRow,
+.group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.dataRow {
+  height: var(--dt-row);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.dataRow:hover {
+  background: var(--bg-subtle);
+}
+
+.selected,
+.selected:hover {
+  background: var(--brand-soft);
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cell:first-child {
+  padding-left: var(--space-4);
+}
+
+.cell:last-child {
+  padding-right: var(--space-4);
+}
+
+.left {
+  justify-content: flex-start;
+}
+
+.right {
+  justify-content: flex-end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.center {
+  justify-content: center;
+}
+
+.group {
+  display: flex;
+  align-items: stretch;
+  min-width: var(--dt-min-width);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.groupCell {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--space-2);
+}
+
+.groupButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--ink-strong);
+  font-size: var(--text-12);
+  font-weight: var(--weight-semibold);
+}
+
+.groupButton:hover {
+  background: var(--bg-muted);
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  transition: transform var(--duration-fast) ease;
+}
+
+.open {
+  transform: rotate(90deg);
+}
+
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.groupCount {
+  color: var(--ink-3);
+  font-weight: var(--weight-medium);
+}
+
+.empty {
+  position: sticky;
+  left: 0;
+}
