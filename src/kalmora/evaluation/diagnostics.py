@@ -99,7 +99,9 @@ def check_submission(subs: dict[str, Rows], month: str, ids: dict[str, set[str]]
             for label, entry in entries_of(module, row):
                 problems = validate_entry(cast(JournalEntry, entry))
                 for problem in problems:
-                    if (module, ident) in KNOWN_EXCEPTIONS:
+                    if ((module, ident) in KNOWN_EXCEPTIONS
+                            and problem == "lines[1].partner: required for open-item account"
+                            and entry["lines"][0].get("account") == "40700000"):
                         found.append(_diagnostic(module, ident, "KNOWN_EXCEPTION", "info",
                                                  f"{label}: {problem}", explanation=KNOWN_EXCEPTIONS[module, ident]))
                     else:

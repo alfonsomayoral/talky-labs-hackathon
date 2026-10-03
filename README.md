@@ -8,7 +8,9 @@ los motores de AP, AR, bancos y cierre se implementan en milestones posteriores.
 
 `backend` es la rama de integración. Cada issue se trabaja en una rama
 `codex/<issue>-<descripcion>`, se valida en un PR dirigido a `backend` y se
-integra mediante squash. `main` y el trabajo de frontend siguen su propio flujo.
+integra mediante squash. Los hitos revisados se publican en `main` con una release;
+el frontend mantiene su rama de integración. CI comprueba `backend`, `main` y
+los tags de release.
 
 ```bash
 python3 -m venv .venv
@@ -49,6 +51,8 @@ ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 ## Roadmap
 
 [Guía de interfaces y reproducción de M0](docs/m0-backend.md).
+
+[Revisión y validación de la release M0](docs/releases/v0.1.0.md).
 
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
 ingesta, contratos contables, trazabilidad y evaluación reproducible.

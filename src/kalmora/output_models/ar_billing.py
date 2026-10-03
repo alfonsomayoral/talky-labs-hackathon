@@ -40,7 +40,7 @@ class ArInvoice(TypedDict, total=False):
     retention: Required[Cents]
     deductions: list[ArDeduction]
     payable: Required[Cents]
-    face: ArFace
+    face: ArFace | None
     """Only for Spanish public customers."""
 
     lines: list[ArInvoiceLine]

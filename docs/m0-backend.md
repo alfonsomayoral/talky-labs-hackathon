@@ -126,5 +126,13 @@ entidad, el estado, las diferencias tipadas y las diferencias en campos que el s
 no puntúa (`unscored`), más diagnósticos de la entrega y un bloque de conciliación
 por módulo. Un fallo de conciliación o una violación de frontera devuelve código 1.
 
+El comparador valida campos obligatorios, tipos y enums con los tipos de fila
+existentes antes de puntuar; no convierte floats ni booleanos a céntimos.
+`--structure-only` conserva los errores en el informe y devuelve código 1 si el
+formato es inválido. Las filas JSONL que no son objetos producen un error con
+archivo y línea. Las líneas de ajustes llevan sociedad explícita. La evaluación
+requiere el manifiesto del paquete registrado y rechaza un scorer modificado.
+Los datos originales y los importes de las notas del scorer se mantienen intactos.
+
 Referencias medidas en julio: el golden usado como entrega da 100,0 en todos los
 módulos; una entrega vacía da 3,54 (el scorer da 0,2359 a `ar_cash` vacío).
