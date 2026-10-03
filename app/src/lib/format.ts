@@ -34,7 +34,8 @@ export function formatMoney(cents: number | null | undefined, currency = 'EUR', 
   const base: Intl.NumberFormatOptions = {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-    signDisplay: opts.signed ? 'exceptZero' : 'auto',
+    // `negative`, not `auto`: a zero (or a negative that rounds to zero) never shows «-0».
+    signDisplay: opts.signed ? 'exceptZero' : 'negative',
   }
   const options: Intl.NumberFormatOptions =
     opts.currencyDisplay === 'none' ? base : { ...base, style: 'currency', currency }
