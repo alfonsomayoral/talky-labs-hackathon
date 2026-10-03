@@ -46,7 +46,8 @@ class LLMConfig:
     max_attempts: int = 2
     concurrency: int = 2
     max_input_tokens: int = 200_000
-    max_output_tokens: int = 2048
+    max_output_tokens: int | None = None
+    model_output_capacity_tokens: int = 128_000
     image_token_reserve: int = 100_000
     max_image_bytes: int = 10_000_000
     retry_base_seconds: float = 1.0
@@ -61,9 +62,13 @@ class LLMConfig:
                 raise ValueError(f"{name} must be a finite nonnegative Decimal")
         if not isinstance(self.pricing_provenance, str) or not self.pricing_provenance:
             raise ValueError("known USD rates and their provenance are required")
-        for name in ("max_attempts", "concurrency", "max_input_tokens", "max_output_tokens", "image_token_reserve", "max_image_bytes"):
+        for name in ("max_attempts", "concurrency", "max_input_tokens", "model_output_capacity_tokens", "image_token_reserve", "max_image_bytes"):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f"{name} must be a positive integer")
+        if self.max_output_tokens is not None and (type(self.max_output_tokens) is not int or self.max_output_tokens < 1):
+            raise ValueError("max_output_tokens must be a positive integer or None")
+        if self.max_output_tokens is not None and self.max_output_tokens > self.model_output_capacity_tokens:
+            raise ValueError("Explicit output limit exceeds declared model capacity")
         for name in ("timeout_seconds", "retry_base_seconds", "retry_max_seconds"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
@@ -73,7 +78,8 @@ class LLMConfig:
 
     @property
     def reservation(self) -> Decimal:
-        return self.input_rate * self.max_input_tokens + self.output_rate * self.max_output_tokens
+        output_bound = self.max_output_tokens if self.max_output_tokens is not None else self.model_output_capacity_tokens
+        return self.input_rate * self.max_input_tokens + self.output_rate * output_bound
 
     @property
     def pricing(self) -> dict[str, Any]:
@@ -209,6 +215,7 @@ class AsyncLLMClient:
         metadata = {"model": self.config.model, "reasoning_effort": self.config.reasoning_effort,
                     "max_input_tokens": self.config.max_input_tokens,
                     "max_output_tokens": self.config.max_output_tokens,
+                    "model_output_capacity_tokens": self.config.model_output_capacity_tokens,
                     "image_token_reserve": self.config.image_token_reserve,
                     "max_image_bytes": self.config.max_image_bytes,
                     "instructions_sha256": hashlib.sha256(instructions.encode()).hexdigest(),
@@ -236,7 +243,7 @@ class AsyncLLMClient:
                         raise LLMError(category, raw=raw)
                     inputs, outputs = token_usage(raw)
                     if ((inputs is not None and inputs > self.config.max_input_tokens) or
-                            (outputs is not None and outputs > self.config.max_output_tokens)):
+                            (self.config.max_output_tokens is not None and outputs is not None and outputs > self.config.max_output_tokens)):
                         raise LLMError("usage_limit", raw=raw)
                     try:
                         output = response.output
@@ -370,10 +377,12 @@ class OpenAIResponsesProvider:
             async with httpx.AsyncClient(transport=self.transport, event_hooks={"request": [before_send], "response": [capture]}) as http_client:
                 async with AsyncOpenAI(http_client=http_client, max_retries=0, timeout=request.config.timeout_seconds) as sdk:
                     model = OpenAIResponsesModel(request.config.model, provider=OpenAIProvider(openai_client=sdk))
+                    settings = {"openai_reasoning_effort": request.config.reasoning_effort,
+                                "openai_store": False, "timeout": request.config.timeout_seconds}
+                    if request.config.max_output_tokens is not None:
+                        settings["max_tokens"] = request.config.max_output_tokens
                     agent = Agent(model, output_type=NativeOutput(request.output_type), instructions=request.instructions,
-                                  retries=0, tools=(), model_settings={"max_tokens": request.config.max_output_tokens,
-                                                                     "openai_reasoning_effort": request.config.reasoning_effort,
-                                                                     "openai_store": False, "timeout": request.config.timeout_seconds})
+                                  retries=0, tools=(), model_settings=settings)
                     # Override process-global instrumentation settings; only M0 records audit.
                     agent.instrument = False
                     prompt = [request.prompt] + [BinaryContent(image.data, media_type=image.media_type) for image in request.images]

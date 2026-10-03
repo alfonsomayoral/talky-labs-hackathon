@@ -30,7 +30,7 @@ if BaseModel is not None:
 
 def config(**changes):
     return replace(LLMConfig("gpt-6-luna", Decimal("1"), Decimal("0.000001"),
-                             Decimal("0.000002"), "offline fixture tariff", max_attempts=1,
+                             Decimal("0.000002"), "offline fixture tariff", max_attempts=1, max_output_tokens=2048,
                              retry_base_seconds=0.001), **changes)
 
 
@@ -72,6 +72,24 @@ class LazyImportTests(unittest.TestCase):
 
 @unittest.skipIf(BaseModel is None, "install the optional llm extra for provider tests")
 class ClientTests(unittest.IsolatedAsyncioTestCase):
+    async def test_unlimited_output_omits_provider_limit_and_keeps_budget_reservation(self):
+        captured = []
+
+        async def handler(request):
+            captured.append(json.loads(request.content))
+            return httpx2.Response(200, json=body(usage={"input_tokens": 10, "output_tokens": 10_000}))
+
+        cfg = config(max_output_tokens=None)
+        self.assertEqual(cfg.reservation, cfg.max_input_tokens * cfg.input_rate +
+                         cfg.model_output_capacity_tokens * cfg.output_rate)
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"OPENAI_API_KEY": "offline-fixture"}):
+            with RunRecorder(directory, ["unlimited-output-check"]) as recorder:
+                result = await AsyncLLMClient(cfg, recorder, provider=OpenAIResponsesProvider(
+                    transport=httpx2.MockTransport(handler))).complete(Extracted, "Typed result", "Original invoice")
+        self.assertNotIn("max_output_tokens", captured[0])
+        self.assertIsNone(result.request_metadata["max_output_tokens"])
+        self.assertEqual(result.output.currency, "EUR")
+
     async def test_no_price_fetch_or_external_observability(self):
         from genai_prices import UpdatePrices
         from pydantic_ai.models.instrumented import InstrumentedModel

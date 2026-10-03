@@ -28,7 +28,7 @@ config = LLMConfig(
     model="gpt-6-luna", reasoning_effort="low",
     budget_usd=Decimal("1"), input_rate=input_rate_usd_per_token,
     output_rate=output_rate_usd_per_token, pricing_provenance=tariff_url_and_date,
-    max_input_tokens=200_000, max_output_tokens=2048,
+    max_input_tokens=200_000, max_output_tokens=None,
     concurrency=2, max_attempts=2, timeout_seconds=60,
 )
 with RunRecorder("outputs/runs", ["extract"]) as run:
@@ -70,8 +70,16 @@ regression forbids price updates/downloads, socket connections outside mocked
 Responses transport and instrumented model requests, even with a global
 instrumentation default enabled.
 
-Each attempt first reserves `max_input_tokens * input_rate + max_output_tokens *
-output_rate` under a shared asynchronous lock. One client owns the run budget;
+Output is unlimited by default: the request omits `max_output_tokens` entirely,
+as requested by the user. The model's physical output capacity remains the
+conservative monetary reservation, not an application output limit. For
+`gpt-6-luna` the declared capacity is 128,000 tokens, verified against the
+[official model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna).
+Callers choosing another model must supply its verified capacity.
+
+Each attempt first reserves `max_input_tokens * input_rate + output_bound *
+output_rate`, where `output_bound` is the declared model capacity when the
+optional output limit is `None`, under a shared asynchronous lock. One client owns the run budget;
 do not construct multiple independent clients against the same run cap. A
 semaphore bounds calls and releases while retry delays run. Known token usage
 settles to exact Decimal cost. Missing/invalid usage holds the entire reservation
@@ -93,9 +101,10 @@ for its chosen model and image dimensions; downsample pages or increase
 `max_input_tokens` within the selected model's tariff/context limit. A 32,768
 input cap cannot admit an image with the default 100,000 image envelope. Never
 lower the envelope merely to bypass a rejected payload without validating the
-model's image accounting. Actual reported usage over either cap produces
+model's image accounting. Actual reported usage over the input envelope or an explicitly selected output cap produces
 `usage_limit`, retains actual cost and prevents further budgeted work when
-the run cap is exhausted. Output is provider-limited by `max_output_tokens`.
+the run cap is exhausted. A caller may explicitly select a provider output limit,
+but the M1 production configuration leaves it unset.
 There is no server-side max-input-token setting: the input envelope is an
 explicit conservative assumption, with actual usage checked after the response.
 
