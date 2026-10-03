@@ -1,13 +1,16 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from kalmora.ap_output import build_ap_row
-from kalmora.ap_phase_export import load_ap_task_inventory, write_phase_ap_jsonl
+from kalmora.ap_phase_export import (
+    load_ap_task_inventory, verify_ap_export_receipt, write_phase_ap_jsonl,
+)
 
 
 class PhaseExportTests(unittest.TestCase):
@@ -39,6 +42,149 @@ class PhaseExportTests(unittest.TestCase):
             self.assertEqual(receipt.output_sha256, hashlib.sha256(payload).hexdigest())
             repeated = write_phase_ap_jsonl(output, [self.row("A"), self.row("B")], phase_path=phase, overwrite=True)
             self.assertEqual(asdict(repeated), asdict(receipt))
+            self.assertTrue(verify_ap_export_receipt(repeated))
+
+    def test_receipt_hash_describes_this_publication_not_a_concurrent_replacement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "out/ap.jsonl"
+            first = write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase)
+            own_bytes = output.read_bytes()
+            actual_replace = os.replace
+            def competing_writer(*args, **kwargs):
+                actual_replace(*args, **kwargs)
+                output.write_bytes(b"another writer's publication\n")
+            with patch("kalmora.ap_output.os.replace", side_effect=competing_writer):
+                receipt = write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase,
+                                               overwrite=True)
+            self.assertEqual(receipt.output_sha256, first.output_sha256)
+            self.assertEqual(receipt.output_sha256, hashlib.sha256(own_bytes).hexdigest())
+            with self.assertRaisesRegex(ValueError, "output hash"):
+                verify_ap_export_receipt(receipt)
+
+    def test_changed_inventory_after_lazy_generation_preserves_previous_delivery(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "out/ap.jsonl"
+            output.parent.mkdir()
+            output.write_bytes(b"previous delivery")
+            for changed in (b'["B"]', b'[ "A" ]'):
+                self.phase(phase, ["A"])
+                def rows():
+                    yield self.row("A")
+                    (phase / "tasks/ap_documents.json").write_bytes(changed)
+                with self.assertRaisesRegex(ValueError, "inventory changed"):
+                    write_phase_ap_jsonl(output, rows(), phase_path=phase, overwrite=True)
+                self.assertEqual(output.read_bytes(), b"previous delivery")
+                self.assertEqual(list(output.parent.glob(".ap-*.tmp")), [])
+
+    def test_inventory_is_checked_after_staging_before_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "ap.jsonl"
+            output.write_bytes(b"previous delivery")
+            actual_fsync = os.fsync
+            def change_after_staging(fd):
+                actual_fsync(fd)
+                self.phase(phase, ["B"])
+            with patch("kalmora.ap_output.os.fsync", side_effect=change_after_staging):
+                with self.assertRaisesRegex(ValueError, "inventory changed"):
+                    write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase, overwrite=True)
+            self.assertEqual(output.read_bytes(), b"previous delivery")
+            self.assertEqual(list(root.glob(".ap-*.tmp")), [])
+
+    def test_directory_redirect_during_generation_cannot_write_into_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            parent = root / "out"
+            parent.mkdir()
+            output = parent / "ap.jsonl"
+            output.write_bytes(b"previous delivery")
+            moved = root / "original-out"
+            def rows():
+                parent.rename(moved)
+                parent.symlink_to(phase, target_is_directory=True)
+                yield self.row("A")
+            with self.assertRaisesRegex(ValueError, "directory changed"):
+                write_phase_ap_jsonl(output, rows(), phase_path=phase, overwrite=True)
+            self.assertEqual((moved / "ap.jsonl").read_bytes(), b"previous delivery")
+            self.assertFalse((phase / "ap.jsonl").exists())
+            self.assertEqual(list(phase.glob(".ap-*.tmp")), [])
+            self.assertEqual(list(moved.glob(".ap-*.tmp")), [])
+
+    def test_redirect_at_publish_uses_pinned_directory_not_source_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            parent = root / "out"
+            output = parent / "ap.jsonl"
+            moved = root / "original-out"
+            actual_replace = os.replace
+            def redirect_then_publish(*args, **kwargs):
+                parent.rename(moved)
+                parent.symlink_to(phase, target_is_directory=True)
+                actual_replace(*args, **kwargs)
+            with patch("kalmora.ap_output.os.replace", side_effect=redirect_then_publish):
+                receipt = write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase,
+                                               overwrite=True)
+            self.assertFalse((phase / "ap.jsonl").exists())
+            self.assertEqual(hashlib.sha256((moved / "ap.jsonl").read_bytes()).hexdigest(),
+                             receipt.output_sha256)
+            with self.assertRaises(ValueError):
+                verify_ap_export_receipt(receipt)
+            self.assertEqual(list(moved.glob(".ap-*.tmp")), [])
+
+    def test_receipt_verification_detects_task_hash_count_and_coverage_tampering(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "ap.jsonl"
+            receipt = write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase)
+            for altered in (replace(receipt, row_count=2), replace(receipt, task_source="other.json"),
+                            replace(receipt, output_sha256="0" * 64),
+                            replace(receipt, task_sha256="0" * 64)):
+                with self.assertRaises(ValueError):
+                    verify_ap_export_receipt(altered)
+            output.write_text(json.dumps(self.row("OTHER")) + "\n")
+            forged = replace(receipt, output_sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+            with self.assertRaisesRegex(ValueError, "coverage"):
+                verify_ap_export_receipt(forged)
+            self.phase(phase, ["B"])
+            with self.assertRaisesRegex(ValueError, "task inventory"):
+                verify_ap_export_receipt(receipt)
+
+    def test_publication_and_serialization_failures_preserve_destination(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "ap.jsonl"
+            output.write_bytes(b"previous delivery")
+            for operation in ("os.replace", "os.fsync", "json.dumps"):
+                with patch("kalmora.ap_output." + operation, side_effect=OSError("failure")):
+                    with self.assertRaises(OSError):
+                        write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase,
+                                             overwrite=True)
+                self.assertEqual(output.read_bytes(), b"previous delivery")
+                self.assertEqual(list(root.glob(".ap-*.tmp")), [])
+
+    def test_exclusive_creation_preserves_a_concurrent_winners_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            phase = self.phase(root / "phase", ["A"])
+            output = root / "ap.jsonl"
+            actual_link = os.link
+            def competing_creation(*args, **kwargs):
+                output.write_bytes(b"concurrent winner")
+                actual_link(*args, **kwargs)
+            with patch("kalmora.ap_output.os.link", side_effect=competing_creation):
+                with self.assertRaises(FileExistsError):
+                    write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase)
+            self.assertEqual(output.read_bytes(), b"concurrent winner")
+            self.assertEqual(list(root.glob(".ap-*.tmp")), [])
 
     def test_real_es_pt_mx_engine_rows_reach_phase_export_without_ledger_reposting(self):
         import test_ap_output_integration as factories
@@ -96,11 +242,13 @@ class PhaseExportTests(unittest.TestCase):
             phase = self.phase(Path(tmp) / "phase", ["A"])
             source = phase / "tasks/ap_documents.json"
             before = source.read_bytes()
-            for output in (source, phase / "submission/ap.jsonl"):
+            external_golden = Path(tmp) / "other-phase/golden/ap.jsonl"
+            for output in (source, phase / "submission/ap.jsonl", external_golden):
                 with self.assertRaisesRegex(ValueError, "outside the source phase"):
                     write_phase_ap_jsonl(output, [self.row("A")], phase_path=phase, overwrite=True)
             self.assertEqual(source.read_bytes(), before)
             self.assertFalse((phase / "submission").exists())
+            self.assertFalse(external_golden.parent.exists())
 
     def test_golden_or_task_symlink_outside_phase_is_not_read(self):
         with tempfile.TemporaryDirectory() as tmp:
