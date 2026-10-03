@@ -1,6 +1,6 @@
 // App frame: sidebar + topbar (breadcrumb, page actions slot) + routed content,
 // plus the global overlays (item peek, ⌘K palette, shortcuts help) and keyboard shortcuts.
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { NAV } from '@/app/nav'
 import { Breadcrumb } from '@/components'
@@ -8,7 +8,7 @@ import { useGlobalShortcuts } from '@/lib/keyboard'
 import { CommandPalette } from './CommandPalette'
 import { PageActionsSlotContext } from './PageActions'
 import { PeekHost } from './PeekHost'
-import { routeCrumbs } from './routeCrumbs'
+import { pageTitle, routeCrumbs } from './routeCrumbs'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { Sidebar } from './Sidebar'
 import { useShellUi } from './uiStore'
@@ -33,6 +33,10 @@ export default function AppShell() {
   const crumbs = useMemo(() => routeCrumbs(pathname), [pathname])
   useEntitySearch()
 
+  useEffect(() => {
+    document.title = pageTitle(pathname)
+  }, [pathname])
+
   useGlobalShortcuts({
     onPalette: togglePalette,
     onHelp: () => setHelpOpen(true),
@@ -46,6 +50,17 @@ export default function AppShell() {
 
   return (
     <PageActionsSlotContext.Provider value={actionsSlot}>
+      {/* Focuses <main> without touching the URL: a hash would become a router navigation. */}
+      <a
+        href="#contenido"
+        className={styles.skipLink}
+        onClick={(e) => {
+          e.preventDefault()
+          document.getElementById('contenido')?.focus()
+        }}
+      >
+        Saltar al contenido
+      </a>
       <div className={styles.shell}>
         <Sidebar />
         <div className={styles.main}>
@@ -53,7 +68,7 @@ export default function AppShell() {
             <Breadcrumb items={crumbs} />
             <div ref={setActionsSlot} className={styles.topbarActions} />
           </header>
-          <main className={styles.content}>
+          <main id="contenido" tabIndex={-1} className={styles.content}>
             <Outlet />
           </main>
         </div>

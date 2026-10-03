@@ -43,3 +43,12 @@ export function routeCrumbs(pathname: string, nav: NavSection[] = NAV): Breadcru
   })
   return items
 }
+
+const APP_NAME = 'Kalmora Close'
+
+/** Document title: the page and its parents (most specific first), without the section, then the app. */
+export function pageTitle(pathname: string, nav: NavSection[] = NAV): string {
+  const crumbs = routeCrumbs(pathname, nav)
+  const page = crumbs.length > 1 && !crumbs[0].to ? crumbs.slice(1) : crumbs
+  return [...page.reverse().map((c) => String(c.label)), APP_NAME].join(' · ')
+}
