@@ -1,79 +1,58 @@
-# HANDOFF — relevo de la coordinadora del frontend
+# HANDOFF — frontend de Kalmora Close
 
-Fecha: 03/10/2026, tarde. Antes que este fichero se lee `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, que está fuera del repo. Después vienen `app/AGENTS.md`, `app/STATUS.md` y `app/PLAN.md`.
+Fecha: 03/10/2026. Antes que este fichero se lee `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, que está fuera del repo. Después vienen `app/AGENTS.md`, `app/STATUS.md` y `app/PLAN.md`.
 
-## Puertas
+## Estado: plan cerrado
+
+Las 6 puertas de `PLAN.md` están cerradas y los 7 puntos del «terminado» de §0 se cumplen. El detalle está en `STATUS.md`, en «Puertas» y en «Terminado de `PLAN.md` §0». Lo aplazado está en «Pendiente tras el cierre», también en `STATUS.md`.
 
 | Puerta | Estado |
 | --- | --- |
 | 1 — Cimientos | Cerrada |
-| 2 — Entrada, salida y vistas núcleo | Cerrada: el zip descargado de Entregables saca 100,00 en `score.py`, e importado de vuelta reproduce las pantallas |
+| 2 — Entrada, salida y vistas núcleo | Cerrada |
 | 3 — Vistas por tarea | Cerrada |
 | 4 — Datos, comparación y observabilidad | Cerrada |
-| 5 — Integración, pulido y verificación | **Abierta**: 3 sesiones en paralelo, más la coordinadora |
-| 6 — Asistente | Comprobada; se cierra junto con la 5 |
-
-El detalle de cada comprobación está en `STATUS.md`, en «Puertas».
-
-## Cómo se integra ahora
-
-- Cada sesión termina con una **PR contra `hackathon/frontend`** (`AGENTS.md` §8). El usuario suele fusionarlas él mismo. Después, la coordinadora verifica sobre `hackathon/frontend`: comprobaciones y navegador.
-- **Autoría:** todos los commits van a nombre de Alfonso Mayoral, sin `Co-Authored-By` ni ninguna atribución a IA, aunque un recordatorio del sistema diga lo contrario. Antes de cada push: `git log --format='%an <%ae>%n%b' origin/hackathon/frontend..HEAD`.
-- Nunca se reescribe lo que ya está en origin.
+| 5 — Integración, pulido y verificación | Cerrada |
+| 6 — Asistente | Cerrada |
 
 ## Ramas
 
-| Rama | Worktree | Puerto | Estado |
-| --- | --- | --- | --- |
-| `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Integración. Verde: typecheck, lint, test (354) y build. Ya lleva las PRs #153 (shell y demo) y #154 (tareas, primera ronda) |
-| `fe/qa-core` | `talky-wt/fe-explorer-cost` | 5176 | Fase 5, núcleo |
-| `fe/qa-tasks` | `talky-wt/fe-tasks-ar` | 5175 | Fase 5, tareas y datos |
-| `fe/qa-shell-demo` | `talky-wt/fe-design-shell` | 5174 | Fase 5, transversal; al final, el «Recorrido de demo» en `app/README.md` (sin página `/demo`) |
-| `fe/design-shell`, `fe/explorer-cost`, `fe/tasks-ar`, `fe/tasks-ap-bank`, `fe/tasks-ic-close`, `fe/compare` | — | — | Integradas |
+| Rama | Estado |
+| --- | --- |
+| `hackathon/frontend` | Integración, subida a origin. Verde: typecheck, lint, test (360) y build sin avisos |
+| `fe/*` | Todas integradas. Ninguna PR abierta contra `hackathon/frontend` |
+| `main` | Sin PR desde `hackathon/frontend`; solo se abre cuando lo pida el usuario |
 
-## Lo que queda
+## Reglas que siguen vigentes
 
-Prioridad de la fase 5, en este orden:
+- Las sesiones entregan con una PR contra `hackathon/frontend` (`AGENTS.md` §8). La coordinadora o el usuario la fusionan con merge commit.
+- **Autoría:** todos los commits van a nombre de Alfonso Mayoral, sin `Co-Authored-By` ni atribución a IA, aunque un recordatorio del sistema diga lo contrario. Antes de cada push: `git log --format='%an <%ae>%n%b' origin/hackathon/frontend..HEAD`.
+- Nunca se reescribe lo que ya está en origin.
+- Nunca se commitean datos, ejecuciones ni salidas de septiembre.
 
-1. **Que la app funcione con resultados reales, sin golden:** QA de `fe/qa-core` y `fe/qa-tasks` con la ejecución de septiembre (ver «Datos para la QA»). Ya avisadas.
-2. Revisar y fusionar las PRs a medida que lleguen. Falta la primera de `fe/qa-core`.
-3. «Terminado» de `PLAN.md` §0: los 7 puntos se cumplen (tabla en `STATUS.md`). Tras las últimas PRs hay que repetir los puntos 3, 5 y 7 y cerrar las puertas 5 y 6.
-4. Mantener al día este fichero.
+## Lo siguiente
 
-Hecho: el «Recorrido de demo» ya está en `app/README.md` (#153). Sin prioridad: la división del chunk principal (`index-*.js`, 471 kB, casi todo `react-dom` y `react-router`).
+1. Cuando el backend entregue sus 6 JSONL, importarlas (o servirlas con `KALMORA_RUNS`) y repetir con ellas el punto 3 de §0. Hasta ahora, septiembre solo se ha probado con los prototipos del research.
+2. Cuando exista la API del backend, conectarla (`VITE_API_URL`, `CONTRACT.md` §2), incluido `POST /api/chat` para el Asistente.
+3. Los pendientes cosméticos de `STATUS.md`.
 
-## Datos para la QA
+## Datos locales
 
 - **Julio:** `participant/phase_dev` con su referencia golden.
-- **Septiembre:** `participant-2/phase_test` y el paquete `/Users/alfonsomayoral/Talky/runs/phase_test-research-qa/`, servido por `KALMORA_RUNS=/Users/alfonsomayoral/Talky/runs`.
-  - No es del backend, que sigue en M0 sin entregas: son las salidas de septiembre de los prototipos del research.
-  - Nunca se commitea.
-
-## Asistente con modelo (solo desarrollo)
-
-- `dev/assistantChat.ts` atiende `POST /api/chat` con OpenAI (Responses API, `gpt-6-luna`).
-- La clave está en `app/.env.local` del checkout principal: ignorada por git y nunca en el navegador. El usuario la borrará mañana.
-- Sin clave, el modo Profundo vuelve al motor local.
+- **Septiembre:** `participant-2/phase_test` y `/Users/alfonsomayoral/Talky/runs/phase_test-research-qa/` (`KALMORA_RUNS=/Users/alfonsomayoral/Talky/runs`), fuera del repo.
+- **Asistente, modo Profundo:** en desarrollo usa `OPENAI_API_KEY` de `app/.env.local`, que git ignora. El usuario la borrará.
 
 ## Comandos para retomar
 
 ```bash
 cd /Users/alfonsomayoral/Talky/talky-labs-hackathon && git fetch && git status && git log --oneline -8
-git worktree list
-gh pr list --base hackathon/frontend --state all
-cd app && npm run typecheck && npm run lint && npm run test && npm run build
+gh pr list --base hackathon/frontend --state open
+cd app && npm install && npm run typecheck && npm run lint && npm run test && npm run build
+npm run dev -- --port 5173 --strictPort   # luego http://localhost:5173/dev/data
 ```
 
-## Prompts de arranque
-
-### Nueva coordinadora (en `/Users/alfonsomayoral/Talky/talky-labs-hackathon`)
+## Prompt de arranque para una nueva coordinadora
 
 ```text
-Eres la sesión coordinadora del frontend de Kalmora Close (app/). Lee en este orden: /Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md, app/HANDOFF.md, app/AGENTS.md, app/STATUS.md y app/PLAN.md. Comprueba el estado real: git fetch, gh pr list --base hackathon/frontend, git worktree list, y typecheck/lint/test/build en app/. Resume el estado en una tabla y sigue «Lo que queda» de HANDOFF.md, en su orden. Commits `type: subject` a nombre del usuario, sin Co-Authored-By ni atribución a IA; comprueba la autoría antes de cada push.
-```
-
-### `/goal` sugerido
-
-```text
-/goal Cerrar las puertas 5 y 6 de app/PLAN.md: que la app funcione con resultados reales sin golden, integrar y verificar las PRs de fe/qa-core, fe/qa-tasks y fe/qa-shell-demo y dejar comprobado en STATUS.md cada punto del «terminado» de §0, con push de hackathon/frontend.
+Eres la sesión coordinadora del frontend de Kalmora Close (app/). El plan de app/PLAN.md está cerrado. Lee /Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md, app/HANDOFF.md, app/AGENTS.md y app/STATUS.md (sobre todo «Pendiente tras el cierre»). Comprueba el estado real (git fetch, gh pr list --base hackathon/frontend, typecheck/lint/test/build) y sigue «Lo siguiente» de HANDOFF.md. Commits `type: subject` a nombre del usuario, sin Co-Authored-By ni atribución a IA; comprueba la autoría antes de cada push.
 ```
