@@ -25,6 +25,8 @@ const STATE_LABEL = { pass: 'Correcto', fail: 'Falla', skipped: 'No evaluado' } 
 export function PolicyCascade({ checks, className }: PolicyCascadeProps) {
   const failing = checks.find((c) => c.state === 'fail')
   const reason = failing ? AP_REASON_CATALOG[failing.step.code as keyof typeof AP_REASON_CATALOG] : undefined
+  // Event summaries already start with the step label.
+  const detail = failing?.detail?.startsWith(`${failing.step.label}: `) ? failing.detail.slice(failing.step.label.length + 2) : failing?.detail
   let n = 0
   return (
     <div className={clsx(styles.cascade, className)}>
@@ -62,8 +64,8 @@ export function PolicyCascade({ checks, className }: PolicyCascadeProps) {
           <X aria-hidden className={styles.verdictIcon} />
           <span>
             <strong>{failing.step.label}</strong>
-            {failing.detail ? `: ${failing.detail}` : ''}
-            {reason && failing.detail !== reason.description ? <span className={styles.why}> — {reason.description}</span> : null}
+            {detail ? `: ${detail}` : ''}
+            {reason && detail !== reason.description ? <span className={styles.why}> — {reason.description}</span> : null}
           </span>
         </p>
       )}
