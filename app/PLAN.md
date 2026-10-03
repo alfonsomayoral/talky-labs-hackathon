@@ -125,7 +125,7 @@ app/
     ├── main.tsx  App.tsx
     ├── app/                      router, registro de rutas (routes.ts), proveedores
     ├── design/                   tokens.css, global.css, fuentes
-    ├── components/               primitivas de la interfaz (ver 3.5)
+    ├── components/               primitivas de la interfaz (ver 3.6)
     ├── shell/                    barra lateral, cabecera, PeekHost, CommandPalette, selector de ejecución
     ├── domain/                   tipos (erp, inbox, bank, tasks, deliverables, golden, bundle) y catálogos (política, cuentas)
     ├── data/                     fuentes (carpeta, zip, http), parsers, worker, stores, persistencia
@@ -153,7 +153,15 @@ app/
    - **Validaciones de formato y nota:** puerto exacto de `score.py`.
 4. **Vistas:** leen el motor a través de selectores memoizados. Ninguna vista parsea ficheros.
 
-### 3.4 Datos en desarrollo
+### 3.4 Propiedad de la capa de datos
+
+La capa de datos es del equipo de backend. Lo que construye el paquete 1.B es un **adaptador v1** provisional:
+
+- **Frontera estable para las pantallas:** `src/data/stores.ts` y los tipos de `src/domain/types/`. Ninguna vista importa de `src/data/sources`, `src/data/parsers` ni `src/data/worker`.
+- **Cambiar de origen** (carpeta local, middleware de desarrollo o API del backend) es añadir o cambiar un proveedor, sin tocar stores ni vistas.
+- **Los parsers del navegador** (N43, CAMT.053, CSV, Facturae y CFDI) solo sirven para mostrar evidencias. Si el backend entrega los datos ya parseados, se retiran.
+
+### 3.5 Datos en desarrollo
 
 `dev/kalmoraData.ts` sirve las carpetas definidas en `.env.local`:
 
@@ -165,7 +173,7 @@ KALMORA_RUNS=../runs
 - Los datos **nunca** se copian al repo.
 - `runs/` está en `.gitignore`. En particular, no se publican resultados de septiembre en el repo público.
 
-### 3.5 Componentes base (`src/components/`)
+### 3.6 Componentes base (`src/components/`)
 
 | Grupo | Componentes |
 | --- | --- |
@@ -232,7 +240,7 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
 | Paquete | Responsable | Carpetas | Entregable |
 | --- | --- | --- | --- |
 | 1.0 Andamiaje | Coordinador (antes de lanzar agentes) | raíz de `app/` | Vite, TypeScript, lint, vitest, dependencias, árbol de carpetas, `routes.ts` con todas las rutas como marcadores, tipos de dominio vacíos |
-| 1.A Diseño y shell | Agente «design-system» | `design/`, `components/`, `shell/` | Tokens de §2.2. Componentes de §3.5 con galería en `/dev/ui`. Barra lateral, cabecera con migas, `PeekHost` controlado por `?item=`, esqueleto de la paleta ⌘K, atajos de teclado globales |
+| 1.A Diseño y shell | Agente «design-system» | `design/`, `components/`, `shell/` | Tokens de §2.2. Componentes de §3.6 con galería en `/dev/ui`. Barra lateral, cabecera con migas, `PeekHost` controlado por `?item=`, esqueleto de la paleta ⌘K, atajos de teclado globales |
 | 1.B Datos | Agente «data-layer» | `domain/types/`, `data/`, `dev/` | Tipos de todos los ficheros de entrada y salida. Fuentes carpeta, zip y http. Parsers JSONL (por streaming), N43, CAMT.053, CSV mexicano, Facturae y CFDI. Worker con índices y carga bajo demanda. Stores de dataset y ejecución. Persistencia en IndexedDB. Middleware de desarrollo |
 | 1.C Motor | Agente «engine» | `engine/`, `domain/policy.ts` | Puerto de `score.py` con pruebas de paridad. Balance registrado desde el diario. Aplicación de asientos. Validadores de entrega. Síntesis de partidas, traza mínima y atención (§5). Catálogo de motivos y categorías → § de la política |
 
@@ -253,7 +261,7 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
 | --- | --- | --- | --- |
 | 2.A Ejecuciones y entregables | Agente «runs-io» | `features/runs/`, `features/deliverables/` | Nuevo cierre con subida (carpeta o zip), inventario detectado, avisos y persistencia. Tres fuentes de resultados (API con SSE, importar JSONL o paquete, referencia golden). Lista y selector de ejecuciones. Vista en vivo. Entregables con validación, nota, vista previa y descarga en zip con `manifest.json` |
 | 2.B Resumen | Agente «overview» | `features/overview/` | Todo lo de la fila Resumen de §4 |
-| 2.C Actividad y panel de partida | Agente «activity» | `features/activity/`, `features/item/` | Lista de partidas (agrupación, filtros, opciones de vista, teclado). Panel de partida con sus 5 pestañas. Kit de dominio de §3.5 |
+| 2.C Actividad y panel de partida | Agente «activity» | `features/activity/`, `features/item/` | Lista de partidas (agrupación, filtros, opciones de vista, teclado). Panel de partida con sus 5 pestañas. Kit de dominio de §3.6 |
 | 2.D Atención | Agente «attention» | `features/attention/` | Cola P0–P3, tarjetas, acciones, aplicar a similares, store de correcciones y exportación de `overrides.jsonl` |
 
 **Puerta 2:**

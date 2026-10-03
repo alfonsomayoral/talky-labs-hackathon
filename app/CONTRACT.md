@@ -2,6 +2,8 @@
 
 El backend (Python) cierra el mes. El frontend (`app/`) lo enseña y genera la entrega. Este documento fija lo que el backend tiene que producir para que el frontend funcione.
 
+**Propiedad:** la capa de datos es del equipo de backend. `app/src/data/` es un **adaptador v1** provisional que se adaptará a la API y al almacenamiento que monte ese equipo. La frontera estable para las pantallas es `app/src/data/stores.ts` más los tipos de `app/src/domain/types/`: ninguna vista importa nada de dentro de `src/data/`. Si el backend cambia la forma de la API, se cambia el adaptador, no las pantallas.
+
 **Mínimo:** las 6 JSONL oficiales. Con solo eso, la app deriva partidas, atención, balance, validaciones y nota (si el dataset trae `golden/`). Lo demás es opcional y enriquece la trazabilidad.
 
 ## 1. Paquete de ejecución (carpeta)
@@ -17,7 +19,7 @@ runs/<run_id>/
 ```
 
 - Importes en céntimos enteros y en la moneda local de la sociedad. Fechas `YYYY-MM-DD`. Marcas de tiempo en ISO-8601 UTC.
-- La app importa el paquete arrastrando la carpeta o su zip. En desarrollo también lo lee de `KALMORA_RUNS` (ver `PLAN.md` §3.4).
+- La app importa el paquete arrastrando la carpeta o su zip. En desarrollo también lo lee de `KALMORA_RUNS` (ver `PLAN.md` §3.5).
 - **No se commitea** ningún paquete: `runs/` está en `.gitignore`, porque el repo es público.
 
 ### 1.1 `manifest.json`
