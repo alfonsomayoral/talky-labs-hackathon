@@ -257,6 +257,32 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(result.row["residuals"], [{"type": "NON_CUSTOMER", "amount": 8000}])
         self.assertEqual(result.row["adjustment"][1]["account"], "47000000")
 
+    def test_non_customer_guarantee_return_and_insurance_indemnity(self):
+        cases = [
+            ("DEVOLUCIÓN FIANZA PROVISIONAL OBRA", "56500000"),
+            ("ABONO INDEMNIZACIÓN SINIESTRO PÓLIZA 123", "75900000"),
+        ]
+        for text, account in cases:
+            with self.subTest(text=text):
+                self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+                    "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+                    "amount": 8000, "currency": "EUR", "text": text,
+                }])
+                result = self._run().results[0]
+                self.assertIsNone(result.row["customer"])
+                self.assertEqual(result.row["residuals"], [{"type": "NON_CUSTOMER", "amount": 8000}])
+                self.assertEqual(result.row["adjustment"][1]["account"], account)
+
+    def test_social_security_narrative_is_not_classified_as_insurance_income(self):
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "DEVOLUCIÓN DE SEGUROS SOCIALES",
+        }])
+        result = self._run().results[0]
+        self.assertIsNone(result.row["customer"])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
     def test_factored_invoice_paid_to_kalmora_is_credited_to_factor(self):
         self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 8000, factored=True)])
         self._jsonl("erp/factoring_assignments.jsonl", [{
