@@ -13,7 +13,7 @@ import sys
 import time
 
 from kalmora.data import PhaseData
-from kalmora.facts import atomic_json
+from kalmora.facts import atomic_json, _encode_value
 from kalmora.documents.contracts import Candidate, ResolutionRequest
 from kalmora.documents.router import DocumentRouter
 from kalmora.documents.extractor import LLMDocumentExtractor, LLMSemanticResolver
@@ -191,6 +191,11 @@ async def capture(args):
                                 item['semantic'] = []
                                 if data is not None:
                                     for request in semantic_requests(document, artifact.facts, data):
+                                        atomic_json(directory / 'requests' / (semantic.key(request) + '.json'),
+                                            _encode_value({'candidates': [{'id': candidate.id, 'attributes': candidate.attributes}
+                                                for candidate in request.candidates], 'context': request.context,
+                                                'request_sha256': request.sha256,
+                                                'transformation_sha256': document.transformation_sha256}))
                                         result = await semantic.resolve_with_response(request)
                                         atomic_json(directory / 'semantic' / (semantic.key(request) + '.json'), exact_json(result.to_dict()))
                                         item['semantic'].append({'key': semantic.key(request), 'cache_hit': result.provenance['cache_hit']})
