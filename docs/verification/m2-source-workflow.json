@@ -1,0 +1,126 @@
+{
+  "source_archive_sha256": "c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109",
+  "output_sha256": {
+    "ar_billing.jsonl": "6c8bc12ce327fb749e7494e201a106c51afa3ee95a63f761c96c76bf811aa6c3",
+    "pending_wip.jsonl": "a11643d03ce22e2a07179f7291289867581fe3816112ae9e598f54486e9d7f09"
+  },
+  "stable_output_sha256": "67f345020210724312acf91eaf05d50c48ba997c5d461afd3ad62c4222539a0f",
+  "coverage": {
+    "attachment_count": 26,
+    "pending_wip_count": 1,
+    "resolved_count": 26,
+    "task_count": 26,
+    "unresolved_count": 0
+  },
+  "new_provider_calls": 0,
+  "new_provider_cost_usd": "0",
+  "official_ar_billing": {
+    "score": 1.0,
+    "items": 26,
+    "answered": 26,
+    "scorer_sha256": "b8adec99c609098c7781b4d34cd08ddd6c7d62830800ac9b37d5b1213ca0828e",
+    "evaluation_only": true
+  },
+  "reviewed_sample": {
+    "cases": [
+      {
+        "billing_item": "BILL-CV-OB-1100-2511-202607",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-CV-OB-2100-2503-202607",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-CV-OB-3100-2501-202607",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-CT-1200-LV01-202607",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-CT-1200-LV01-REV2026",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-PPA-1300-01-202606",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": []
+      },
+      {
+        "billing_item": "BILL-MKT-1300-01-202606",
+        "source_hash_matches": true,
+        "both_resolved": true,
+        "annotated_typed_fields_equal": true,
+        "additional_optional_columns_unannotated": [
+          {
+            "plant": "CC-1300-PSF1",
+            "source_observed_mwh_milli": 2737647
+          },
+          {
+            "plant": "CC-1300-PSF2",
+            "source_observed_mwh_milli": 1787667
+          },
+          {
+            "plant": "CC-1300-PSF3",
+            "source_observed_mwh_milli": 4043941
+          }
+        ]
+      }
+    ],
+    "scope": "seven pre-existing source-reviewed development annotations; not held-out provider quality"
+  },
+  "numbering": {
+    "v0_invoice_numbers_compared": 25,
+    "mismatches": [],
+    "invoice_je_and_430_assignment_consistent": true
+  },
+  "source_integrity": {
+    "original_files_checked": 830,
+    "modified_files": []
+  },
+  "runtime": {
+    "python": "3.12.14",
+    "pypdf": "6.10.0",
+    "source_reader": "native-ar-templates-v3",
+    "normalizer": "ar-normalization-v2",
+    "runner": "ar-source-runner-v2",
+    "numbering": "ar-task-order-numbering-v1"
+  },
+  "tests": {
+    "command": "PYTHONPATH=src KALMORA_PHASE_DEV=data/m2-julio/participant/phase_dev python -m unittest discover -s tests -p 'test_billing*.py' -q",
+    "run": 84,
+    "passed": 83,
+    "skipped": 1,
+    "skip_reason": "existing annotated engine evaluator test requires an explicitly supplied golden; source output evaluated separately after freezing"
+  },
+  "delivery_replay_bytes_equal": true,
+  "close_module": "ar_billing: done; source captures archived in trace/ar_billing.zip",
+  "face_invoice_count": 18,
+  "downstream_cash": {
+    "modules": {
+      "ar_billing": "done",
+      "ar_cash": "done"
+    },
+    "billing_sha256": "6c8bc12ce327fb749e7494e201a106c51afa3ee95a63f761c96c76bf811aa6c3",
+    "cash_rows": 32
+  }
+}

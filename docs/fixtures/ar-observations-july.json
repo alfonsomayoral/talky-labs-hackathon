@@ -1,0 +1,1224 @@
+{
+  "schema_version": 1,
+  "purpose": "Development annotations for the prepared AR adapter; not provider captures or an acceptance result.",
+  "source_annotation": "tests/fixtures/billing-july.json",
+  "source_annotation_sha256": "8f02b5ec71360a8b0512c3cfac1dc093df6b1adb872af04bf807d332fb82137a",
+  "provenance": {
+    "kind": "reviewed-source-annotation",
+    "normalized_values": "Re-expressed from the existing source-reviewed annotation; integer cents/milli and exact decimal cents per MWh.",
+    "row_counts": "Derived from reviewed table rows; explicit zero extras. Not literal document fields.",
+    "plant_reference": "Exact printed master descriptions, retained separately from cost-center IDs.",
+    "currency": "Normalized literal currency in the original quotation (EUR/MXN or euro symbol).",
+    "evidence": "Original reviewed page quotation. It locates observations but is not a new field-level annotation or model-quality evaluation."
+  },
+  "cases": [
+    {
+      "billing_item": "BILL-CV-OB-1100-2511-202607",
+      "metadata": {
+        "billing_item": "BILL-CV-OB-1100-2511-202607",
+        "type": "OBRA_CERTIFICATION",
+        "company": "1100",
+        "contract": "CV-OB-1100-2511",
+        "customer": "C200001",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "OBRA_CERTIFICATION",
+        "row_counts": {
+          "chapter": 4
+        },
+        "facts": {
+          "source_sha256": "9152c1c3c256b2d8a9a371a99cff9330dc973ef00ee204f885779c186dd041a7",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "month": [
+              {
+                "value": "2026-07",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "cumulative_cents": [
+              {
+                "value": 859611868,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "previous_cents": [
+              {
+                "value": 636504278,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "current_cents": [
+              {
+                "value": 223107590,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "status_text": [
+              {
+                "value": "CONFORME",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.number": [
+              {
+                "value": 1,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.description": [
+              {
+                "value": "Capítulo 01 – Movimiento de tierras y demoliciones",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.amount_cents": [
+              {
+                "value": 61161785,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.number": [
+              {
+                "value": 2,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.description": [
+              {
+                "value": "Capítulo 02 – Cimentación y estructura",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.amount_cents": [
+              {
+                "value": 31687246,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.number": [
+              {
+                "value": 3,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.description": [
+              {
+                "value": "Capítulo 03 – Instalaciones",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.amount_cents": [
+              {
+                "value": 89425359,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.number": [
+              {
+                "value": 4,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.description": [
+              {
+                "value": "Capítulo 04 – Acabados, urbanización y señalización",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.amount_cents": [
+              {
+                "value": 40833200,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "authority_text": [
+              {
+                "value": "Dirección Facultativa",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-CV-OB-2100-2503-202607",
+      "metadata": {
+        "billing_item": "BILL-CV-OB-2100-2503-202607",
+        "type": "OBRA_CERTIFICATION",
+        "company": "2100",
+        "contract": "CV-OB-2100-2503",
+        "customer": "C200017",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "OBRA_CERTIFICATION",
+        "row_counts": {
+          "chapter": 4
+        },
+        "facts": {
+          "source_sha256": "815abca597282e9d205e64868493d6bdf6cc30a67880ed29f50081f79e4f528f",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "month": [
+              {
+                "value": "2026-07",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "cumulative_cents": [
+              {
+                "value": 358709298,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "previous_cents": [
+              {
+                "value": 329719025,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "current_cents": [
+              {
+                "value": 28990273,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "status_text": [
+              {
+                "value": "PENDIENTE DE APROBACIÓN",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.number": [
+              {
+                "value": 1,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.description": [
+              {
+                "value": "Capítulo 01 – Movimentação de terras",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.amount_cents": [
+              {
+                "value": 5736175,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.number": [
+              {
+                "value": 2,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.description": [
+              {
+                "value": "Capítulo 02 – Estruturas",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.amount_cents": [
+              {
+                "value": 5214296,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.number": [
+              {
+                "value": 3,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.description": [
+              {
+                "value": "Capítulo 03 – Instalações",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.amount_cents": [
+              {
+                "value": 12724867,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.number": [
+              {
+                "value": 4,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.description": [
+              {
+                "value": "Capítulo 04 – Acabamentos e arranjos exteriores",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.amount_cents": [
+              {
+                "value": 5314935,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "authority_text": [
+              {
+                "value": "Dirección Facultativa",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-CV-OB-3100-2501-202607",
+      "metadata": {
+        "billing_item": "BILL-CV-OB-3100-2501-202607",
+        "type": "OBRA_CERTIFICATION",
+        "company": "3100",
+        "contract": "CV-OB-3100-2501",
+        "customer": "C200018",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "OBRA_CERTIFICATION",
+        "row_counts": {
+          "chapter": 4
+        },
+        "facts": {
+          "source_sha256": "01f9af3c5fe4ae0af3c8b019558fa56b95defc0c1da42f64db0765ce727d2dbc",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "MXN",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "month": [
+              {
+                "value": "2026-07",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "cumulative_cents": [
+              {
+                "value": 36549520522,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "previous_cents": [
+              {
+                "value": 34074573337,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "current_cents": [
+              {
+                "value": 2474947185,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "status_text": [
+              {
+                "value": "CONFORME",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.number": [
+              {
+                "value": 1,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.description": [
+              {
+                "value": "Capítulo 01 – Terracerías",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.1.amount_cents": [
+              {
+                "value": 555241546,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.number": [
+              {
+                "value": 2,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.description": [
+              {
+                "value": "Capítulo 02 – Estructura y obra civil",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.2.amount_cents": [
+              {
+                "value": 810792567,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.number": [
+              {
+                "value": 3,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.description": [
+              {
+                "value": "Capítulo 03 – Instalaciones",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.3.amount_cents": [
+              {
+                "value": 751962089,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.number": [
+              {
+                "value": 4,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.description": [
+              {
+                "value": "Capítulo 04 – Acabados y señalamiento",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "chapter.4.amount_cents": [
+              {
+                "value": 356950983,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "authority_text": [
+              {
+                "value": "Dirección Facultativa",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-CT-1200-LV01-202607",
+      "metadata": {
+        "billing_item": "BILL-CT-1200-LV01-202607",
+        "type": "SERVICE_MONTHLY",
+        "company": "1200",
+        "contract": "CT-1200-LV01",
+        "customer": "C200001",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "SERVICE_MONTHLY",
+        "row_counts": {
+          "extra": 0
+        },
+        "facts": {
+          "source_sha256": "cea8746c2e1e4bee1d7c2ea7e0a0da41e0bc9d2d482d56c54e1012ad88eae8a2",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "month": [
+              {
+                "value": "2026-07",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "canon_cents": [
+              {
+                "value": 43577778,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "canon_status_text": [
+              {
+                "value": "CONFORMEConforme",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "authority_text": [
+              {
+                "value": "Técnico municipal",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-CT-1200-LV01-REV2026",
+      "metadata": {
+        "billing_item": "BILL-CT-1200-LV01-REV2026",
+        "type": "PRICE_REVISION",
+        "company": "1200",
+        "contract": "CT-1200-LV01",
+        "customer": "C200001",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "PRICE_REVISION",
+        "row_counts": {
+          "revision_month": 6
+        },
+        "facts": {
+          "source_sha256": "3e52264ac842c978cf5b598a617a7866b2699cf9b043ea3836df99edbe710d4f",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "old_fee_cents": [
+              {
+                "value": 42559187,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "new_fee_cents": [
+              {
+                "value": 43577778,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "effective_date": [
+              {
+                "value": "2026-01-01",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "approval_date": [
+              {
+                "value": "2026-07-01",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "status_text": [
+              {
+                "value": "RESUELVO: aprobar la revisión de precios",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "decree": [
+              {
+                "value": "2026/1235",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.1.month": [
+              {
+                "value": "2026-01",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.2.month": [
+              {
+                "value": "2026-02",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.3.month": [
+              {
+                "value": "2026-03",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.4.month": [
+              {
+                "value": "2026-04",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.5.month": [
+              {
+                "value": "2026-05",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "revision_month.6.month": [
+              {
+                "value": "2026-06",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-PPA-1300-01-202606",
+      "metadata": {
+        "billing_item": "BILL-PPA-1300-01-202606",
+        "type": "PPA",
+        "company": "1300",
+        "contract": "PPA-1300-01",
+        "customer": "C200079",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "PPA",
+        "row_counts": {
+          "plant": 2
+        },
+        "facts": {
+          "source_sha256": "3f19bcc740eabf625f846ed57c060a7830918a7a7addc3549d9c2d401a30d3c2",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "period": [
+              {
+                "value": "2026-06",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.1.reference": [
+              {
+                "value": "PSF Campollano I (49,9 MWp)",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.1.mwh_milli": [
+              {
+                "value": 8652582,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.2.reference": [
+              {
+                "value": "PSF Lomaseca (32,4 MWp)",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.2.mwh_milli": [
+              {
+                "value": 5783133,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "share_bp": [
+              {
+                "value": 7000,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "price_mwh_cents": [
+              {
+                "value": "4150.00",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "billing_item": "BILL-MKT-1300-01-202606",
+      "metadata": {
+        "billing_item": "BILL-MKT-1300-01-202606",
+        "type": "MARKET_SETTLEMENT",
+        "company": "1300",
+        "contract": "MKT-1300-01",
+        "customer": "C200080",
+        "month": "2026-07",
+        "documents": [
+          "documento.pdf"
+        ]
+      },
+      "observations": {
+        "schema_version": "ar-observations-v1",
+        "type": "MARKET_SETTLEMENT",
+        "row_counts": {
+          "plant": 3
+        },
+        "facts": {
+          "source_sha256": "977d09a7509fbf7d88bd7c0437050a59cc866751a1f4b0d3f935ed6eecba9d22",
+          "extractor_version": "reviewed-july-annotation/ar-observations-v1",
+          "fact_value_encoding": "typed-v1",
+          "fields": {
+            "currency": [
+              {
+                "value": "EUR",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "period": [
+              {
+                "value": "2026-06",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.1.reference": [
+              {
+                "value": "PSF Campollano I (49,9 MWp)",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.1.amount_cents": [
+              {
+                "value": 19778133,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.2.reference": [
+              {
+                "value": "PSF Lomaseca (32,4 MWp)",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.2.amount_cents": [
+              {
+                "value": 12915001,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.3.reference": [
+              {
+                "value": "PSF Vegalta Solar (21,0 MWp)",
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "plant.3.amount_cents": [
+              {
+                "value": 29215455,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ],
+            "deviations_cents": [
+              {
+                "value": -1460336,
+                "evidence": {
+                  "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+                  "field": "page.1",
+                  "page": 1,
+                  "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

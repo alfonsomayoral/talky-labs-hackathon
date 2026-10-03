@@ -126,6 +126,48 @@ def composed_facts(directory, item, entry, document, raw_facts):
     return recomputed.facts
 
 
+def staged_capture(directory, item, document, artifact):
+    """Recompute combined facts from the two independently checked recordings."""
+    from kalmora.documents.staged import compose_stages
+    stages = item.get('extraction_stages', [])
+    if len(stages) != 2:
+        raise ValueError('Staged capture requires two accepted recordings')
+    captures, configs = [], []
+    for stage in stages:
+        config = RecordingConfig.from_dict(stage['config'])
+        replay = RecordedExtractor(RecordingStore(directory / 'recordings'), config, mode='replay')
+        if stage['key'] != replay.key(document):
+            raise ValueError('Staged recording identity differs from captured source')
+        captures.append(replay.read(document))
+        configs.append(config)
+    recomputed = compose_stages(document, *captures, *configs)
+    if (recomputed.facts.to_dict() != artifact['facts']
+            or list(recomputed.unknowns) != artifact.get('unknowns', [])
+            or recomputed.provenance != artifact.get('provenance')
+            or recomputed.to_dict()['raw_response'] != artifact.get('raw_response')):
+        raise ValueError('Staged composition differs from original accepted recordings')
+    return recomputed
+
+
+def accepted_artifact(directory, item, document, artifact):
+    """The scored result must equal its actual accepted source recording."""
+    if item.get('processing_kind') == 'staged_model':
+        return staged_capture(directory, item, document, artifact)
+    if item.get('processing_kind') == 'source_tools':
+        from kalmora.documents.xml_extractor import XMLDocumentExtractor, XML_EXTRACTOR_VERSION
+        if item.get('source_tools', {}).get('adapter_version') != XML_EXTRACTOR_VERSION:
+            raise ValueError('Historical XML adapter is incompatible; use its frozen code revision')
+        return None
+    config = RecordingConfig.from_dict(item.get('extraction_config') or read_json(directory / 'config.json')['extraction'])
+    replay = RecordedExtractor(RecordingStore(directory / 'recordings'), config, mode='replay')
+    recorded = replay.read(document)
+    if (recorded.facts.to_dict() != artifact['facts']
+            or list(recorded.unknowns) != artifact.get('unknowns', [])
+            or recorded.raw_response != artifact.get('raw_response')):
+        raise ValueError('Scored model facts differ from accepted recording')
+    return recorded
+
+
 def semantic_capture(directory, attachment, document, facts, config, data):
     captures = []
     for item in attachment.get('semantic', []):
@@ -201,7 +243,8 @@ def semantic_kind(check):
         return explicit
     # Select the question's original master kind, never its expected row/ID.
     master = Path(check.get('evidence', {}).get('document', '')).name
-    return {'purchase_orders.jsonl': 'purchase_order', 'goods_receipts.jsonl': 'goods_receipt'}.get(master)
+    return {'purchase_orders.jsonl': 'purchase_order', 'goods_receipts.jsonl': 'goods_receipt',
+            'vendors.jsonl': 'supplier'}.get(master)
 
 
 def offline_guards():
@@ -239,7 +282,10 @@ async def verify_replay(args, cases):
             status = read_json(directory / 'capture.json')
             item = next(item for item in status['attachments'] if item['sha256'] == entry['sha256'])
             document = captured_document(directory, item, entry, artifact, router, root)
-            if item.get('processing_kind') == 'source_tools':
+            accepted_artifact(directory, item, document, artifact)
+            if item.get('processing_kind') == 'staged_model':
+                pass
+            elif item.get('processing_kind') == 'source_tools':
                 from kalmora.documents.xml_extractor import XMLDocumentExtractor
                 replayed_facts = await XMLDocumentExtractor().extract(document)
                 if replayed_facts.to_dict() != artifact['facts']:
@@ -286,6 +332,7 @@ def evaluate(args, manifest, cases):
                 raise ValueError('Artifact source hash does not match manifest')
             recorded_attachment = next((item for item in status.get('attachments', []) if item['sha256'] == entry['sha256']), {})
             document = captured_document(directory, recorded_attachment, entry, artifact, router, root)
+            accepted_artifact(directory, recorded_attachment, document, artifact)
             facts = composed_facts(directory, recorded_attachment, entry, document, facts)
             raw.append(facts.to_dict())
             normalized.append(normalize_document_facts(facts).facts.to_dict())

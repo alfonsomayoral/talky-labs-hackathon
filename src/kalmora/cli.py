@@ -61,9 +61,14 @@ def main(argv: list[str] | None = None) -> int:
     solve_ap = commands.add_parser("solve-ap", help="Decide, code and post every AP task (v0 rules)")
     solve_ap.add_argument("phase", type=Path)
     solve_ap.add_argument("--output", type=Path, required=True, help="Destination ap.jsonl")
-    solve_billing = commands.add_parser("solve-ar-billing", help="Invoice every AR billing item from its documents (v0 rules)")
+    solve_billing = commands.add_parser("solve-ar-billing", help="Extract evidenced AR facts and invoice current tasks")
     solve_billing.add_argument("phase", type=Path)
     solve_billing.add_argument("--output", type=Path, required=True, help="Destination ar_billing.jsonl")
+    solve_billing.add_argument("--work-dir", type=Path, help="AR recordings and evidence (default: next to output)")
+    solve_billing.add_argument("--mode", choices=("record", "replay"), default="record",
+                               help="Capture local source extraction or replay saved literal facts")
+    solve_billing.add_argument("--engine", choices=("sources", "v0"), default="sources",
+                               help="Use the evidenced billing engine (default) or explicit legacy v0")
     close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
     close.add_argument("phase", type=Path)
     close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
@@ -88,13 +93,55 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--reports-dir", type=Path, default=Path("outputs/evaluations"))
     serve.add_argument("--max-upload-mb", type=int, default=256)
     serve.add_argument("--cors-origin", action="append", help="Allowed browser origin (default: localhost only)")
+    serve.add_argument("--mcp", action="store_true", help="Also serve the read-only MCP server at /mcp/ from the same memory")
     serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
     serve.add_argument("--close-command", help="Command POST /v1/phases/{phase}/runs launches, with {phase}, {phase_dir}, "
                        "{month} and {out}; it writes the six JSONL under {out}/deliverables/")
     serve.add_argument("--serve-golden", action="store_true",
                        help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
+    mcp = commands.add_parser("mcp", help="Run the read-only MCP server (needs the 'mcp' package)")
+    mcp.add_argument("--transport", choices=("stdio", "streamable-http"), default="stdio")
+    mcp.add_argument("--host", default="127.0.0.1")
+    mcp.add_argument("--port", type=int, default=8001)
+    mcp.add_argument("--data-dir", type=Path, default=Path("outputs/data"), help="Where uploaded packages are extracted")
+    mcp.add_argument("--submissions-dir", type=Path, default=Path("outputs/submissions"))
+    mcp.add_argument("--evaluator", type=Path, help="Enable get_run_evaluation: <dir>/<phase>/golden must exist")
+    mcp.add_argument("--reports-dir", type=Path, default=Path("outputs/evaluations"))
+    chat = commands.add_parser("chat", help="Run the read-only chat assistant (POST /api/chat, needs the API with --mcp)",
+                               description="Provider and model come from the environment (see kalmora.assistant.config); flags override.")
+    chat.add_argument("--provider", choices=("ollama", "openai"), help="Overrides KALMORA_AI_PROVIDER")
+    chat.add_argument("--model", help="Overrides KALMORA_AI_MODEL (mode deep)")
+    chat.add_argument("--fast-model", help="Overrides KALMORA_AI_FAST_MODEL")
+    chat.add_argument("--env-file", type=Path, help="Variables file (default: .env if present). Real environment variables win")
+    chat.add_argument("--mcp-url", help="Overrides KALMORA_MCP_URL")
+    chat.add_argument("--host", default="127.0.0.1")
+    chat.add_argument("--port", type=int, default=8100)
+    chat.add_argument("--ollama-url", help="Overrides OLLAMA_HOST / KALMORA_OLLAMA_URL")
+    chat.add_argument("--num-ctx", type=int, help="Overrides KALMORA_OLLAMA_NUM_CTX")
+    chat.add_argument("--think", action="store_true", help="Overrides KALMORA_OLLAMA_THINK")
+    chat.add_argument("--openai-base-url", help="Overrides OPENAI_BASE_URL")
+    chat.add_argument("--trace-dir", type=Path, help="Overrides KALMORA_CHAT_TRACE_DIR")
+    chat.add_argument("--no-store-text", action="store_true", help="Overrides KALMORA_CHAT_STORE_TEXT")
+    chat.add_argument("--allow-evaluation", action="store_true", help="Offer get_run_evaluation (development phases only)")
+    chat.add_argument("--compact-knowledge", action="store_true", help="Leave the workflows and examples out of the prompt")
+    chat.add_argument("--cors-origin", action="append")
+    chat.add_argument("--deep-timeout", type=float, help="Overrides KALMORA_AI_DEEP_TIMEOUT")
+    chat.add_argument("--fast-timeout", type=float, help="Overrides KALMORA_AI_FAST_TIMEOUT")
+    chat.add_argument("--no-warm-up", action="store_true", help="Do not prefill the model's prompt cache at start")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
+    if args.command == "solve-ar-billing":
+        phase = args.phase.resolve()
+        work = args.work_dir or args.output.parent / ".ar-billing-state"
+        for destination in (args.output, args.output.with_name("pending_wip.jsonl"), work, args.run_dir):
+            resolved = destination.resolve()
+            if resolved.is_relative_to(phase) or any(part.lower() == "golden" for part in resolved.parts):
+                print(json.dumps({"error": "AR outputs, recordings and run reports must be outside source data and golden"}),
+                      file=sys.stderr)
+                return 1
+        if args.engine == "v0" and args.mode == "replay":
+            print(json.dumps({"error": "v0 does not implement AR capture replay"}), file=sys.stderr)
+            return 1
     if args.command in {"prepare-ap", "plan-ap", "run-ap"}:
         destinations = [args.run_dir] + ([args.output] if args.command == "plan-ap" else [])
         if args.command == "run-ap":
@@ -329,6 +376,27 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "unresolved": len(run.results) - resolved,
                           "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
         return 0
+    if args.command == "solve-ar-billing" and args.engine == "sources":
+        import asyncio
+        from .billing.source_runner import build_billing_from_sources
+        from .billing.io import write_billing_files
+        from .data import PhaseData
+        try:
+            source = asyncio.run(build_billing_from_sources(PhaseData(args.phase.resolve()),
+                work_dir=args.work_dir or args.output.parent / ".ar-billing-state", mode=args.mode))
+            if not source.complete:
+                print(json.dumps({"error": "AR billing has unresolved sources or accounting inputs",
+                                  "report": str(source.report_path), "coverage": source.report["coverage"]}),
+                      file=sys.stderr)
+                return 1
+            written = write_billing_files(source.billing, args.output)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"output": str(written), "rows": len(source.billing.results),
+                          "pending_wip": len(source.billing.pending_wip), "report": str(source.report_path),
+                          "stable_output_sha256": source.stable_sha256, "mode": args.mode}))
+        return 0
     if args.command in ("solve-ap", "solve-ar-billing"):
         from .v0.solve import solve_ap, solve_billing, write_jsonl
         phase, output = args.phase.resolve(), args.output.expanduser().resolve()
@@ -403,7 +471,46 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
         services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
         if not args.no_restore:
             print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
-        uvicorn.run(create_app(services), host=args.host, port=args.port, log_level="info")
+        print(json.dumps({"recovered_runs": services.recover_runs()}), file=sys.stderr)
+        uvicorn.run(create_app(services, mcp=args.mcp), host=args.host, port=args.port, log_level="info")
+        return 0
+    if args.command == "chat":
+        try:
+            import uvicorn
+            from .assistant.config import ConfigError, chat_settings, describe, load_environment
+            from .assistant.service import build_assistant, create_app as create_chat_app
+        except ImportError as exc:
+            print(json.dumps({"error": f"{exc}. Install the extras: pip install 'kalmora-close[assistant]'"}), file=sys.stderr)
+            return 2
+        try:
+            chat_cfg = chat_settings(load_environment(env_file=args.env_file), provider=args.provider, model=args.model,
+                                     fast_model=args.fast_model, mcp_url=args.mcp_url, ollama_url=args.ollama_url, num_ctx=args.num_ctx,
+                                     think=args.think, openai_base_url=args.openai_base_url, trace_dir=args.trace_dir,
+                                     no_store_text=args.no_store_text, allow_evaluation=args.allow_evaluation,
+                                     compact=args.compact_knowledge, cors_origins=args.cors_origin, deep_timeout=args.deep_timeout,
+                                     fast_timeout=args.fast_timeout, no_warm_up=args.no_warm_up)
+            assistant = build_assistant(chat_cfg)
+        except (ConfigError, RuntimeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 2
+        print(json.dumps({"assistant": describe(chat_cfg)}), file=sys.stderr)
+        uvicorn.run(create_chat_app(assistant, chat_cfg), host=args.host, port=args.port, log_level="info")
+        return 0
+    if args.command == "mcp":
+        try:
+            from .mcp.server import create_server
+        except ImportError as exc:
+            print(json.dumps({"error": f"{exc}. Install the MCP SDK: pip install mcp"}), file=sys.stderr)
+            return 2
+        from .app.container import Services, Settings
+        from .evaluation.gateway import EvaluatorGateway
+        settings = Settings(data_dir=args.data_dir, run_dir=args.run_dir, submissions_dir=args.submissions_dir)
+        services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
+        # stdout belongs to the protocol on stdio: everything else goes to stderr
+        print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
+        server = create_server(services)
+        server.settings.host, server.settings.port = args.host, args.port
+        server.run(transport=args.transport)
         return 0
     if args.command == "evaluate":
         from .evaluation.report import evaluate, text_summary, write_report
