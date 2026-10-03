@@ -27,6 +27,18 @@ def _write(path: Path, manifest: dict[str, Any]) -> None:
 class CommandCloser:
     def __init__(self, command: tuple[str, ...], run_dir: Path) -> None:
         self._command, self._run_dir = command, Path(run_dir)
+        self._fail_interrupted()
+
+    def _fail_interrupted(self) -> None:
+        """A run still ``running`` when the server starts lost its process with the previous server: it can no
+        longer finish, so it is marked failed instead of being polled forever."""
+        for path in self._run_dir.glob("*/manifest.json"):
+            try:
+                manifest = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if manifest.get("status") == "running":
+                _write(path, {**manifest, "status": "failed", "error": "interrupted: the server stopped during the run"})
 
     def start(self, phase: str, phase_dir: Path, month: str) -> str:
         run_id = str(uuid.uuid4())
