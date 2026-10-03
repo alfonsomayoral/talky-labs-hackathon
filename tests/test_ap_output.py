@@ -74,6 +74,52 @@ class APOutputTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.posted(context=context)
 
+    def test_local_amounts_and_journal_kind_cannot_hide_behind_balance(self):
+        entry = deepcopy(self.entry)
+        entry["lines"][0]["debit"] += 1
+        entry["lines"][-1]["credit"] += 1
+        with self.assertRaises(ValueError):
+            self.posted(journal_entry=entry)
+        wrong = deepcopy(self.entry)
+        wrong["lines"][0]["account"] = "60000000"
+        with self.assertRaises(ValueError):
+            self.posted(journal_entry=wrong, context=None)
+        wrong = deepcopy(self.entry)
+        wrong["lines"][-1]["debit"] = wrong["lines"][-1].pop("credit")
+        wrong["lines"][-1]["credit"] = 0
+        wrong["lines"].append({"account": "57200000", "debit": 0, "credit": 21200})
+        with self.assertRaises(ValueError):
+            self.posted(document_type="CREDIT_NOTE", journal_entry=wrong, context=None)
+
+    def test_malformed_master_context_returns_diagnostics(self):
+        row = self.posted()
+        for field in ("accounts", "partners", "companies", "cost_centers", "wbs", "min_date", "max_date"):
+            self.assertTrue(validate_ap_row(row, {field: None}))
+        self.assertTrue(validate_ap_row(row, []))
+        self.assertEqual(validate_ap_row(row, {"accounts": list(self.context["accounts"])}), ())
+
+    def test_gr_ir_requires_coded_order_and_resolved_assignment(self):
+        header = APHeader("1100", "V1", "INV1", "2026-07-01", "EUR", 10000, 0, 10000, 0, 0, 10000)
+        entry = {"company": "1100", "lines": [
+            {"account": "40090000", "debit": 10000, "credit": 0, "partner": "V1", "assignment": "PO1/10"},
+            {"account": "41000000", "debit": 0, "credit": 10000, "partner": "V1", "amount_doc": 10000}]}
+        lines = [{**self.lines[0], "tax_code": "SEX", "po": "PO1", "po_item": 10}]
+        self.posted(header=header, lines=lines, journal_entry=entry, context=None)
+        for bad in ([{**lines[0], "po": None, "po_item": None}], [{**lines[0], "po": "PO2"}]):
+            with self.assertRaises(ValueError):
+                self.posted(header=header, lines=bad, journal_entry=entry, context=None)
+
+    def test_advance_request_requires_the_policy_journal(self):
+        header = APHeader("1100", "V1", "INV1", "2026-07-01", "USD", 10000, 0, 10000, 0, 0, 10000)
+        lines = [{"amount": 10000, "account": "40700000", "tax_code": "SEX", "po": "PO1", "po_item": 10}]
+        entry = {"company": "1100", "currency": "USD", "lines": [
+            {"account": "40700000", "debit": 9000, "credit": 0, "amount_doc": 10000, "currency": "USD", "partner": "V1"},
+            {"account": "40000000", "debit": 0, "credit": 9000, "amount_doc": 10000, "currency": "USD", "partner": "V1"}]}
+        self.posted(document_type="DOWN_PAYMENT_REQUEST", header=header, lines=lines, journal_entry=entry, context=None)
+        entry["lines"][0] = {"account": "62300000", "debit": 9000, "credit": 0, "cost_center": "CC1"}
+        with self.assertRaises(ValueError):
+            self.posted(document_type="DOWN_PAYMENT_REQUEST", header=header, lines=lines, journal_entry=entry, context=None)
+
     def test_foreign_advance_application_conserves_document_payable(self):
         header = APHeader("1100", "V1", "INV1", "2026-07-01", "USD", 10000, 0, 10000, 0, 0, 7000)
         lines = [{**self.lines[0], "tax_code": "SEX"}]

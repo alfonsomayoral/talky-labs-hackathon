@@ -4,7 +4,7 @@ Only resolved decisions and monetary inputs are accepted. Extraction, semantic
 selection and accounting calculations remain in their owning modules. Evidence
 and internal UNKNOWN states belong to the audit, never to the delivery contract.
 """
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 import json
@@ -61,6 +61,17 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
     """
     if not isinstance(row, dict):
         return ("AP row must be an object",)
+    if context is not None:
+        if not isinstance(context, Mapping):
+            return ("master context must be a mapping",)
+        for registry in ("companies", "accounts", "partners", "cost_centers", "wbs"):
+            if registry in context:
+                records = context[registry]
+                if isinstance(records, (str, bytes)) or not isinstance(records, Collection) or any(not isinstance(key, str) for key in records):
+                    return (f"master context {registry} must contain reference IDs",)
+        for field in ("min_date", "max_date"):
+            if field in context and not isinstance(context[field], str):
+                return (f"master context {field} must be an ISO date",)
     shape = check_structure({"ap": [row]})
     if shape:
         return tuple(d["message"] for d in shape)
@@ -141,11 +152,43 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
                         errors.append(f"coded-line {field} belongs to another company")
     entry = row["journal_entry"]
     errors.extend(validate_entry(entry, context))
+    dimensions = {(line["account"], line.get("cost_center"), line.get("wbs")) for line in lines}
+    monetary_accounts = {"40000000", "41000000", "40300000", "40700000", "40000900",
+                         "47200000", "47210000", "47710000", "47510000", "66800000", "76800000"}
+    if any(line.get("po") is not None for line in lines):
+        monetary_accounts.add("40090000")
+    signed_base = 0
     for line in entry["lines"]:
         if "amount_doc" in line and line["amount_doc"] < 0:
             errors.append("journal document cents must be unsigned")
+        if line.get("currency", row["currency"]) == local and "amount_doc" in line and line["amount_doc"] != max(line["debit"], line["credit"]):
+            errors.append("local-currency journal document cents differ from debit/credit")
         if line["account"].startswith(("400", "410", "403", "407")) and line.get("partner") != row["vendor_id"]:
             errors.append("AP journal partner differs from header vendor")
+        if line["account"].startswith(("2", "6")) and line["account"] not in {"66800000", "76800000"}:
+            if (line["account"], line.get("cost_center"), line.get("wbs")) not in dimensions:
+                errors.append("journal base imputation is absent from coded lines")
+            signed_base += line["debit"] - line["credit"]
+        elif line["account"] == "40090000":
+            if "40090000" not in monetary_accounts:
+                errors.append("GR/IR requires an explicitly coded PO portion")
+            positions = {f"{coded['po']}/{coded['po_item']}" for coded in lines if coded.get("po") is not None}
+            if line.get("assignment") is not None and line["assignment"] not in positions:
+                errors.append("GR/IR assignment differs from coded PO positions")
+            signed_base += line["debit"] - line["credit"]
+        elif line["account"] not in monetary_accounts:
+            errors.append("account is outside the AP journal components")
+    if kind == "CREDIT_NOTE" and signed_base > 0 or kind == "INVOICE" and signed_base < 0:
+        errors.append("journal base side contradicts invoice/credit-note type")
+    if kind == "DOWN_PAYMENT_REQUEST":
+        accounts = {line["account"] for line in entry["lines"]}
+        advance_lines = [line for line in entry["lines"] if line["account"] == "40700000"]
+        if accounts != {"40700000", "40000000"} or len(entry["lines"]) != 2 or len(advance_lines) != 1 or advance_lines[0]["credit"] or advance_lines[0]["debit"] <= 0:
+            errors.append("advance request requires only Dr407 / Cr400")
+        elif advance_lines[0].get("amount_doc", advance_lines[0]["debit"] if row["currency"] == local else None) != row["net"]:
+            errors.append("advance request document amount differs from header")
+        if row["tax"] or row["withholding"] or row["retention"]:
+            errors.append("advance request cannot invent fiscal deductions or VAT")
     if entry["company"] != row["company"]:
         errors.append("journal company differs from header")
     for field, expected in (("currency", row["currency"]), ("document_date", row["invoice_date"]), ("reference", row["invoice_number"])):
@@ -165,6 +208,12 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None) -> tup
             errors.append("supplier side/document payable differs from header")
         if supplier.get("currency", row["currency"]) != row["currency"]:
             errors.append("supplier currency differs from header")
+        for line in entry["lines"]:
+            # Factory-generated non-monetary/monetary advance adjustments are
+            # in local currency. Other AP base/tax/supplier legs stay in the
+            # document currency; this exporter does not infer a new FX scope.
+            if line.get("currency", row["currency"]) not in {row["currency"], local}:
+                errors.append("journal line currency is outside invoice/local scope")
         if supplier.get("assignment") not in (None, row["invoice_number"]):
             errors.append("supplier assignment differs from invoice number")
     applied = [line for line in entry["lines"] if line["account"] == "40700000" and line["credit"]]
