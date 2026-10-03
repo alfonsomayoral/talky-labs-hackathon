@@ -394,7 +394,7 @@ function BadDebt({ items, rows, core }: TypeViewProps) {
                 <dt>Provisión necesaria</dt>
                 <dd>
                   <Amount cents={typeof row.target === 'number' ? row.target : aging.required} currency={cur} />
-                  {typeof row.target === 'number' && row.target !== aging.required && <Badge tone="warn">Partidas abiertas: {formatNumber(aging.required / 100, { decimals: 2 })}</Badge>}
+                  {typeof row.target === 'number' && row.target !== aging.required && <Badge tone="warn">Partidas abiertas: <Amount cents={aging.required} currency={cur} /></Badge>}
                 </dd>
               </div>
               <div>
