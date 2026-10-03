@@ -19,23 +19,22 @@ inventory = ERP snapshot + all month notices, then compares with `golden/ap.json
 
 | | tasks |
 |---|---|
-| posted, match | 180 |
-| posted, unknown | 62 |
-| other decision (duplicate/reject/hold/not invoice), match | 51 |
-| other decision, unknown | 12 |
+| posted, match | 202 |
+| posted, unknown | 40 |
+| other decision (duplicate/reject/hold/not invoice), match | 57 |
+| other decision, unknown | 6 |
 | mismatch | 0 |
 
 The only July payee (API004175, `FACTOR`) matches through the registered
 factor (`erp/vendors` V100092, valid from 2025-03-12). No July invoice carries a
 payment block; 26 certificate selections come from `erp/contractor_certificates`
-and one from the inbox. All 28 selected events carry document and vigency.
+and one from the inbox. All 31 selected events carry document and vigency.
 
-Unknowns (74) are inputs, not chronology: 72 invoices have no parseable
-`document_date` (normalization rejects "30 de junio de 2026" and ambiguous
-dd/mm dates) and 2 vendors are not in the master (API005601, API005602).
-Notices bound: 4 events from 3 certificates and the cession API005189. Not bound:
-API005195 (bank letter) is classified UNKNOWN because only `notice_type_hint`
-was extracted; API005600 (certificate) failed extraction.
+Unknowns (46) are invoice inputs, not chronology (`INVOICE_INPUT_UNKNOWN`):
+attachments that failed extraction or have no type, invoices whose only date is
+an ambiguous dd/mm value, and the 2 vendors not in the master (API005601,
+API005602). Notices bound: 5 events, including the bank letter API005195 (typed
+from its `notice_type_hint`); API005600 (certificate) failed extraction.
 
 Rules with no July example are covered by `tests/test_ap_chronology_sources.py`
 and `tests/test_ap_chronology.py`: embargo received before/after, registered
