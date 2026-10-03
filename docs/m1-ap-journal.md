@@ -47,7 +47,10 @@ supplier lines. Document amounts remain unsigned as in the AP contract.
 
 Original-reference extraction/resolution belongs upstream. The builder does not
 guess an original invoice from a similar amount/vendor or change to current
-vendor defaults. Credit-note advance restoration is not automatic: such a
+vendor defaults. [`CreditOriginalCatalog`](ap-credit-sources.md) binds an explicit
+literal original number to a unique scoped recorded invoice and its exact
+journal; the caller still evidences original-line mappings and prior consumption.
+Credit-note advance restoration is not automatic: such a
 refund/reinstatement needs separate resolved evidence, not ordinary application
 instructions. Upstream duplicate/original-reference controls remain required
 for complete document processing.
