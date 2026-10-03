@@ -61,8 +61,9 @@ must supply stable `ic_owned_services` links; this fixture's list is empty becau
 no selected series is group-owned, not because an empty real IC handoff is accepted.
 
 An unassigned historical loan principal is bound to the single documented loan;
-this binding is recorded explicitly and original entries remain unchanged. Foreign
-credit notes remain positions unless original settlement evidence clears them.
+this binding is recorded explicitly and original entries remain unchanged. Only
+open foreign supplier invoices are revalued; credit notes are not (policy 5 and
+the historical CLOSE_FX entries).
 Any future multiple-loan ambiguity requires explicit per-position binding rather
 than copying this fixture assumption.
 

@@ -33,11 +33,12 @@ Contradictory representations fail rather than being added twice.
 
 ## Rules and assumptions
 
-- ACCRUAL: comparable supplier/service/cost-object history, last three distinct
-  observed periods, median daily rate times uncovered days. Coverage is a union.
+- ACCRUAL: comparable supplier/service/cost-object history over twelve months, last
+  three distinct observed periods, median daily rate times uncovered days. Coverage
+  is a union of booked receipts; a rejected invoice does not cover its period.
   Previous unbilled periods persist only when their linked invoice has not arrived.
-  For discrete professionals, recurring monthly historical unbilled exposure is
-  a separate estimator; a one-day service is never multiplied by every month day.
+  Discrete professional services are not estimated: whether one happened is not
+  observable before its invoice. Market representative fees are not accrued.
   Additional discrete consumption without evidence remains unknown. History is
   not posted again, unreversed accrual is deducted, and PO/GR-IR/IC ownership excludes
   the service. Min/max sampled rates are sensitivity bounds, not confidence limits.
@@ -52,8 +53,8 @@ Contradictory representations fail rather than being added twice.
   document principal at closing FX. Liability value growth is a credit; asset value
   growth a debit. Revaluation moves local cents only (foreign amount_doc=0). Original
   unassigned loan principal is tied to the unique documented agreement; this is
-  explicit, not a hidden assignment rewrite. Open foreign credit notes are not
-  excluded merely to match a development row count.
+  explicit, not a hidden assignment rewrite. Only supplier invoices are revalued,
+  never credit notes.
 - BAD_DEBT: private/community balances after receipts; strictly >180 and >365 days,
   insolvency includes guarantees, public/group excluded. Required provision minus
   existing 490 supports both expense and release. Missing ageing blocks release.
