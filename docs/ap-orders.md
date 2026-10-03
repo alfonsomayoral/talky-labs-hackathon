@@ -22,9 +22,15 @@ receipt quantities minus explicit prior consumption. Receipt deficits do not
 erase the PO: #44 allocates atomically and #49 handles QTY_NOT_RECEIVED. No state
 is committed by this lookup. Foreign company/vendor/currency and future orders
 or receipts cannot provide supply. No golden data is read.
-Visibility here uses the invoice date as a conservative cutoff; this is a stated
-lookup convention, not an inferred date of invoice reception. Later receipt
-availability must be supplied through a future explicit processing-date adapter.
+`resolve` and `resolve_lines` accept an optional `receipt_as_of` ISO date for
+receipt visibility, including explicit albarán references. It defaults to the
+invoice date for compatibility. The caller supplies an observed arrival or
+processing date and enforces the active phase's cutoff; the catalogue never
+infers it from the newest receipt or the end of a month. PO creation remains
+constrained by `invoice_date`, which must also remain unchanged for FX and fiscal
+calculations. A receipt between invoice issue and arrival can therefore be
+available while a receipt after the explicit cutoff stays unavailable. A future
+asserted receipt reference stays UNKNOWN rather than supplying quantity.
 
 Pending #41/#42: actual normalized line facts and identity; unresolved semantics
 or implicit MULTI_PO splits require upstream evidence. Map resolved source portions
