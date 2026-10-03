@@ -13,7 +13,12 @@ Este documento es la referencia para todos los agentes que construyan `app/`. El
    - la solución de referencia (`golden/`), solo en julio.
 3. **Entrega los 6 ficheros oficiales** validados.
 
-Además hace visible cada paso: qué decidió el agente, con qué regla, con qué evidencia y qué necesita a una persona.
+Además hace visible cada paso: qué decidió el agente, con qué regla, con qué evidencia y qué necesita a una persona. **Las vistas más importantes son la trazabilidad y el razonamiento por proceso:**
+
+- cada tarea muestra su mapa de decisión (cuántas partidas tomaron cada camino de la política);
+- cada partida muestra su razonamiento paso a paso.
+
+Un asistente conversacional (fase 6) responde preguntas sobre el cierre con esas mismas evidencias.
 
 Está terminado cuando se cumple todo esto:
 
@@ -26,6 +31,7 @@ Está terminado cuando se cumple todo esto:
   - su evidencia enlazada al documento, la línea bancaria o el maestro;
   - su comparación con golden cuando lo hay.
 - [ ] `npm run typecheck`, `npm run lint`, `npm run test` y `npm run build` pasan en verde.
+- [ ] El Asistente responde las 4 preguntas preestablecidas con cifras que cuadran con Resumen y Atención, citando partidas que se abren en el panel lateral.
 - [ ] El recorrido de demo se hace sin errores en consola.
 
 ## 1. Flujos del producto
@@ -186,6 +192,8 @@ KALMORA_RUNS=../runs
 Componentes de dominio compartidos (`src/features/item/kit/`):
 
 - `JournalEntryView`: debe y haber con nombres de cuenta, socio, objeto de coste y comprobación de cuadre.
+- `ProcessMap`: el **mapa de decisión de un proceso**. Muestra el flujo de la política de esa tarea con el número de partidas e importe en cada rama. En AP, por ejemplo: recibidos → no son factura → duplicados → rechazos por motivo → retenciones por motivo → bloqueo de pago → contabilizados. Al pulsar una rama se filtra la lista. Es la vista de «razonamiento por proceso».
+- `ReasoningView`: el razonamiento de una partida en lenguaje claro. Combina la cascada, los eventos, el precedente histórico y la confianza, y termina en la decisión con su artículo de la política.
 - `PolicyCascade`: comprobaciones en orden con ✓, ✗ y la que corta.
 - `TraceTimeline`: los eventos de una partida en orden.
 - `EvidenceList`, con su visor de documentos: PDF en `iframe` con blob, XML formateado y JSON.
@@ -200,7 +208,7 @@ Componentes de dominio compartidos (`src/features/item/kit/`):
 | `/` | Resumen | ¿Cómo ha ido el cierre? | Frase de apertura con la cifra clave. Indicadores: autonomía, partidas en atención en número y €, hueco del balance cerrado, nota, coste y tiempo. DAG de las 6 tareas en orden con estado y recuentos. Mosaico de partidas por estado. Tarjetas por tarea con peso y nota. Controles de cierre: 555 a cero, 12/12 bancos, intragrupo neto, asientos cuadrados. «Te necesitan» con las primeras 5 de atención |
 | `/atencion` | Atención | ¿Qué necesita a una persona? | Grupos P0–P3 ordenados por pérdida esperada. Tarjeta con importe, regla, evidencia, recomendación y alternativas. Aceptar, Elegir alternativa, Posponer y Nota. Aplicar a similares. Contador de pendientes en número y € |
 | `/actividad` | Actividad | ¿Qué hizo el agente, partida a partida? | Lista de todas las partidas agrupable por tarea, sociedad o estado, con filtros. Línea temporal de eventos si hay `events.jsonl` |
-| `?item=<tarea>:<clave>` | Panel de partida (sobre cualquier ruta) | ¿Por qué esta decisión? | Pestañas Resumen, Asiento, Evidencia, Traza y Golden |
+| `?item=<tarea>:<clave>` | Panel de partida (sobre cualquier ruta) | ¿Por qué esta decisión? | Pestañas **Razonamiento** (la primera), Resumen, Asiento, Evidencia y Golden |
 | `/tareas/ap` | Bandeja de proveedores | ¿Qué se hizo con cada documento? | Sankey de tipo de documento a decisión. Lista con facetas de decisión y motivo. Ficha con el documento al lado, campos extraídos frente al maestro, casación línea a línea con pedido y entrada, cascada §2.2, beneficiario y bloqueo, enlace al duplicado |
 | `/tareas/facturacion` | Facturación AR | ¿Qué se factura y por cuánto? | Partidas por tipo de contrato. Cálculo «a origen − anterior». Vista previa de la factura (líneas, IVA, retención, deducciones, DIR3). Obra pendiente de certificar enlazada al cierre |
 | `/tareas/cobros` | Aplicación de cobros | ¿Qué paga cada abono? | Reparto de cada abono en facturas, pagarés y diferencias (barra apilada). Partidas abiertas del cliente antes y después. Barra de vaciado de la 555 |
@@ -213,6 +221,9 @@ Componentes de dominio compartidos (`src/features/item/kit/`):
 | `/ejecuciones`, `/ejecuciones/nueva`, `/ejecuciones/:id` | Ejecuciones | ¿De dónde salen estos resultados? | Lista de ejecuciones por dataset. Nuevo cierre (subida e inventario). Vista en vivo: DAG con progreso y feed de eventos por SSE |
 | `/comparar` | Comparar con golden | ¿En qué se equivoca el agente? | Subnotas por tarea con desglose hasta la partida. Lista de diferencias por campo |
 | `/coste` | Coste y ejecución | ¿Qué ha costado? | Tokens y coste por modelo (Jev, Claude). Gantt de duración por tarea. Curva de fiabilidad y deslizador de umbral si los eventos traen confianza |
+| `/asistente` (y panel ⌘J) | Asistente | ¿Qué quiero saber del cierre? | Titular «¿Por dónde empezamos?». Caja de pregunta. 4 preguntas preestablecidas. Conversación con respuestas en tarjetas (cifras, partidas enlazadas, pasos de razonamiento con artículo de la política y evidencia) |
+
+Todas las vistas por tarea (`/tareas/*`) **abren con su `ProcessMap`**: el razonamiento por proceso va antes que la lista.
 
 ## 5. Reglas del motor para derivar partidas y atención
 
@@ -261,7 +272,7 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
 | --- | --- | --- | --- |
 | 2.A Ejecuciones y entregables | Agente «runs-io» | `features/runs/`, `features/deliverables/` | Nuevo cierre con subida (carpeta o zip), inventario detectado, avisos y persistencia. Tres fuentes de resultados (API con SSE, importar JSONL o paquete, referencia golden). Lista y selector de ejecuciones. Vista en vivo. Entregables con validación, nota, vista previa y descarga en zip con `manifest.json` |
 | 2.B Resumen | Agente «overview» | `features/overview/` | Todo lo de la fila Resumen de §4 |
-| 2.C Actividad y panel de partida | Agente «activity» | `features/activity/`, `features/item/` | Lista de partidas (agrupación, filtros, opciones de vista, teclado). Panel de partida con sus 5 pestañas. Kit de dominio de §3.6 |
+| 2.C Actividad y panel de partida | Agente «activity» | `features/activity/`, `features/item/` | Lista de partidas (agrupación, filtros, opciones de vista, teclado). Panel de partida con sus 5 pestañas, con Razonamiento como pestaña principal. Kit de dominio de §3.6, incluidos `ProcessMap` y `ReasoningView` |
 | 2.D Atención | Agente «attention» | `features/attention/` | Cola P0–P3, tarjetas, acciones, aplicar a similares, store de correcciones y exportación de `overrides.jsonl` |
 
 **Puerta 2:**
@@ -274,7 +285,7 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
 
 ### Fase 3 — Vistas por tarea
 
-**Objetivo:** cada tarea tiene su espacio de trabajo con la visualización que mejor explica su resultado (§4).
+**Objetivo:** cada tarea tiene su espacio de trabajo. Abre con su mapa de decisión (`ProcessMap`) y sigue con la visualización que mejor explica su resultado (§4).
 
 | Paquete | Responsable | Carpeta |
 | --- | --- | --- |
@@ -323,7 +334,30 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
 | 5.B Pulido | Agente «polish» | Estados vacíos, carga y error. Accesibilidad (teclado, foco, contraste del naranja sobre blanco en texto pequeño). Rendimiento (división por rutas, worker). Consistencia visual |
 | 5.C Documentación y demo | Agente «docs-demo» | `app/README.md` (arranque, datos, contrato) y modo demo con el guion del informe |
 
-**Puerta 5:** se cumple todo el «terminado» de §0.
+**Puerta 5:** se cumple todo el «terminado» de §0, salvo el Asistente, que se cierra en la fase 6.
+
+### Fase 6 — Asistente conversacional
+
+**Objetivo:** preguntar al cierre en lenguaje natural y obtener respuestas con la misma trazabilidad que el resto de la app.
+
+| Paquete | Responsable | Carpeta | Entregable |
+| --- | --- | --- | --- |
+| 6.A Interfaz del Asistente | Agente «assistant-ui» | `features/assistant/` (salvo `engine/`) | Pantalla `/asistente` con marca Talky en tema claro: titular en serif «¿Por dónde empezamos?», caja de pregunta con envío por Enter y selector de modo (Rápido, Profundo), y 4 preguntas preestablecidas en chips con icono. Conversación con respuestas en tarjetas: cifras, tabla, partidas que abren el panel lateral, pasos de razonamiento con artículo de la política y evidencia. Historial por ejecución. El mismo chat como panel lateral desde cualquier pantalla con ⌘J |
+| 6.B Motor de respuestas | Agente «assistant-engine» | `features/assistant/engine/` | Proveedor local determinista sobre `useDerivedRun`. Intenciones: resumen del mes, qué revisar, por qué no cuadra el balance, cómo decidió un proceso, explicar una partida por su id, estado de una cuenta bancaria, coste. Proveedor API (`POST /api/chat` por SSE, `CONTRACT.md` §2) para que el backend responda con Claude y herramientas sobre la ejecución. Las claves de API nunca están en el navegador |
+
+**Preguntas preestablecidas:**
+
+1. «Resumen del último mes contable».
+2. «¿Qué partidas tengo que revisar?».
+3. «¿Por qué no cuadra el balance?».
+4. «¿Cómo ha decidido el agente la bandeja de proveedores?».
+
+**Puerta 6:**
+
+- Las 4 preguntas responden con cifras idénticas a las de Resumen y Atención.
+- Cada partida citada abre el panel lateral.
+- «Explica API004128» devuelve su razonamiento.
+- El proveedor API funciona contra un servidor SSE de prueba.
 
 ## 7. Orquestación multiagente
 
@@ -350,7 +384,8 @@ Cada fase termina en una **puerta**: comprobaciones que el coordinador ejecuta a
   - fase 2: 4 agentes;
   - fase 3: 6 agentes;
   - fase 4: 4 agentes;
-  - fase 5: 3 agentes.
+  - fase 5: 3 agentes;
+  - fase 6: 2 agentes.
   - Una fase no empieza hasta cerrar la puerta de la anterior.
 
 ## 8. Riesgos y decisiones
