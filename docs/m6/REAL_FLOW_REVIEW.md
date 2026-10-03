@@ -6,8 +6,10 @@ M6 requires a phase-bound IC audit of every configured pair, verified source and
 delivery hashes, and the exact producer-owned AP/bank/IC postings. An incomplete,
 stale or empty exception report cannot prove successful integration.
 
-Implementation was executed at `575e2409ba401053eadbf910e83afe81c3705c98`,
-rebased on backend `0840e539520e3ea5dbb3fec9d89f3ba8b5cb6da9`.
+Implementation was executed at `c13061ff8e4e5503db993fba797e5eba7803cdc9`,
+based on backend `fb93a767398e2011ad58cb9d78ccb76ac251e5e0`.
+The final execution preserves #284 live task/provider reports, findings and
+module trace archives alongside the durable IC/M6 handoffs.
 PRs #197 and #277 remain merged. Issues #171, #251, #159 and milestone M6
 remain open for review; operational integration is not accounting acceptance.
 
@@ -101,4 +103,3 @@ For September, replace the phase and output directory and use
 in RESULTS.md and SCORE_INVESTIGATION.md. Further closure requires review of
 the remaining AP/source/reference differences; neither a high score nor
 `engine_data_complete` proves universal documentary correctness.
-

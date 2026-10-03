@@ -1,14 +1,14 @@
 {
-  "backend_base_commit": "0840e539520e3ea5dbb3fec9d89f3ba8b5cb6da9",
+  "backend_base_commit": "fb93a767398e2011ad58cb9d78ccb76ac251e5e0",
   "backend_tests": {
     "discovered": 1246,
     "failed": 0,
-    "log_sha256": "38e821e5d4b9d9ddd1ffc80afd52b31d7012a47e9377c9ed6525d3eaaf71e981",
+    "log_sha256": "0dde83b451087b4b80dddee6d0f4a606b66456e58d886023f082b5efcdfb9f45",
     "passed": 1203,
     "skipped": 43
   },
   "ic_replay": {
-    "audit_sha256": "31997f11b73cbbb9b116371543954b9e50930015c76944e3c5f5d2791eb73bb9",
+    "audit_sha256": "9d2bc0e7aa65e07baf6de2a448d9feee37408ac12b162966e89c95101565e0f8",
     "complete": true,
     "corrected_ledger_unchanged": true,
     "findings": 8,
@@ -90,7 +90,7 @@
           "pre_m6_positions.json": "23863a56e303e6a11309964cdf107f9ce73d5756a4cf71b199fa98ebdbea04e1",
           "projection_events.jsonl": "bd50a29103b45fae16081ba1dfc0c83e70af383b622593909c7d15d54991ccb9"
         },
-        "handoff_sha256": "83d8e7a295fd7b15bcf9b4a7819a3ae7e33d40024cd78c85f51ea9ee2ec053e1",
+        "handoff_sha256": "49cbc29f127fc9133f09ef32041e6003f4eef44a0e3bfe4c257927862caf34f1",
         "integration": "real_audited_handoffs",
         "integration_execution_complete": true,
         "types": {
@@ -255,7 +255,7 @@
           "1100-1910:INVOICE_IN_TRANSIT"
         ],
         "mode": "compare",
-        "report_sha256": "4b8175c6d05432f56d401578a99feab2df86b284b8dc7df8991c8186a8b5d17c",
+        "report_sha256": "d3b473d83ac86983c9cd20adac04da5e6404efa58f504f5160b7031ce04bc8b2",
         "scores": {
           "ap": 0.9910643505011841,
           "ar_billing": 1.0,
@@ -266,7 +266,7 @@
           "trial_balance": 0.9907256702473818
         }
       },
-      "ic_audit_sha256": "4924f560b11202a761ee91316ea9f4bf68d00ec40c824a52effe2bfabdfbcbc1",
+      "ic_audit_sha256": "103eb09a8235fbb3e76cf505eee288a25fda5ed1aa530b65dfa1f491795fc2bf",
       "ic_complete": true,
       "ic_diagnostics": [],
       "ic_task_coverage": {
@@ -348,7 +348,7 @@
           }
         }
       ],
-      "producer_code_manifest_sha256": "f3b5a4e77ed667b60c526ba735b69d031b51b9cf37b515ddc56eca3a54f76005",
+      "producer_code_manifest_sha256": "fec75168b90614647d46f8b0ed3d17fdb4c011fb0ae25686bdd723526f65d795",
       "replay": {
         "document_calls": 0,
         "files_equal": 10,
@@ -364,9 +364,14 @@
         "close": 77,
         "ic": 8
       },
-      "runtime_s": 87.538,
+      "runtime_s": 109.945,
       "source_manifest_sha256": "e1e0715fd276ecf38e32f6a7a31245b0a658d9a647169023c19f5a6e27ab1f5b",
-      "tasks_done": true
+      "tasks_done": true,
+      "trace_archives": [
+        "ic.zip",
+        "close.zip"
+      ],
+      "trace_events_sha256": "fd258bf068279a9dbb14cbebfe607d17d878b6728339d2b2bda46f135c3ea363"
     },
     "september": {
       "ap_coverage": {
@@ -399,7 +404,7 @@
           "pre_m6_positions.json": "fb164baae342af9e63e053d1ceb524fbcc0574fe7bd02b2223620a6d5b66920a",
           "projection_events.jsonl": "9c437db117f2bfd2bfbda6c469295d96f453fa6bfbe639f5ccab2915482aaa6d"
         },
-        "handoff_sha256": "9a569a655dcabd7ea5b11d28c109ad75a8548f46f7345bb3434f12a70ff2fa21",
+        "handoff_sha256": "7403c3537fe6cc4ad53e93086891cca2932cb74eb8f48c3bb28f1853936585af",
         "integration": "real_audited_handoffs",
         "integration_execution_complete": true,
         "types": {
@@ -421,9 +426,9 @@
         "diagnostic_counts": {},
         "diagnostics": [],
         "mode": "structure_only",
-        "report_sha256": "2c5415a6e36eecdc9c9d16c6e956eceacfaf81475e1aa9ad0212cc149408ce74"
+        "report_sha256": "7861d5e5dd1e04260084575b1a3ddeff48812bf7d330fe69bb6082e90aefbd2c"
       },
-      "ic_audit_sha256": "895fcb0fb5c9eae226a69d8fda6f9f99154b88577124e90dcb60ccda8beffdfd",
+      "ic_audit_sha256": "24a3367f89bb173eb43e531c717805bc15adb1b5ca31090e4409538268acc4f5",
       "ic_complete": true,
       "ic_diagnostics": [],
       "ic_task_coverage": {
@@ -505,7 +510,7 @@
           }
         }
       ],
-      "producer_code_manifest_sha256": "f3b5a4e77ed667b60c526ba735b69d031b51b9cf37b515ddc56eca3a54f76005",
+      "producer_code_manifest_sha256": "fec75168b90614647d46f8b0ed3d17fdb4c011fb0ae25686bdd723526f65d795",
       "replay": {
         "document_calls": 0,
         "files_equal": 10,
@@ -521,13 +526,20 @@
         "close": 84,
         "ic": 8
       },
-      "runtime_s": 94.598,
+      "runtime_s": 119.869,
       "source_manifest_sha256": "0a00bdfb2eb8cf666fbd8fbb04416cf6d2b9643dc7f9536c8ed9baf7f4d437ac",
-      "tasks_done": true
+      "tasks_done": true,
+      "trace_archives": [
+        "ic.zip",
+        "close.zip"
+      ],
+      "trace_events_sha256": "00e48485df0b12ebc6eee180d5ca68f071d755de135ec685378c8efa39b768fa"
     }
   },
   "python": "3.12.2",
+  "run_traceability": "Preserves #284 live task state, provider-call reports, module findings and trace archives",
   "schema": "kalmora.real-close-review/v1",
-  "solver_reference_access": "denied by inherited Python I/O guard; original July files matched archive before execution",
-  "verified_code_commit": "575e2409ba401053eadbf910e83afe81c3705c98"
+  "solver_reference_access": "Python I/O/network guard inherited by IC; golden/trial balances and original phase writes denied",
+  "verification_guard_sha256": "0bdce517ba63a97b3da4cd7454c9234e32ec27b37a30fc17200dd7ca14683b7d",
+  "verified_code_commit": "c13061ff8e4e5503db993fba797e5eba7803cdc9"
 }
