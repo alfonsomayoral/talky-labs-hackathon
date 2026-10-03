@@ -114,6 +114,22 @@ class APTransactionIntegrationTests(unittest.TestCase):
             self.assertEqual(len(second.state.rows), 1)
             self.assertEqual(second.state.consumption.usages[0].quantity_milli, 2000)
 
+    def test_historical_posted_id_cannot_bypass_guard_with_changed_supplier_or_currency(self):
+        request = self.request("HIST-OTHER")
+        for changed in ({}, dict(vendor="OTHER-SUPPLIER"), dict(currency="USD")):
+            scope = replace(request.scope, **changed)
+            inputs = replace(request.posting,
+                header=replace(request.posting.header, vendor_id=scope.vendor, currency=scope.currency),
+                valuation_lines=(replace(request.posting.valuation_lines[0], quantity_milli=None),),
+                quantity_lines=(), coded_lines=(replace(request.posting.coded_lines[0], line=dict(
+                    request.posting.coded_lines[0].line, po=None, po_item=None)),))
+            replay = replace(request, scope=scope, posting=inputs)
+            with self.subTest(changed=changed), patch("kalmora.ap_transaction.allocate_receipts") as allocate:
+                with self.assertRaisesRegex(ValueError, "already committed"):
+                    self.commit(replay, context=dict(self.context, partners={"SUP-OTHER", "OTHER-SUPPLIER"}))
+                allocate.assert_not_called()
+            self.assertEqual(self.baseline.rows, ())
+
     def test_nonposting_never_calls_factories_or_changes_state(self):
         names = ("allocate_receipts", "value_ap_lines", "calculate_ap_tax",
                  "calculate_ap_withholdings", "build_ap_journal", "build_ap_row")

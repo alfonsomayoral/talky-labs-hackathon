@@ -109,6 +109,9 @@ class APTransactionState:
         if any(not isinstance(key, tuple) for key in (
                 *self.consumption.invoices, *self.advances.events)):
             raise TypeError("historical event keys must be immutable tuples")
+        if any(len(key) != 4 or any(not isinstance(value, str) or not value for value in key)
+               for key in (*self.consumption.invoices, *self.advances.events)):
+            raise ValueError("historical event requires company/vendor/currency/document identity")
 
     @property
     def keys(self) -> tuple[tuple[str, str, str, str], ...]:
@@ -260,7 +263,9 @@ def commit_ap_transaction(
             raise ValueError("complete posting company/vendor/currency scope required")
     _iso(scope.invoice_date, "invoice date")
     key = (scope.company, scope.vendor, scope.currency, scope.invoice_id)
-    if (key in state.keys or key in state.consumption.invoices or key in state.advances.events
+    historical_keys = (*state.consumption.invoices, *state.advances.events)
+    if (key in state.keys or any((old[0], old[3]) == (scope.company, scope.invoice_id)
+                               for old in historical_keys)
             or any(publication.key[3] == scope.invoice_id for publication in state._published)):
         raise ValueError("AP transaction key or task ID already committed")
     inputs = request.posting
