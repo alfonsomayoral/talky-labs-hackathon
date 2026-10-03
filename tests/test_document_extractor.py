@@ -29,6 +29,11 @@ def observation(name, value, quote, *, block="page.1", kind="OBSERVED", page=Non
             "image_page":page, "image_sha256":image_hash}
 
 
+def group(values, quote, *, block='page.1', page=None, image_hash=None):
+    return {'values': [{'field': name, 'value': value, 'kind': 'OBSERVED'} for name, value in values],
+            'block_id': block, 'quote': quote, 'image_page': page, 'image_sha256': image_hash}
+
+
 def proof(candidate="A", **changes):
     return {"candidate_id":candidate, "candidate_attribute":"description", "candidate_value":"Steel bolts",
             "source_value":"Bolt M12", "block_id":"page.1", "quote":"Bolt M12 2 unit 50,00 100,00",
@@ -66,6 +71,59 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
         config = LLMConfig("gpt-6-luna", Decimal("1"), Decimal("0.000001"),
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
+
+    async def test_grouped_values_match_flat_evidence_and_preserve_conflicts(self):
+        quote = 'Bolt M12 2 unit 50,00 100,00'
+        values = [('line.1.description', 'Bolt M12'), ('line.1.quantity', '2'),
+                  ('line.1.unit_price', '50,00'), ('line.1.amount', '100,00')]
+        payloads = [{'observations': [observation(name, value, quote) for name, value in values], 'unknowns': []},
+                    {'observations': [], 'unknowns': [], 'groups': [group(values, quote)]}]
+        results = []
+        with tempfile.TemporaryDirectory() as directory:
+            for payload in payloads:
+                client, _, _ = self.setup_client(payload, directory)
+                results.append((await LLMDocumentExtractor(client).extract(document())).to_dict())
+            self.assertEqual(results[0], results[1])
+            payload = {'observations': [observation('net', '100,00', 'Net 100,00')],
+                       'unknowns': [], 'groups': [group([('net', '200,00')], 'Correction Net 200,00')]}
+            client, _, _ = self.setup_client(payload, directory)
+            facts = await LLMDocumentExtractor(client).extract(document(document().blocks[0].text + '\nCorrection Net 200,00'))
+            self.assertEqual([fact.value for fact in facts.fields['net']], ['100,00', '200,00'])
+
+    async def test_group_does_not_relax_value_date_field_or_image_grounding(self):
+        cases = [(group([('net', '999,00')], 'Net 100,00'), document()),
+                 (group([('notice_date', '14/07/2026')], 'a partir de dicha fecha'), document('Fecha 14/07/2026 a partir de dicha fecha')),
+                 (group([('account', '100,00')], 'Net 100,00'), document()),
+                 (group([('net', '100,00')], 'Net 100,00', block='missing'), document()),
+                 (group([('net', '100,00')], 'Net 100,00', page=1, image_hash='0' * 64),
+                  replace(document(), images=(PageImage(1, 'image/png', b'synthetic-image'),)))]
+        for grouped, source in cases:
+            with self.subTest(grouped=grouped), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': [grouped]}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(source)
+
+    async def test_twenty_six_image_rows_keep_final_row_and_reject_gap(self):
+        rows = [f'Widget-{index} 1 unit {index}.00 {index}.00' for index in range(1, 27)]
+        image = PageImage(1, 'image/png', b'synthetic-full-26-row-page')
+        source = replace(document('\n'.join(rows)), images=(image,))
+        groups = [group([(f'line.{index}.description', f'Widget-{index}'),
+                         (f'line.{index}.quantity', '1'), (f'line.{index}.uom', 'unit'),
+                         (f'line.{index}.unit_price', f'{index}.00'),
+                         (f'line.{index}.amount', f'{index}.00')], quote,
+                        page=1, image_hash=image.sha256) for index, quote in enumerate(rows, 1)]
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': groups}, directory)
+            artifact = await LLMDocumentExtractor(client).extract_with_response(source)
+            self.assertEqual(artifact.facts.fields['line_count'][0].value, 26)
+            self.assertEqual(artifact.facts.fields['line.26.amount'][0].value, '26.00')
+            self.assertEqual(artifact.facts.fields['line.26.amount'][0].evidence.field, 'image:' + image.sha256)
+            self.assertEqual(len([key for key in artifact.facts.fields if key.startswith('line.')]), 130)
+            # A gap immediately before the final row must not masquerade as a
+            # complete contiguous invoice. Counts do not assert source completeness.
+            client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': groups[:24] + groups[25:]}, directory)
+            with self.assertRaises(DocumentInterpretationError):
+                await LLMDocumentExtractor(client).extract(source)
 
     async def test_raw_heading_final_punctuation_and_direct_date_grounding(self):
         text = "S/Ref. PO-123 Fecha 14/07/2026 a partir de dicha fecha"
@@ -251,6 +309,65 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
             client, _, _ = self.setup_client(payload, directory)
             with self.assertRaises(DocumentInterpretationError):
                 await LLMDocumentExtractor(client).extract(doc)
+
+    async def test_short_image_choice_binds_actual_bytes_and_replays_exact_prompt(self):
+        from kalmora.documents.prompts import recording_prompt
+        first = PageImage(1, 'image/png', b'first-image')
+        second = PageImage(1, 'image/png', b'second-image-on-same-page')
+        source = replace(document(''), images=(first, second))
+        row = group([('line.1.amount', '100,00')], 'Net 100,00')
+        row['image_id'] = 'image.2'
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': [row]}, directory)
+            client.config = replace(client.config, max_input_tokens=300_000)
+            extractor = LLMDocumentExtractor(client)
+            artifact = await extractor.extract_with_response(source)
+            fact = artifact.facts.fields['line.1.amount'][0]
+            self.assertEqual(fact.evidence.field, 'image:' + second.sha256)
+            self.assertEqual(fact.evidence.page, 1)
+            self.assertEqual(artifact.provenance['image_quote_review'][0]['image_sha256'], second.sha256)
+            prompt = provider.requests[0].prompt
+            self.assertEqual(prompt, recording_prompt('extract', source, extractor.recording_identity()['parameters']))
+            manifest = json.loads(prompt)['image_manifest']
+            self.assertEqual([entry['id'] for entry in manifest], ['image.1', 'image.2'])
+            self.assertEqual(manifest[1]['sha256'], second.sha256)
+            changed = replace(source, images=(first, replace(second, data=b'changed-source-bytes')))
+            self.assertNotEqual(source.transformation_sha256, changed.transformation_sha256)
+            self.assertNotEqual(prompt, recording_prompt('extract', changed, extractor.recording_identity()['parameters']))
+
+    async def test_short_image_choice_rejects_unknown_id_wrong_page_and_conflicting_hash(self):
+        image = PageImage(1, 'image/png', b'image')
+        source = replace(document(''), blocks=(ParsedBlock('page.1', '', 1), ParsedBlock('page.2', '', 2)), images=(image,))
+        base = {**observation('gross', '121,00', 'Gross 121,00'), 'image_id': 'image.1'}
+        for changes in ({'image_id': 'image.0'}, {'image_id': 'image.01'}, {'image_id': 'image.2'},
+                        {'image_id': ''}, {'block_id': 'page.2'}, {'image_page': 2},
+                        {'image_sha256': '0' * 64}, {'image_sha256': image.sha256[:20]},
+                        {'value': '999,00'}):
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({'observations': [{**base, **changes}], 'unknowns': []}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(source)
+
+    async def test_semantic_image_choice_preserves_actual_hash_in_proof(self):
+        image = PageImage(1, 'image/png', b'semantic-image')
+        source = replace(document(''), images=(image,))
+        request = ResolutionRequest(source, (Candidate('A', {'description': 'Steel bolts'}),), {})
+        payload = {'status': 'SELECTED', 'selected_ids': ['A'], 'reason': 'Matching supplied description',
+                   'evidence': [proof(image_id='image.1')]}
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client(payload, directory)
+            artifact = await LLMSemanticResolver(client).resolve_with_response(request)
+            self.assertEqual(artifact.result.evidence[0]['image_sha256'], image.sha256)
+            self.assertEqual(artifact.result.evidence[0]['image_page'], 1)
+            self.assertEqual(artifact.result.evidence[0]['quote_verification'], 'PAGE_HASH_ONLY')
+
+    def test_legacy_recording_prompt_does_not_gain_image_manifest(self):
+        from kalmora.documents.prompts import prompt_text
+        source = replace(document(), images=(PageImage(1, 'image/png', b'legacy-image'),))
+        old_extras = {'canonical_fields': ['gross']}
+        expected = json.dumps({'untrusted_document': source.to_dict(include_images=False), **old_extras},
+                              ensure_ascii=False, sort_keys=True, default=str, allow_nan=False)
+        self.assertEqual(prompt_text(source, old_extras), expected)
 
     async def test_same_field_conflicts_keep_source_and_unknown_state(self):
         doc = document("Gross 121,00\nGross 122,00")

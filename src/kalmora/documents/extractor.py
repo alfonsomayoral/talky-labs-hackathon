@@ -88,18 +88,30 @@ def _field_allowed(name: str) -> bool:
 @lru_cache(maxsize=1)
 def output_models():
     """Build strict optional Pydantic DTOs only when interpretation is requested."""
-    from pydantic import BaseModel, ConfigDict
+    from pydantic import BaseModel, ConfigDict, Field
     from typing import Literal
 
-    class Observation(BaseModel):
+    class ObservationValue(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
         field: str
         value: str | int | bool | None
         kind: Literal["OBSERVED", "EXPLICIT_ABSENCE"]
+
+    class Observation(ObservationValue):
         block_id: str
         quote: str
         image_page: int | None
         image_sha256: str | None
+        image_id: str | None = None
+
+    class ObservationGroup(BaseModel):
+        model_config = ConfigDict(strict=True, extra="forbid")
+        values: list[ObservationValue]
+        block_id: str
+        quote: str
+        image_page: int | None
+        image_sha256: str | None
+        image_id: str | None = None
 
     class Unknown(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
@@ -111,6 +123,14 @@ def output_models():
         model_config = ConfigDict(strict=True, extra="forbid")
         observations: list[Observation]
         unknowns: list[Unknown]
+        groups: list[ObservationGroup] = Field(default_factory=list)
+
+        def iter_observations(self):
+            yield from self.observations
+            for group in self.groups:
+                proof = group.model_dump(exclude={'values'})
+                for value in group.values:
+                    yield Observation(**value.model_dump(), **proof)
 
     class SelectionProof(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
@@ -122,6 +142,7 @@ def output_models():
         quote: str
         image_page: int | None
         image_sha256: str | None
+        image_id: str | None = None
 
     class ResolutionOutput(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
@@ -131,7 +152,9 @@ def output_models():
         reason: str
 
     # Local forward references are resolved here rather than at module import.
-    ExtractionOutput.model_rebuild(_types_namespace={"Observation": Observation, "Unknown": Unknown})
+    ObservationGroup.model_rebuild(_types_namespace={"ObservationValue": ObservationValue})
+    ExtractionOutput.model_rebuild(_types_namespace={"Observation": Observation, "Unknown": Unknown,
+                                                   "ObservationGroup": ObservationGroup})
     ResolutionOutput.model_rebuild(_types_namespace={"SelectionProof": SelectionProof})
     return ExtractionOutput, ResolutionOutput
 
@@ -198,11 +221,22 @@ def _ground(document: ParsedDocument, value: Any, observation: Any, *, explicit_
     block = next((block for block in document.blocks if block.id == observation.block_id), None)
     if block is None:
         raise DocumentInterpretationError("grounding", document, "nonexistent block")
-    is_image = observation.image_page is not None or observation.image_sha256 is not None
+    image_id = getattr(observation, 'image_id', None)
+    is_image = image_id is not None or observation.image_page is not None or observation.image_sha256 is not None
     review = None
     if is_image:
-        image = next((image for image in document.images if image.page == observation.image_page
-                      and image.sha256 == observation.image_sha256), None)
+        if image_id is not None:
+            image = next((image for index, image in enumerate(document.images, 1)
+                          if image_id == f'image.{index}'), None)
+            # Never repair, ignore or fuzzy-match contradictory supplied identity.
+            if image is not None and (
+                observation.image_page is not None and observation.image_page != image.page
+                or observation.image_sha256 is not None and observation.image_sha256 != image.sha256
+            ):
+                raise DocumentInterpretationError('grounding', document, 'image ID conflicts with supplied page/hash')
+        else:
+            image = next((image for image in document.images if image.page == observation.image_page
+                          and image.sha256 == observation.image_sha256), None)
         if image is None or block.page != image.page:
             raise DocumentInterpretationError("grounding", document, "image page/hash differs from source block")
         if not _normal(observation.quote):
@@ -302,7 +336,8 @@ class LLMDocumentExtractor:
         schema, _ = output_models()
         extras = {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
                   "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
-                  "detail_fields": sorted(DETAIL_FIELDS), "raw_extension": "raw.<literal_field_name>"}
+                  "detail_fields": sorted(DETAIL_FIELDS), "raw_extension": "raw.<literal_field_name>",
+                  "image_locator_version": 1}
         return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
                                    EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": extras},
                                    provider or _provider_name(self.client))
@@ -325,12 +360,22 @@ class LLMDocumentExtractor:
                                                _prompt(document, {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
                                                                   "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
                   "detail_fields": sorted(DETAIL_FIELDS),
-                                                                  "raw_extension": "raw.<literal_field_name>"}),
+                                                                  "raw_extension": "raw.<literal_field_name>",
+                                                                  "image_locator_version": 1}),
                                      document, provenance)
+        output = completion.output
         fields: dict[str, list[Fact]] = {}
         reviews = []
         try:
-            for observation in completion.output.observations:
+            # Legacy injected flat DTOs remain supported. Groups require the
+            # typed output model so every expanded value passes its strict DTO.
+            if hasattr(output, 'iter_observations'):
+                observations = output.iter_observations()
+            elif not getattr(output, 'groups', []):
+                observations = output.observations
+            else:
+                raise DocumentInterpretationError('schema', document, 'grouped output requires the typed DTO')
+            for observation in observations:
                 name = observation.field
                 if not _field_allowed(name) or name in DERIVED_COUNTS:
                     raise DocumentInterpretationError("field", document, "unsupported or accounting-owned field")
@@ -388,7 +433,8 @@ class LLMSemanticResolver:
         _, schema = output_models()
         return _recording_identity(self.client, RESOLUTION_INSTRUCTIONS,
                                    RESOLUTION_PROMPT_VERSION, schema,
-                                   {"max_selections": self.max_selections, "max_candidates": self.max_candidates},
+                                   {"max_selections": self.max_selections, "max_candidates": self.max_candidates,
+                                    "image_locator_version": 1},
                                    provider or _provider_name(self.client))
 
     @property
@@ -419,7 +465,8 @@ class LLMSemanticResolver:
         completion = await _complete(self.client, schema, RESOLUTION_INSTRUCTIONS,
                                                _prompt(document, {"candidates": [{"id": candidate.id, "attributes": candidate.attributes}
                                                                                  for candidate in request.candidates],
-                                                                  "context": request.context, "max_selections": self.max_selections}),
+                                                                  "context": request.context, "max_selections": self.max_selections,
+                                                                  "image_locator_version": 1}),
                                      document, provenance)
         output = completion.output
         try:
@@ -450,6 +497,7 @@ class LLMSemanticResolver:
                     raise DocumentInterpretationError("selection", document, "accounting-owned candidate proof")
                 _, review = _ground(document, proof.source_value, proof)
                 evidence.append({**proof.model_dump(), "source_sha256": document.source_sha256,
+                                 **({"image_page": review['page'], "image_sha256": review['image_sha256']} if review else {}),
                                  "quote_verification": "PAGE_HASH_ONLY" if review else "TEXT_MATCH"})
                 proved.add(proof.candidate_id)
             if proved != set(selected):
