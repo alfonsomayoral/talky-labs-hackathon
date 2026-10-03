@@ -55,9 +55,14 @@ def resolve_advance_sources(*, company: str, currency: str, invoice_date: str,
     company_master = next((row for row in company_rows if row["code"] == company), None)
     if company_master is None:
         raise ValueError("company must exist in supplied master")
-    evidence = []
+    supplier_tax_ids = tuple(supplier_tax_ids) if supplier_tax_ids is not None else None
+    recipient_tax_ids = tuple(recipient_tax_ids) if recipient_tax_ids is not None else None
+    identity_facts = (*(supplier_tax_ids or ()), *(recipient_tax_ids or ()))
+    if any(not isinstance(fact, Fact) for fact in identity_facts):
+        raise TypeError("observed identifiers require Fact/Evidence")
+    evidence = [fact.evidence for fact in identity_facts]
     def unresolved(status, diagnostic, identity=None):
-        return AdvanceSourceResolution(status, None, None, tuple(evidence), (diagnostic,), identity)
+        return AdvanceSourceResolution(status, None, None, tuple(dict.fromkeys(evidence)), (diagnostic,), identity)
     if po_reference is None:
         return unresolved("UNKNOWN", "documentary PO reference unresolved")
     if not isinstance(po_reference, Fact):
@@ -128,4 +133,4 @@ def resolve_advance_sources(*, company: str, currency: str, invoice_date: str,
             return unresolved("CONFLICT", f"observed {role} identity contradicts or cannot corroborate PO", identity)
     reference = f"{approval.approved.evidence.document}#{approval.approved.evidence.field}"
     order = ApprovedAdvanceOrder(company, vendor["id"], currency, po_id, True, reference)
-    return AdvanceSourceResolution("RESOLVED", order, deepcopy(vendor), tuple(evidence), identity=identity)
+    return AdvanceSourceResolution("RESOLVED", order, deepcopy(vendor), tuple(dict.fromkeys(evidence)), identity=identity)

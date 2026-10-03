@@ -62,6 +62,9 @@ class AdvanceSourceTests(unittest.TestCase):
             self.assertTrue(result.diagnostics)
         self.assertEqual(self.resolve(approval=replace(self.approval, approved=Fact(False, Evidence("approval.xml", "approved")))).status,
                          "NOT_APPROVED")
+        observed = Fact("DE123", Evidence("request.pdf", "supplier"))
+        result = self.resolve(approval=None, supplier_tax_ids=[observed])
+        self.assertIn(observed.evidence, result.evidence)
 
     def test_approval_and_po_scope_contradictions_do_not_recover_another_po(self):
         for fields in (dict(company="1910"), dict(currency="EUR"), dict(invoice_date="2025-12-31"),
