@@ -72,6 +72,37 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize_value('gross', 1.2)
 
+    def test_reviewed_absence_can_match_explicit_unknown_without_creating_null_fact(self):
+        label = {'field': 'purchase_order_reference', 'state': 'absent', 'value': None,
+            'evidence': {'document': self.path, 'source_sha256': self.sha, 'field': 'document.full',
+                         'quote': None, 'verification': 'manual_text_and_render'}}
+        self.annotations['cases'][0]['facts'].append(label)
+        captured = self.capture()['T']
+        state = {'field': 'po_reference', 'status': 'MISSING', 'reason': 'No order reference observed',
+                 'document': self.path, 'source_sha256': self.sha}
+        envelope = {'T': {'raw_facts': [captured], 'unknown_states': [state]}}
+        result = self.report(envelope)
+        self.assertTrue(result['capture_correctness_passed'])
+        outcome = result['cases']['T']['fields'][-1]
+        self.assertTrue(outcome['correct_missing_abstention'])
+        self.assertFalse(outcome['present'])
+        self.assertFalse(outcome['grounded'])
+        self.assertEqual(result['metrics']['grounded_evidence']['denominator'], 4)
+        self.assertEqual(result['cases']['T']['returned_values'], 4)
+        for change in ({'source_sha256': '0' * 64}, {'status': 'AMBIGUOUS'}, {'reason': ''},
+                       {'document': 'phase_dev/inbox/ap/another.txt'}):
+            bad = {'T': {'raw_facts': [captured], 'unknown_states': [{**state, **change}]}}
+            self.assertFalse(self.report(bad)['capture_correctness_passed'])
+        self.assertFalse(self.report({'T': {'raw_facts': [captured]}})['capture_correctness_passed'])
+
+    def test_unknown_for_present_value_does_not_count_as_correct_absence(self):
+        captured = self.capture()['T']
+        del captured['fields']['gross']
+        envelope = {'T': {'raw_facts': [captured], 'unknown_states': [
+            {'field': 'gross', 'status': 'MISSING', 'reason': 'Unable to read total',
+             'document': self.path, 'source_sha256': self.sha}]}}
+        self.assertFalse(self.report(envelope)['capture_correctness_passed'])
+
     def test_wrong_number_and_borrowed_quote_fail(self):
         captures = self.capture()
         captures['T']['fields']['gross'][0]['value'] = '1234.51'
@@ -222,6 +253,30 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
         prediction['evidence'].update(page=1, field='text')
         self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
+
+    def test_exact_manual_review_still_requires_real_image_and_literal_value(self):
+        from kalmora.documents.image_reviews import image_review_identity, image_review_key
+        image_hash = hashlib.sha256(b'original-image').hexdigest()
+        transform = hashlib.sha256(b'original-transform').hexdigest()
+        prediction = {'field': 'gross', 'value': '1234.50', 'source_sha256': self.sha,
+            'evidence': {'document': self.path, 'page': 1, 'field': 'image:' + image_hash,
+                         'quote': '1.234,50 EUR'}}
+        key = image_review_key(prediction, transform)
+        record = {'schema_version': 1, 'key': key, 'identity': image_review_identity(prediction, transform),
+            'status': 'VERIFIED', 'review_basis': 'original_page_image', 'reviewer': 'synthetic reviewer',
+            'date': '2026-10-03'}
+        audit = SourceAudit(self.root, self.manifest, transformation_hashes={self.path: transform},
+                            image_reviews={key: record})
+        audit.content = lambda document: {'pages': [''], 'images': {(1, image_hash)}}
+        self.assertEqual(audit.proof(prediction)[0], 'grounded')
+        record['status'] = 'REJECTED'
+        self.assertEqual(audit.proof(prediction)[0], 'unsupported')
+        record['status'] = 'VERIFIED'
+        audit.content = lambda document: {'pages': [''], 'images': {(1, '0' * 64)}}
+        self.assertEqual(audit.proof(prediction)[0], 'unsupported')
+        audit.content = lambda document: {'pages': [''], 'images': {(1, image_hash)}}
+        prediction['evidence']['quote'] += ' unreviewed invented approval'
+        self.assertEqual(audit.proof(prediction)[0], 'unreviewed')
 
     def test_fresh_validated_source_tools_zero_cost_is_distinct_from_cache(self):
         proof = {'adapter_name': 'xml_extractor', 'adapter_version': 'fixture-v1',

@@ -25,11 +25,36 @@ Semantic results use `check_id` with case alias fallback and provide `selected_i
 
 ## Frozen gates and live accounting
 
+For a manually reviewed absent slot only, an explicit source-bound `MISSING`
+unknown with a nonempty reason can satisfy exactness and field completeness.
+The capture envelope records `unknown_states` with field, status, reason,
+document and original source hash. Omission alone, another document/hash, an
+ambiguous/contradictory state, or an unknown for a present label cannot pass.
+This records a correct absence abstention without creating `Fact(None)` or
+claiming a grounded observation. Returned-observation grounding and prediction
+precision denominators are unchanged; reports expose absence abstentions
+separately. This protocol interpretation is fixed before holdout evaluation and
+does not modify labels, partitions or acceptance thresholds.
+
 The thresholds in the sample manifest are immutable: critical exactness and critical prediction precision at least 95%; returned observation evidence grounding 100%; fabricated values/IDs zero; semantic selection precision 100%; unique resolvable coverage at least 80%; ambiguous abstention 100% where applicable; required-field completeness at least 95% per case; p95 capture latency at most 60 seconds; estimated capture cost at most USD 0.10 per document. Unknown cost fails. The smoke plus sample budget is USD 1, at most two attempts per operation, concurrency two and request timeout 60 seconds. The user subsequently removed the application output limit before holdout evaluation; the API omits it and monetary reservations use the model's verified 128,000-token capacity. The runner enforces concurrency, timeout, spending and the no-retuning holdout policy. Multiple independent attachments or semantic operations are not retries of one request.
 
 Runtime reports are actual `RunRecorder` JSON per case, including completed calls with provider `openai`, candidate model `gpt-6-luna`, nonzero known usage, and explicit USD/per-token prices and provenance. The evaluator reproduces estimated cost using Decimal. Reports require `input_metadata.capture_mode="captured_live"`, `transport_mode="default"`, and `response_source="provider_api"`. Synthetic/test-fixture markers exclude live confirmation. Cached-only zero-cost runs and replay/model mocks cannot establish live quality. These runner attestations are a trust boundary: an evaluator cannot independently prove that a caller honestly used the default transport. Persist actual production RunRecorder reports and client configuration with the benchmark.
 
 `capture_correctness_passed` reports offline correctness separately. `passed` requires correctness plus live provenance, performance, and cost. Missing runtime reports fail the live gate. This commit does not contain scores, latency estimates asserted as observations, or fabricated provider bills. Any later full-AP run needs an explicit estimated budget before execution.
+
+## Independent image quotation review
+
+Unlabelled image observations and quotes extending beyond a sealed transcription
+remain unreviewed. The evaluator accepts an optional `image_reviews` mapping, or
+`--image-reviews` typed-v1 registry file. Reviews bind the exact field, typed value,
+unit and complete quote to the original source, page, actual image and captured
+transformation hashes. Only an explicit `VERIFIED` original-page-image review
+can establish quote fidelity; `REJECTED`, missing or stale records fail acceptance.
+Source/image identity and literal value support are checked independently first.
+OCR text or confidence cannot verify an observation. Review records remain solely
+in the evaluator and never enter capture prompts, solver inputs or expected field
+answers. The report includes the review-registry fingerprint. The records attest
+the reviewer's inspection; they cannot cryptographically prove honest inspection.
 
 ## Validation
 
