@@ -1,9 +1,10 @@
 # M0: interfaces del backend y entrega al compañero
 
 La integración se hace en `backend`, mediante ramas y PRs por issue. Están
-implementadas #27–#31, #33–#34 y #36–#38. Los contratos de salida (#32) y el
-scorer/comparador (#35) pertenecen a `danielorlando97`. M0 sigue abierto hasta
-integrar y validar esas dos capacidades.
+implementadas #27–#31, #33–#34, #35 y #36–#38. El #32 (contratos de salida) se
+depreca: el formato lo fija `FORMATO_ENTREGA.md` y los tipos de fila están en
+`kalmora.output_models`. El comparador (#35) está en `kalmora.evaluation` y se
+describe en [docs/design/comparator.md](design/comparator.md).
 
 ## Reproducción de julio
 
@@ -93,17 +94,37 @@ de distintas monedas se mantienen separados. El recorder no llama proveedores.
 ## Acuerdo con contratos y evaluación
 
 Los módulos de solver leen ERP, tareas, banco e inbox con `PhaseData`; no pueden
-leer `golden`, ni mediante rutas indirectas. El evaluador tiene acceso separado
-a los originales preservados, `golden` y `score.py`. El código de producción de
-M0 no implementa el scorer, comparador ni los seis formatos de entrega.
+leer `golden`, ni mediante rutas indirectas. El evaluador (`kalmora.evaluation`)
+tiene acceso separado a los originales preservados, `golden` y `score.py`; ningún
+módulo del solver lo importa (`kalmora evaluate` informa de cualquier violación).
+`kalmora.output_models` solo describe la forma de una fila de cada fichero de entrega.
 
 La prueba opcional de integración con el ZIP es una comprobación de la base
 contable: el registrado coincide exactamente con `trial_balance_recorded` por
 sociedad/cuenta; los 435 grupos golden cuadran. No certifica que los motores
-de AP/AR/bancos/cierre estén implementados ni que se cumplan los contratos #32.
+de AP/AR/bancos/cierre estén implementados.
 
 [La matriz](coverage.md) distingue reglas previstas, convenciones M0 y evidencia
 de julio. [El registro de discrepancias](discrepancies.md) documenta los límites
 del scorer y excepciones. En particular, API004469 tiene `partner=null` en 407;
-la validación mantiene el socio obligatorio y el comparador debe mostrar la
-discrepancia expresamente. No modificar el golden para ocultarla.
+la validación mantiene el socio obligatorio y el comparador muestra la
+discrepancia expresamente (`KNOWN_EXCEPTION`). No modificar el golden para ocultarla.
+
+## Evaluación contra el golden
+
+```bash
+.venv/bin/kalmora evaluate data/julio/participant/phase_dev ENTREGA \
+    --evaluator data/julio/participant/phase_dev --text
+```
+
+`--evaluator` es la fase que contiene `golden/`; sin él solo se puede usar
+`--structure-only` (comprueba la entrega sin golden). `phase_test` no tiene golden:
+el comando se niega a puntuar. El scorer se carga de `<paquete>/participant/score.py`
+y se verifica contra `manifest.json`. La nota por módulo y el total son exactamente
+los de `score.py`; el informe JSON (`outputs/evaluations/<uuid>.json`) añade, por
+entidad, el estado, las diferencias tipadas y las diferencias en campos que el scorer
+no puntúa (`unscored`), más diagnósticos de la entrega y un bloque de conciliación
+por módulo. Un fallo de conciliación o una violación de frontera devuelve código 1.
+
+Referencias medidas en julio: el golden usado como entrega da 100,0 en todos los
+módulos; una entrega vacía da 3,54 (el scorer da 0,2359 a `ar_cash` vacío).

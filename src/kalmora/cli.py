@@ -23,12 +23,20 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("phase", type=Path)
     ledger = commands.add_parser("ledger-summary", help="Reconstruct the recorded book and summarize its dimensions")
     ledger.add_argument("phase", type=Path)
+    evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
+    evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
+    evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
+    evaluate.add_argument("--evaluator", type=Path, help="Phase directory that holds golden/")
+    evaluate.add_argument("--scorer", type=Path, help="score.py (default: next to the evaluator phase)")
+    evaluate.add_argument("--structure-only", action="store_true", help="Check the submission without the golden")
+    evaluate.add_argument("--report-dir", type=Path, default=Path("outputs/evaluations"))
+    evaluate.add_argument("--text", action="store_true", help="Print a readable table instead of JSON")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
     metadata: dict[str, object] = {"package_version": __version__}
-    for name in ("phase", "archive", "destination"):
-        if hasattr(args, name):
+    for name in ("phase", "archive", "destination", "submission", "evaluator"):
+        if getattr(args, name, None) is not None:
             metadata[name] = str(getattr(args, name).resolve())
     with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata) as run:
         status = _execute(args)
@@ -83,4 +91,18 @@ def _execute(args: argparse.Namespace) -> int:
             return 1
         print(json.dumps(summary))
         return 0
+    if args.command == "evaluate":
+        from .evaluation.report import evaluate, text_summary, write_report
+        from .evaluation.report import summary as report_summary
+        if args.evaluator is None and not args.structure_only:
+            print(json.dumps({"error": "--evaluator is required unless --structure-only is given"}), file=sys.stderr)
+            return 2
+        try:
+            report = evaluate(args.phase, args.submission, None if args.structure_only else args.evaluator, args.scorer)
+            path = write_report(report, args.report_dir)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(text_summary(report) if args.text else json.dumps({"report": str(path.resolve()), **report_summary(report)}))
+        return 0 if report.get("reconciliation_ok", True) and not report["separation"]["violations"] else 1
     return 2

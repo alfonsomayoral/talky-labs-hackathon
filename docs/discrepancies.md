@@ -10,8 +10,8 @@ The machine-readable register is [discrepancies.json](discrepancies.json). Evide
 | Rounding | resolved | Round FX per line and balance vendor/customer; truncate PPA. ±2 scorer cents do not define arithmetic. |
 | SWIFT-API004253 | known_exception | 76800000 appears on debit. Preserve evidence; investigate historical rates and bank/book amounts in #77. Never generalize its sign. |
 | Close aggregation | resolved | Audit 76 individual rows and 64 scoring keys independently. |
-| Scorer field gaps | followup | #32 and #35 are pending teammate interfaces; require field, chronology, attribution and item validation beyond score. |
-| Company omitted by je_match | followup | Validate company explicitly and test a wrong-company negative fixture after teammate integration. |
+| Scorer field gaps | followup | The comparator reports unscored fields and submission diagnostics separately from the score; balance dimensions beyond company/account are not compared yet. |
+| Company omitted by je_match | resolved | The comparator reports `COMPANY_MISMATCH` at row, entry and line level; shown with a wrong-company run (score unchanged, diagnostic raised). No committed fixture yet. |
 | Synthetic NIF | resolved | Preserve raw identities and master correspondence; checksum invalidity alone cannot reject synthetic data. |
 
 M0 handoff: `kalmora.facts.DocumentFacts` stores a source SHA-256, extractor version and named lists of `Fact(value, Evidence(document, field, page=None, quote=None))`. Keep every attachment's evidence and conflicting values. `FactsCache(directory).load(source_bytes, version, config)` returns facts or `None`; `.store(source_bytes, facts, config)` writes atomically and rejects a mismatched source hash. Changed bytes, extractor version or configuration produce another key. Extraction implementations remain M1/M2 work.
