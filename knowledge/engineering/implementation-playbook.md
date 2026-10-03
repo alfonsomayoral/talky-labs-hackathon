@@ -1,74 +1,74 @@
-# Playbook de diseño e implementación
+# Design and Implementation Playbook
 
-Procedimiento para que un agente convierta una tarea del reto en una solución de software mantenible y compatible con su evaluador.
+A workflow for turning a challenge task into maintainable software compatible with its evaluator.
 
-## 1. Descubrimiento antes del diseño
+## 1. Discover before designing
 
-Antes de proponer arquitectura:
+Before proposing an architecture:
 
-- Inspecciona el árbol real del repositorio, instrucciones locales y herramientas disponibles.
-- Identifica si la petición es análisis, generación de entrega, construcción de un motor de reglas, parser, interfaz o mejora del evaluador.
-- Sigue una operación de punta a punta: tarea → documentos/maestros → regla → decisión → asiento → JSONL → evaluación.
-- Lee el formato exacto y el código de scoring antes de definir contratos.
-- Usa `phase_dev` para ejemplos y calibración; separa esas convenciones del contenido variable por fase.
+- Inspect the actual repository tree, local instructions, and available tooling.
+- Identify whether the request concerns analysis, deliverable generation, a rule engine, parser, interface, or evaluator improvement.
+- Trace one operation end to end: task → source documents/masters → rule → decision → journal entry → JSONL → evaluation.
+- Read the exact output format and scoring code before defining contracts.
+- Use `phase_dev` for examples and calibration; distinguish phase-variable data from stable conventions.
 
-El estado observado al inspeccionar este repo es principalmente datos del reto, documentación y `participant/score.py`; no presupongas que hay una aplicación, dependencias, CLI o arquitectura de producción. Reconfirma este estado cada vez que empieces una tarea.
+At the time this playbook was written, the repository mainly contained challenge data, documentation, and `participant/score.py`; it did not contain a product application. Reconfirm the current state whenever starting a task.
 
-## 2. Modelo de dominio y límites
+## 2. Model the domain and boundaries
 
-Define explícitamente:
+Define explicitly:
 
-- **Entrada:** fase, fecha de cierre, tarea, documentos fuente, maestros e histórico necesario.
-- **Salida:** un objeto de decisión por clave de tarea, con motivos, clasificación, aplicaciones y/o asiento según el contrato.
-- **Invariantes:** importes enteros en céntimos; asiento balanceado; moneda local; claves y fechas válidas; socio y objeto de coste coherentes.
-- **Evidencia:** cada decisión debe poder trazarse a documentos, campos ERP, política o cálculo reproducible.
-- **Desconocido:** ausencia de evidencia no se convierte en aprobación, rechazo o ajuste inventado; representa incertidumbre según el contrato.
+- **Input:** phase, closing date, task, source documents, master data, and required history.
+- **Output:** one decision object per task key, containing reasons, classification, applications, and/or journal entry as required by the contract.
+- **Invariants:** integer cents; balanced entry; local currency; valid keys and dates; coherent partner and cost object.
+- **Evidence:** each decision must trace to source documents, ERP fields, policy, or a reproducible calculation.
+- **Unknowns:** missing evidence does not become an invented approval, rejection, or adjustment; represent uncertainty as the contract allows.
 
-Mantén separados los conceptos de ingestión, extracción, normalización, decisión de política, construcción de asiento, serialización y evaluación cuando el alcance requiera un sistema de software. No impongas esos módulos si la tarea es un script pequeño; preserva los límites que evitan mezclar parsing con contabilidad.
+When building software, keep ingestion, extraction, normalization, policy decisions, journal-entry construction, serialization, and evaluation distinct where that separation helps. Do not impose modules on a small script; preserve boundaries that prevent parsing concerns from changing accounting rules.
 
-## 3. Diseña primero el flujo vertical
+## 3. Design a vertical workflow first
 
-Para una tarea nueva, define un caso de extremo a extremo con:
+For a new task, define one end-to-end case with:
 
-1. Una clave de entrada y su documento fuente.
-2. Las entidades y relaciones requeridas (sociedad, proveedor/cliente, pedido, recepción, partida abierta, extracto).
-3. El orden de reglas y la primera condición que detiene o cambia la decisión.
-4. El asiento esperado, incluidos impuestos, retenciones, diferencias y objetos auxiliares.
-5. La estructura de salida y cómo el evaluador compara el resultado.
-6. Un caso normal y los casos límite derivados de las políticas.
+1. An input key and its source document.
+2. Required entities and relationships (company, vendor/customer, purchase order, receipt, open item, bank statement).
+3. Rule ordering and the first condition that stops or changes the decision.
+4. Expected journal entry, including taxes, withholdings, differences, and auxiliary objects.
+5. Output structure and how the evaluator compares it.
+6. A normal case and policy-derived edge cases.
 
-Prioriza pureza y determinismo en cálculos de importes y reglas. Aísla OCR/parsing, acceso a ficheros y heurísticas para poder revisar su efecto sin alterar reglas contables.
+Prefer pure, deterministic calculations and rules. Isolate OCR/parsing, file access, and heuristics so their effects can be reviewed without changing accounting logic.
 
-## 4. Implementación y datos
+## 4. Implement with source data in mind
 
-- Conserva los datos fuente; no sobrescribas ERP, inbox, tareas ni `golden`.
-- Usa enteros en céntimos; no uses coma flotante para importes contables. Redondea según política por línea.
-- Conserva moneda, sociedad y fecha durante conversiones; no combines monedas sin tipo aplicable.
-- Valida referencias a cuentas, socios, centros de coste, WBS, documentos y líneas bancarias contra los maestros/entradas de la fase.
-- Emite JSONL con una línea independiente por objeto, UTF-8 y claves según `FORMATO_ENTREGA.md`.
-- Mantén reglas del escenario en configuración/datos cuando varíen por sociedad, contrato o fase; no hardcodees conclusiones aprendidas de un único fixture.
-- Registra procedencia y motivos con códigos válidos; no escondas fallos de parsing como decisiones contables.
+- Preserve source data; do not overwrite ERP, inbox, tasks, or `golden` files.
+- Use integer cents; do not use floating point for accounting amounts. Round per line according to policy.
+- Preserve currency, company, and date during conversions; never combine currencies without an applicable rate.
+- Validate accounts, partners, cost centers, WBS elements, documents, and bank-line references against the active phase's masters and inputs.
+- Emit JSONL with one UTF-8 JSON object per line and keys matching `FORMATO_ENTREGA.md`.
+- Keep scenario rules in configuration/data when they vary by company, contract, or phase; do not hardcode a conclusion learned from a single fixture.
+- Record provenance and valid reason codes; do not disguise parsing failures as accounting decisions.
 
-## 5. Evaluación del diseño
+## 5. Evaluate the design
 
-Evalúa la solución frente a:
+Assess the solution for:
 
-- Corrección contable y precedencia de reglas.
-- Cobertura de las claves de tarea y casos de borde.
-- Idempotencia: volver a generar la entrega no duplica efectos.
-- Trazabilidad de cada resultado a evidencia.
-- Compatibilidad exacta con el esquema y scorer.
-- Manejo explícito de errores, datos ausentes, duplicados y límites de fase.
+- Accounting correctness and rule precedence.
+- Coverage of task keys and edge cases.
+- Idempotency: regenerating a deliverable does not duplicate effects.
+- Traceability from each result to evidence.
+- Exact compatibility with the schema and scorer.
+- Explicit handling of errors, missing data, duplicates, and phase boundaries.
 
-`phase_dev/golden/` sirve para entender ejemplos y score en fase dev; evita ajustar heurísticas a un solo conjunto de soluciones. `phase_test/` es evaluación ciega. No añadas ni ejecutes tests salvo petición expresa del usuario; si pide verificación, usa las herramientas disponibles y comunica qué cubren.
+`phase_dev/golden/` helps explain examples and scoring in the development phase; do not tune heuristics to one answer set. `phase_test/` is the blind evaluation phase. Do not add or run tests unless the user explicitly requests testing or verification; if requested, use available tools and say what they cover.
 
-## 6. Entrega de trabajo de ingeniería
+## 6. Engineering handoff
 
-Resume:
+Summarize:
 
-- Qué flujo se diseñó o implementó y qué archivos toca.
-- Qué contratos, políticas y datos se consultaron.
-- Decisiones de diseño relevantes y supuestos explícitos.
-- Qué verificaciones se hicieron, sus resultados y lo que queda fuera.
+- Which workflow was designed or implemented and which files it touches.
+- Which contracts, policies, and data were consulted.
+- Important design decisions and explicit assumptions.
+- Checks performed, their results, and what remains outside scope.
 
-No describas como implementado lo que solo es un plan, ni como verificado lo que no se ejecutó.
+Do not describe a plan as implemented or unexecuted work as verified.

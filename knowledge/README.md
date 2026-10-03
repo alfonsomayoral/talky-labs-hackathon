@@ -1,33 +1,33 @@
-# Contexto para agentes de ingeniería
+# Engineering Agent Context
 
-Usa esta base como mapa de contexto para diseñar e implementar automatización contable del reto. Empieza por la tarea concreta; no cargues toda la documentación si basta una fuente específica.
+Use this knowledge base as a context map for designing and implementing accounting automation for the challenge. Start with the specific task; do not load every document if one authoritative source is enough.
 
-## Navegación por necesidad
+## Navigate by task
 
-| Si vas a… | Lee primero |
+| If you need to… | Read first |
 |---|---|
-| Entender términos y límites del dominio | [CONTEXT.md](../CONTEXT.md) |
-| Diseñar o implementar una solución | [Playbook de ingeniería](engineering/implementation-playbook.md) |
-| Entender principios del curso y modelos mentales | [Ocho módulos](reference/curso-ocho-modulos.md) |
-| Resolver las seis tareas de Kalmora | [Flujos de cierre Kalmora](workflows/cierre-kalmora.md) y la sección correspondiente de las políticas |
-| Generar ficheros de entrega | [Formato de entrega](../participant/FORMATO_ENTREGA.md) |
-| Conocer sociedades, fases o estructura de datos | [README del participante](../participant/README.md) |
-| Validar compatibilidad de puntuación | `participant/score.py` y `participant/phase_dev/golden/` |
+| Understand domain terms and boundaries | [CONTEXT.md](../CONTEXT.md) |
+| Design or implement a solution | [Engineering playbook](engineering/implementation-playbook.md) |
+| Understand course principles and mental models | [Eight course modules](reference/course-eight-modules.md) |
+| Resolve one of Kalmora's six tasks | [Kalmora close workflows](workflows/kalmora-close-workflows.md) and the relevant policy section |
+| Generate deliverable files | [Delivery format](../participant/FORMATO_ENTREGA.md) |
+| Understand companies, phases, or data layout | [Participant README](../participant/README.md) |
+| Check scoring compatibility | `participant/score.py` and `participant/phase_dev/golden/` |
 
-## Autoridad de fuentes
+## Source authority
 
-1. Petición del usuario para el objetivo del cambio.
-2. Esquemas/tareas y contratos de `participant/score.py` para interfaces y evaluación.
-3. `participant/POLITICAS_CONTABLES.md` para reglas contables del escenario.
-4. Datos fuente de la fase para hechos y evidencia concreta.
-5. `knowledge/reference/curso-ocho-modulos.md` para conceptos generales, solo como apoyo.
+1. The user's request defines the change outcome.
+2. Task schemas and `participant/score.py` define interfaces and evaluation.
+3. `participant/POLITICAS_CONTABLES.md` defines accounting rules for the scenario.
+4. Active-phase source data provides facts and evidence.
+5. `reference/course-eight-modules.md` provides general concepts only.
 
-Si se contradicen, no mezcles reglas ni promedies los resultados: conserva la fuente de mayor autoridad, explica la discrepancia y evita inferir datos no presentes.
+When sources conflict, do not blend the rules or average their outcomes. Follow the higher-authority source, explain the discrepancy, and avoid inventing missing facts.
 
-## Conocimiento curado
+## Curated context
 
-- [Referencia del curso](reference/curso-ocho-modulos.md) resume los ocho módulos leídos en el sitio.
-- [Flujos de Kalmora](workflows/cierre-kalmora.md) condensa tareas, dependencias y controles del reto.
-- `CONTEXT.md` contiene el vocabulario del dominio; mantenlo corto y sin decisiones de implementación.
+- [Course reference](reference/course-eight-modules.md) summarizes all eight modules read from the course site.
+- [Kalmora workflows](workflows/kalmora-close-workflows.md) condenses the challenge tasks, dependencies, and controls.
+- `CONTEXT.md` contains domain vocabulary; keep it concise and free of implementation decisions.
 
-No dupliques aquí el manual, el esquema JSONL, los maestros ERP ni los datos de fase. Enlázalos como fuente de verdad.
+Do not duplicate the participant manual, JSONL schemas, ERP masters, or phase data here. Link to the source of truth instead.

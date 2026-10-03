@@ -1,6 +1,6 @@
-# Talky Labs accounting challenge
+# Talky Labs Accounting Challenge
 
-This repository contains the synthetic Grupo Kalmora month-end close challenge: accounting policies, phase-specific ERP data, documents, task definitions, a development answer set, and a scorer. It is a data challenge repository; inspect the current tree before assuming there is an application to extend.
+This repository contains the synthetic Grupo Kalmora month-end close challenge: accounting policies, phase-specific ERP data, source documents, task definitions, a development answer set, and a scorer. It is primarily a data challenge repository; inspect the current tree before assuming there is an application to extend.
 
 ## For coding agents
 
@@ -15,4 +15,4 @@ This repository contains the synthetic Grupo Kalmora month-end close challenge: 
 - [JSONL delivery contract](participant/FORMATO_ENTREGA.md)
 - `participant/score.py` and `participant/phase_dev/golden/` for the development evaluator and reference results.
 
-The challenge data and policy rules are synthetic. For each accounting decision, use the active phase's source documents and the challenge policies rather than treating the general course notes as controlling rules.
+Challenge data and policy rules are synthetic. For each accounting decision, use the active phase's source documents and challenge policies rather than treating general course notes as controlling rules.

@@ -1,97 +1,97 @@
-# Dominio contable de Kalmora
+# Kalmora Accounting Domain
 
-Vocabulario canónico para hablar del dominio del reto y mantener consistentes diseño, implementación y entregables. Este archivo define términos; las reglas detalladas viven en las políticas del participante.
+Canonical vocabulary for the challenge domain, kept consistent across design, implementation, and deliverables. This file defines terms; detailed rules live in the participant policies.
 
-## Entidades y documentos
+## Entities and documents
 
-**Sociedad**:
-Una entidad jurídica del grupo que contabiliza sus propias operaciones, moneda local, saldos y asientos.
-_Evitar_: compañía cuando se pueda confundir con el grupo entero.
+**Company**:
+A legal entity in the group that records its own transactions, local currency, balances, and journal entries.
+_Avoid_: group, when referring to one legal entity.
 
-**Socio**:
-La contraparte asociada a una partida abierta: proveedor, cliente, sociedad del grupo o factor, según la cuenta.
-_Evitar_: partner sin explicar qué tipo de contraparte es.
+**Business partner**:
+The counterparty associated with an open item: vendor, customer, group company, or factor, depending on the account.
+_Avoid_: partner without saying which kind of counterparty it is.
 
-**Documento AP**:
-Un documento recibido en el circuito de cuentas a pagar; puede ser factura, abono, solicitud de anticipo u otro aviso que no es factura.
-_Evitar_: factura para cualquier archivo de la bandeja.
+**AP document**:
+A document received in the accounts payable workflow; it may be an invoice, credit note, down payment request, or a non-invoice notice.
+_Avoid_: invoice for every file in the inbox.
 
-**Factura**:
-Documento que solicita el pago de una operación; en AP debe validarse y en AR respalda el derecho de cobro según prestación, contrato y reglas del caso.
-_Evitar_: cobro, pago o asiento como sinónimos de factura.
+**Invoice**:
+A document requesting payment for a transaction; in AP it must be validated, and in AR it supports a receivable subject to performance, contract, and challenge rules.
+_Avoid_: receipt, payment, or journal entry as synonyms for invoice.
 
-**Pedido**:
-Autorización previa de compra con posiciones, cantidades, precios y condiciones; por sí solo no equivale a recepción ni a factura contabilizada.
-_Evitar_: obligación contabilizada.
+**Purchase order**:
+Prior purchase authorization with items, quantities, prices, and terms; by itself it is not receipt or a posted invoice.
+_Avoid_: recorded liability.
 
-**Recepción**:
-Evidencia de mercancía o servicio recibido. Se contrasta con pedido y factura para confirmar cantidades y conformidad.
-_Evitar_: factura o pedido.
+**Receipt**:
+Evidence that goods or services were received. It is matched against the purchase order and invoice to confirm quantity and acceptance.
+_Avoid_: invoice or purchase order.
 
-**Partida abierta**:
-Importe individual pendiente de compensar en una cuenta de cliente, proveedor u otra cuenta auxiliar.
-_Evitar_: saldo agregado cuando se necesita identificar factura, vencimiento o asignación.
+**Open item**:
+An individual amount awaiting clearing in a customer, vendor, or other auxiliary account.
+_Avoid_: aggregate balance when the invoice, due date, or assignment is needed.
 
-**Asignación**:
-Referencia que vincula una partida con su documento o con el cobro/pago que la compensa.
-_Evitar_: conciliación bancaria; son relaciones distintas.
+**Assignment**:
+A reference linking an item to its source document or to the receipt/payment that clears it.
+_Avoid_: bank reconciliation; these are different relationships.
 
-## Contabilidad y cierre
+## Accounting and close
 
-**Asiento**:
-Registro atómico de una operación formado por líneas en Debe y Haber cuyo total debe ser igual.
-_Evitar_: movimiento de banco si no implica por sí mismo un asiento.
+**Journal entry**:
+An atomic record of a transaction made up of debit and credit lines whose totals must be equal.
+_Avoid_: bank movement when it does not itself imply a journal entry.
 
-**Devengo**:
-Reconocimiento del ingreso o gasto cuando ocurre la prestación o consumo, con independencia del cobro o pago.
-_Evitar_: criterio de caja.
+**Accrual basis**:
+Recognition of income or expense when the service is performed or consumed, regardless of collection or payment.
+_Avoid_: cash basis.
 
-**Partida monetaria**:
-Derecho u obligación cuyo importe se cobra o paga en una cantidad fija o determinable de moneda; puede requerir valoración de cierre si está en divisa.
-_Evitar_: activo no monetario a coste histórico.
+**Monetary item**:
+A right or obligation to receive or pay a fixed or determinable amount of currency; a foreign-currency item may require closing-date remeasurement.
+_Avoid_: non-monetary asset carried at historical cost.
 
-**Periodificación**:
-Ajuste que asigna al periodo correcto un ingreso o gasto por diferencia entre devengo y facturación, cobro o pago.
-_Evitar_: reclasificación de vencimiento.
+**Period adjustment**:
+An adjustment that assigns income or expense to the correct period when performance/consumption and billing, collection, or payment occur at different times.
+_Avoid_: maturity reclassification.
 
-**Gasto anticipado**:
-Pago ya realizado por un servicio que todavía no se ha consumido; el tramo futuro permanece como activo.
-_Evitar_: gasto devengado no facturado.
+**Prepaid expense**:
+A payment already made for a service not yet consumed; the future portion remains an asset.
+_Avoid_: accrued unbilled expense.
 
-**Gasto devengado no facturado**:
-Servicio ya consumido al cierre cuya factura aún no se recibió; se reconoce gasto y obligación estimada.
-_Evitar_: gasto anticipado.
+**Accrued unbilled expense**:
+A service already consumed by close for which the invoice has not yet arrived; recognize the expense and estimated liability.
+_Avoid_: prepaid expense.
 
-**PEP**:
-Elemento del proyecto de obra al que se imputan costes/ingresos de construcción cuando así lo exige la política.
-_Evitar_: centro de coste para una imputación que debe llevar PEP.
+**WBS element**:
+A construction-project work breakdown element used to allocate costs/revenue when required by policy.
+_Avoid_: cost center when the allocation must use a WBS element.
 
-**Centro de coste**:
-Objeto de imputación organizativo usado en gastos/ingresos de estructura o servicio cuando no corresponde PEP.
-_Evitar_: informar simultáneamente centro de coste y PEP en una línea.
+**Cost center**:
+An organizational allocation object for overhead or service costs/revenue when a WBS element does not apply.
+_Avoid_: assigning both a cost center and WBS element to one line.
 
-## Operaciones
+## Operations
 
 **Three-way match**:
-Control que compara pedido, recepción y factura antes de liberar la factura para pago.
-_Evitar_: conciliación de pago con extracto bancario.
+A control comparing the purchase order, receipt, and invoice before releasing an invoice for payment.
+_Avoid_: matching a payment to a bank statement.
 
 **GR/IR**:
-Cuenta puente entre bienes/servicios recibidos y facturas recibidas; el reto usa la cuenta `40090000` según su manual.
-_Evitar_: gasto final o banco.
+A clearing account between goods/services received and invoices received; the challenge manual uses account `40090000`.
+_Avoid_: final expense or bank.
 
-**Conciliación bancaria**:
-Correspondencia entre líneas del extracto y líneas contables de la cuenta 572, con diferencias clasificadas por causa.
-_Evitar_: forzar igualdad mediante asientos sin soporte.
+**Bank reconciliation**:
+Matching statement lines to accounting lines in account 572 and classifying differences by cause.
+_Avoid_: forcing equality with unsupported journal entries.
 
-**Residuo de cobro**:
-Diferencia entre abono recibido y aplicaciones a documentos, clasificada solo cuando exista causa respaldada.
-_Evitar_: ajuste arbitrario para cerrar la cuenta.
+**Receipt residual**:
+The difference between a bank credit and the applications to documents, classified only when supported by evidence.
+_Avoid_: an arbitrary adjustment to clear the account.
 
-**Deterioro**:
-Corrección de valor por riesgo de pérdida recuperable; no extingue automáticamente el derecho de cobro.
-_Evitar_: baja definitiva o condonación.
+**Impairment allowance**:
+A valuation correction for a recoverability risk; it does not automatically extinguish the receivable.
+_Avoid_: write-off or debt forgiveness.
 
-**Obra pendiente de certificar (WIP revenue)**:
-Obra ejecutada al cierre aún no aprobada/certificada que se trata conforme a la regla específica de cierre del reto.
-_Evitar_: factura AR aprobada.
+**Work performed pending certification (WIP revenue)**:
+Construction work executed by close but not yet approved/certified, handled under the challenge's specific close rule.
+_Avoid_: an approved AR invoice.
