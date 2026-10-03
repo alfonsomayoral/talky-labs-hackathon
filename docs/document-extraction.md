@@ -79,6 +79,13 @@ value must occur in the transcription, but that does not verify pixels.
 `provenance.image_quote_review` identifies quotes needing original-image review.
 No substring/OCR verification is claimed for image-only documents.
 
+`LLMDocumentExtractor(client, include_processing_aids=False)` can exclude
+unverified OCR from extraction prompts while preserving the complete source
+archive, transformation identity and actual images. Its recording identity and
+prompt hash differ from the default. The capture CLI exposes `--omit-ocr-aids`.
+This supports an explicit vision/OCR comparison when OCR spelling biases model
+transcription; it does not promote either output to verified image evidence.
+
 These checks prove location and literal support, not semantic labeling or OCR
 truth. Label correctness, transcription fidelity and complete extraction require
 the original-source acceptance evaluation. A schema-valid response with a
