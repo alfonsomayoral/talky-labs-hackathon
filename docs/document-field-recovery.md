@@ -128,5 +128,10 @@ are omitted. An ambiguous period date remains raw rather than guessed.
 
 Issue #222 stays open. None of these development results establishes September
 accuracy, a fresh reserved pass, or the official accounting score. The frozen
-capture modules stayed byte-identical through evaluation and backend integration;
-subsequent work must be measured as a separate candidate.
+capture modules stayed byte-identical through evaluation and backend integration.
+Backend PR #284 subsequently changed the shared `runlog.py` for live run/call
+observability; that integration change is recorded separately in the summary.
+It did not change source extraction, prompts, normalization or these frozen
+results. The measured code revision remains `001ef0a`; replay and recorder/cost
+compatibility are checked again after integration. Subsequent extraction work
+must be measured as a separate candidate.

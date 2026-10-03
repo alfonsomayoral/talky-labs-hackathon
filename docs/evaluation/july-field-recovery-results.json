@@ -356,6 +356,16 @@
   },
   "passed": false,
   "phase": "phase_dev",
+  "post_measurement_backend_integration": {
+    "backend_revision": "fb93a76",
+    "changed_frozen_modules": {
+      "src/kalmora/runlog.py": {
+        "frozen_sha256": "aaa76a96354ae761a6b21f7acdaaaca1fc1558f4c696cc5cfc192df2ba7acb5b",
+        "integrated_sha256": "8ab401f994fbf6f1cc550de987916930f0882d55c161f0f288f76bfdc58621d4"
+      }
+    },
+    "reason": "Backend PR #284 adds live run/call observability. Capture, prompt, normalization, replay and evaluator modules remain unchanged; measurements belong to the frozen code_commit."
+  },
   "price_assumption_usd_per_million": {
     "input": "0.25",
     "output": "0.75"
