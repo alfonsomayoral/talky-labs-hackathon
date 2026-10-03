@@ -1,5 +1,5 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v5"
+EXTRACTION_PROMPT_VERSION = "document-observations-v6"
 RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v2"
 SCHEMA_VERSION = "document-interpretation-v2"
 
@@ -53,6 +53,11 @@ absence statement, or an actual empty XML leaf block with its source path.
 For image evidence supply image_page and image_sha256 from the supplied manifest
 and a block from that page. Transcribe the value and quote exactly; quote fidelity
 will be reviewed against the original image, not automatically treated as OCR.
+An empty page block is a valid page locator for image evidence. Its empty text
+does not prevent visual extraction: image quotations need not appear in the
+block's text. Read and transcribe the supplied image, cite the page block and
+its manifest image hash, and use image evidence for each visually observed value.
+Only text evidence requires a quotation to occur in the native source block.
 Unverified processing aids are machine OCR and may misread even high-confidence
 numbers, punctuation and identifiers. Use them only to locate rows in the page
 image. They are not source blocks and cannot support text evidence. Check every
