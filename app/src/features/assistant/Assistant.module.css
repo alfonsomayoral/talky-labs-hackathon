@@ -62,7 +62,7 @@
 }
 
 .preset:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: 2px;
 }
 
@@ -86,7 +86,7 @@
 }
 
 .composer:focus-within {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
 }
 
 .input {
@@ -120,7 +120,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--text-12);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -231,7 +231,7 @@
 
 .citation:focus-visible,
 .inlineItem:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: 1px;
 }
 
@@ -372,7 +372,7 @@
 }
 
 .itemRow:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: -2px;
 }
 

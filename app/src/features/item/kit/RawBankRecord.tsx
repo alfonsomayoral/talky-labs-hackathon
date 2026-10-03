@@ -61,7 +61,7 @@ export function RawBankRecord({ bankLine, className }: RawBankRecordProps) {
       {state.status === 'loading' && <Skeleton lines={2} />}
       {state.status === 'ready' && state.data && <RawDetail detail={state.data} />}
       {state.status === 'ready' && !state.data && <p className={styles.muted}>Sin registro bruto para esta línea.</p>}
-      {state.status === 'error' && <p className={styles.muted}>No se pudo leer el extracto: {state.error}</p>}
+      {state.status === 'error' && <p role="alert" className={styles.muted}>No se pudo leer el extracto: {state.error}</p>}
     </div>
   )
 }

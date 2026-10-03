@@ -44,7 +44,7 @@
 }
 
 .node:focus-visible .box {
-  stroke: var(--brand);
+  stroke: var(--brand-line);
   stroke-width: 2;
 }
 

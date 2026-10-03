@@ -126,7 +126,7 @@
 }
 
 .dagNode:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: 2px;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .needRow:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: -2px;
 }
 
@@ -348,7 +348,7 @@ button.cell:hover {
 }
 
 button.cell[data-active] {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: 1px;
 }
 

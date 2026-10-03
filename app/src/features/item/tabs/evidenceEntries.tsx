@@ -206,7 +206,7 @@ function PurchaseOrderEvidence({ po, items }: { po: string; items: number[] }) {
       )}
       <h5 className={styles.note}>Entradas de mercancía</h5>
       {receipts.status === 'loading' && <Skeleton lines={2} />}
-      {receipts.status === 'error' && <p className={styles.note}>No se pudieron leer: {receipts.error}</p>}
+      {receipts.status === 'error' && <p role="alert" className={styles.note}>No se pudieron leer: {receipts.error}</p>}
       {receipts.status === 'ready' &&
         (receipts.data.length ? (
           <div className={styles.tableWrap}>
@@ -309,7 +309,7 @@ function IcJournal({ pair, accounts }: { pair: string[]; accounts: string[] }) {
     return out.sort((a, b) => a.entry.posting_date.localeCompare(b.entry.posting_date)).slice(0, 60)
   }, [api, month, pair.join(','), accounts.join(',')])
   if (state.status === 'loading') return <Skeleton lines={3} />
-  if (state.status === 'error') return <p className={styles.note}>No se pudo consultar el diario: {state.error}</p>
+  if (state.status === 'error') return <p role="alert" className={styles.note}>No se pudo consultar el diario: {state.error}</p>
   if (!state.data.length) return <p className={styles.note}>Sin apuntes entre {pair.join(' y ')} en esas cuentas este mes.</p>
   const currency = (company: string) => api?.core.companies.find((c) => c.code === company)?.currency ?? 'EUR'
   return (
