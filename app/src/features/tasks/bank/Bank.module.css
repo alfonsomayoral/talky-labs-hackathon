@@ -363,32 +363,3 @@
   flex-direction: column;
   gap: var(--space-2);
 }
-
-.rawRecords {
-  margin: 0;
-  overflow-x: auto;
-  padding: var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--bg-subtle);
-  color: var(--ink-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-11);
-  white-space: pre;
-}
-
-.jeTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-12);
-}
-
-.jeTable td {
-  padding: var(--space-1) 0;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.num {
-  text-align: right;
-  white-space: nowrap;
-}

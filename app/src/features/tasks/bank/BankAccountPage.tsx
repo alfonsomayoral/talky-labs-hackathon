@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { ArrowUpRight, Landmark } from 'lucide-react'
 import clsx from 'clsx'
-import { Amount, Badge, Button, EmptyState, KeyValue, Mono, Page, PageHeader, QueryState, Section, SegmentedControl, Skeleton } from '@/components'
+import { Amount, Badge, Button, EmptyState, Mono, Page, PageHeader, QueryState, Section, SegmentedControl, Skeleton } from '@/components'
 import type { BankAccount, BankRecRow, DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
+import { JournalEntryView, RawBankRecord } from '@/features/item/kit'
 import { formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { ACCOUNT_STATUS, accountSummary, adjustmentsOf, balanceBridge, glAdjustments, itemByLine, recView, unmatchedByCategory, type RecLine } from './model'
@@ -83,7 +84,6 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
   const blocks = useMemo(() => (view ? view.blocks.filter((b) => show === 'all' || (show === 'matched') === (b.kind === 'match')) : []), [view, show])
   const st = ACCOUNT_STATUS[summary.status]
   const selectedItem = selected ? itemOf.get(selected.id) : undefined
-  const raw = selected?.side === 'bank' ? acc.raw.get(selected.id) : undefined
 
   return (
     <>
@@ -223,18 +223,8 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
                   </span>
                   {selected.side === 'book' ? (
                     <p className={styles.muted}>Es un apunte del libro: su asiento se ve en la partida.</p>
-                  ) : raw ? (
-                    <>
-                      <pre className={styles.rawRecords}>{raw.raw.join('\n')}</pre>
-                      {raw.concepts.length > 0 && (
-                        <KeyValue items={raw.concepts.map((c, i) => ({ label: i === 0 ? 'Conceptos' : '', value: c, mono: true }))} />
-                      )}
-                      {Object.keys(raw.references).length > 0 && (
-                        <KeyValue items={Object.entries(raw.references).map(([k, v]) => ({ label: k, value: v, mono: true }))} />
-                      )}
-                    </>
                   ) : (
-                    <p className={styles.muted}>Sin registro crudo para esta línea.</p>
+                    <RawBankRecord bankLine={selected.id} />
                   )}
                 </div>
               )}
@@ -259,20 +249,7 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
                           572 <Amount cents={a.glMovement} currency={adjCurrency} signed />
                         </span>
                       </span>
-                      <table className={styles.jeTable}>
-                        <tbody>
-                          {a.lines.map((l, i) => (
-                            <tr key={i}>
-                              <td>
-                                <Mono>{l.account}</Mono>
-                                {l.partner && <Mono muted> {String(l.partner)}</Mono>}
-                              </td>
-                              <td className={styles.num}>{l.debit ? <Amount cents={l.debit} currency={adjCurrency} /> : ''}</td>
-                              <td className={styles.num}>{l.credit ? <Amount cents={l.credit} currency={adjCurrency} /> : ''}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <JournalEntryView lines={a.lines} company={account.company} currency={adjCurrency} />
                     </li>
                   ))}
                 </ul>

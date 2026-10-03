@@ -1,6 +1,6 @@
-// Async inputs of one account view: its GL lines (history to month end) and the raw statement details.
+// Async inputs of one account view: its GL lines (history to month end).
 import { useEffect, useState } from 'react'
-import type { BankAccount, BankRecRow, DatasetApi, JournalEntry, RawBankDetail } from '@/domain/types'
+import type { BankAccount, BankRecRow, DatasetApi, JournalEntry } from '@/domain/types'
 import { bookLinesOf, entryIdOf, referencedBookLines, type BookLine } from './model'
 
 export interface AccountData {
@@ -12,7 +12,6 @@ export interface AccountData {
   referencedBook: BookLine[]
   glClosing: number
   glMovement: number
-  raw: Map<string, RawBankDetail>
 }
 
 const PAGE = 5000
@@ -32,7 +31,7 @@ export function monthBounds(month: string): { from: string; to: string } {
   return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, '0')}` }
 }
 
-const LOADING: AccountData = { status: 'loading', error: null, monthBook: [], referencedBook: [], glClosing: 0, glMovement: 0, raw: new Map() }
+const LOADING: AccountData = { status: 'loading', error: null, monthBook: [], referencedBook: [], glClosing: 0, glMovement: 0 }
 
 export function useAccountData(api: DatasetApi, account: BankAccount, row: BankRecRow | null): AccountData {
   const key = `${api.meta.id}|${account.id}|${row ? 'row' : '-'}`
@@ -43,7 +42,7 @@ export function useAccountData(api: DatasetApi, account: BankAccount, row: BankR
     const { from, to } = monthBounds(api.meta.month)
     const companyCurrency = api.core.companies.find((c) => c.code === account.company)?.currency ?? account.currency
     const load = async (): Promise<AccountData> => {
-      const [entries, raw] = await Promise.all([allEntries(api, account, to), api.rawBankDetails(account.id, api.meta.month).catch(() => [])])
+      const entries = await allEntries(api, account, to)
       const all = bookLinesOf(entries, account, companyCurrency)
       const monthBook = all.filter((l) => l.date >= from)
       const known = new Set(all.map((l) => l.id))
@@ -56,7 +55,6 @@ export function useAccountData(api: DatasetApi, account: BankAccount, row: BankR
         referencedBook: [...all.filter((l) => l.date < from), ...extra],
         glClosing: all.reduce((s, l) => s + l.amount, 0),
         glMovement: monthBook.reduce((s, l) => s + l.amount, 0),
-        raw: new Map(raw.map((d) => [d.bank_line, d])),
       }
     }
     load().then(

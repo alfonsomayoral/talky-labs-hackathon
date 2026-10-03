@@ -1,10 +1,11 @@
 // `/tareas/bancos` Conciliación bancaria: ¿cuadra cada cuenta? Grid of the accounts in tasks/bank_accounts.json.
 import { useMemo } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Amount, Badge, Mono, Page, PageHeader, ProgressBar, QueryState, Section } from '@/components'
 import type { BankRecRow, DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
+import { findFlowFilter, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { formatNumber } from '@/lib/format'
 import { ACCOUNT_STATUS, accountSummary, type AccountSummary } from './model'
 import styles from './Bank.module.css'
@@ -35,8 +36,29 @@ function useAccountSummaries(data: DerivedRun, api: DatasetApi, run: RunBundle):
   }, [data.items, api, run])
 }
 
+const NODE_PARAM = 'nodo'
+
 function BankGrid({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: RunBundle }) {
   const accounts = useAccountSummaries(data, api, run)
+  const [params, setParams] = useSearchParams()
+  const node = params.get(NODE_PARAM)
+  const flow = useProcessFlow('bank_rec')
+  const nodeFilter = findFlowFilter(flow, node)
+  const nodeAccounts = useMemo(
+    () => (nodeFilter ? new Set(data.items.filter((it) => it.task === 'bank_rec' && nodeFilter.items.has(it.id)).map((it) => it.key.slice(0, it.key.indexOf('/')))) : null),
+    [data.items, nodeFilter],
+  )
+  const visible = nodeAccounts ? accounts.filter((a) => nodeAccounts.has(a.account.id)) : accounts
+  const selectNode = (id: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (id) next.set(NODE_PARAM, id)
+        else next.delete(NODE_PARAM)
+        return next
+      },
+      { replace: true, preventScrollReset: true },
+    )
   const reconciled = accounts.filter((a) => a.status === 'reconciled').length
   const adjustments = accounts.reduce((s, a) => s + a.adjustments, 0)
 
@@ -46,9 +68,19 @@ function BankGrid({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: 
         title="Conciliación bancaria"
         subtitle={`${reconciled} de ${accounts.length} cuentas conciliadas · ${formatNumber(adjustments)} asientos de ajuste`}
       />
-      <Section title="Cuentas" count={accounts.length} description="Saldo del extracto al cierre, líneas casadas y lo que queda abierto sin ajuste.">
+      {flow && (
+        <Section title="Mapa de decisión" description="Cuántas líneas tomaron cada camino de la política. Pulsa una rama para ver solo las cuentas que la tienen.">
+          <ProcessMap flow={flow} selectedId={node} onSelect={(f) => selectNode(f?.id ?? null)} />
+        </Section>
+      )}
+
+      <Section
+        title="Cuentas"
+        count={visible.length}
+        description={nodeFilter ? `Cuentas con partidas en «${nodeFilter.label}».` : 'Saldo del extracto al cierre, líneas casadas y lo que queda abierto sin ajuste.'}
+      >
         <ul className={styles.grid}>
-          {accounts.map((a) => (
+          {visible.map((a) => (
             <li key={a.account.id}>
               <AccountCard summary={a} />
             </li>
