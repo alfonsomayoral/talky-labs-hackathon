@@ -55,6 +55,50 @@ def component_groups(journal):
     return result
 
 
+def daily_samples(histories, observations, account):
+    """Sum separate invoices within a period; replace its estimate with actuals.
+
+    The adapter supplies one observation per invoice business identity. Separate
+    invoices for the same cost object and coverage period are additive, rather
+    than competing samples from which the last invoice would overwrite the rest.
+    Reissued historical estimates retain only the latest closing per reference.
+    A posted invoice replaces a close estimate for the same coverage period.
+    Retain the last three periods for the mean daily-rate estimator.
+    """
+    def group(records, basis):
+        result = {}
+        for sample in records:
+            amount = sample['amounts'].get(account, 0)
+            if amount <= 0:
+                continue
+            key = sample['start'], sample['end']
+            item = result.setdefault(key, {'amount': 0, 'start': key[0], 'end': key[1],
+                'evidence': sample['evidence'], 'source_evidence': [], 'sample_basis': basis})
+            item['amount'] += amount
+            item['source_evidence'].append(sample['evidence'])
+        return result
+    latest_estimates = {}
+    for sample in sorted(histories, key=lambda s: s.get('closing', '')):
+        identity = (sample.get('reference') or digest(sample['evidence']), sample['start'], sample['end'])
+        latest_estimates[identity] = sample
+    grouped = group(latest_estimates.values(), 'historical_close_estimate')
+    grouped.update(group(observations, 'posted_invoice'))
+    samples = sorted(grouped.values(), key=lambda s: (s['end'], s['start']), reverse=True)[:3]
+    bases = {s['sample_basis'] for s in samples}
+    return samples, next(iter(bases)) if len(bases) == 1 else 'mixed_observed_periods'
+
+
+def monthly_coverage_observed(histories):
+    """Monthly exposure needs repeated month-long service, not isolated events."""
+    months = set()
+    for observation in histories:
+        start, end = day(observation['start']), day(observation['end'])
+        first, last = month_bounds(start.strftime('%Y-%m'))
+        if start == first and end == last:
+            months.add(start.strftime('%Y-%m'))
+    return len(months) >= 2
+
+
 def build_facts(data, upstream, ledger, sources, diagnostics):
     phase = data.phase_dir
     first, closing = month_bounds(data.month)
@@ -165,8 +209,10 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
                     journal['lines'].append(dict(l, account=account, debit=max(amount, 0), credit=max(-amount, 0)))
         groups = component_groups(journal)
         business = row['company'], row['vendor_id'], re.sub(r'[^\w]', '', row.get('invoice_number') or '').upper()
-        first_arrival = business not in receipt_amounts
-        receipt_amounts.add(business)
+        posted = row.get('decision') in {'POST', 'POST_PAYMENT_BLOCK'}
+        first_arrival = posted and business not in receipt_amounts
+        if posted:
+            receipt_amounts.add(business)
         for (cc, wbs), amounts in groups.items():
             if archetype in CONTINUOUS | EPISODIC:
                 s = get_series(row['company'], row['vendor_id'], cc, wbs)
@@ -210,23 +256,30 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         accounts = sorted({a for h in histories + observations for a in h['amounts']})
         s['components'] = []
         if typ in EPISODIC:
-            # Whether a discrete professional service happened is not observable before its invoice.
-            diagnostics.append({'kind': 'episodic_service_not_invented', 'series': s['series_id'],
-                'observed_closes': sorted({h['closing'] for h in histories}),
-                'exposure': 'unknown additional service consumption'})
-            continue
-        s['method'] = 'mean_observed_daily_rate'
-        for account in accounts:
-            samples_by_span = {}
-            for h in histories + observations:
-                amount = h['amounts'].get(account, 0)
-                if amount > 0:
-                    samples_by_span[h['start'], h['end']] = {'amount': amount, 'start': h['start'],
-                        'end': h['end'], 'evidence': h['evidence']}
-            samples = sorted(samples_by_span.values(), key=lambda x: (x['end'], x['start']), reverse=True)[:3]
-            if samples:
-                s['components'].append({'account': account, 'cost_center': s['cost_center'],
-                                        'wbs': s['wbs'], 'samples': samples})
+            last_months = {h['closing'] for h in histories}
+            current_points = [c for c in s['received_coverage'] if c['start'][:7] == data.month]
+            if not monthly_coverage_observed(histories) or current_points:
+                diagnostics.append({'kind': 'episodic_service_not_invented', 'series': s['series_id'],
+                    'observed_closes': sorted(last_months), 'current_received': current_points,
+                    'exposure': 'unknown additional service consumption',
+                    'basis': 'monthly exposure requires repeated full-month service coverage; isolated event history does not prove current consumption'})
+                continue
+            s['method'] = 'recurring_unbilled_monthly_history'
+            for account in accounts:
+                grouped = defaultdict(int)
+                for h in histories:
+                    grouped[h['closing']] += h['amounts'].get(account, 0)
+                samples = [{'amount': a, 'closing': c} for c, a in sorted(grouped.items()) if a > 0]
+                if samples:
+                    s['components'].append({'account': account, 'cost_center': s['cost_center'],
+                                            'wbs': s['wbs'], 'samples': samples})
+        else:
+            s['method'] = 'mean_observed_daily_rate'
+            for account in accounts:
+                samples, sample_basis = daily_samples(histories, observations, account)
+                if samples:
+                    s['components'].append({'account': account, 'cost_center': s['cost_center'],
+                                            'wbs': s['wbs'], 'samples': samples, 'sample_basis': sample_basis})
         if s['components']:
             accruals.append(s)
 
@@ -373,4 +426,4 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
             'ic_owned_services': [], 'coverage_limitations': diagnostics,
             'impairment_rounding': 'truncate',
             'impairment_rounding_evidence': 'historical 50% provisions truncate half cents (e.g. compare open-invoice odd cents with original 490 balances); not a target tolerance',
-            'estimation_policy': 'last three distinct observed periods; mean daily rate; no targets read'}
+            'estimation_policy': 'last three distinct periods; additive invoice costs within period replace same-period estimates; mean daily rate; no targets read'}

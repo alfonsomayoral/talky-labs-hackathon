@@ -92,6 +92,72 @@ class ToolBoundaryTests(unittest.TestCase):
         self.assertEqual(span[0].isoformat(), '2025-12-20')
         self.assertIsNone(parser.period('issued July; period unknown'))
 
+    def test_posted_cost_overrides_prior_estimate_for_forecast(self):
+        sources = tool('m6_sources')
+        historical = {'start': '2026-06-01', 'end': '2026-06-30',
+                      'amounts': {'62800000': 1500}, 'evidence': {'document': 'old-estimate'}}
+        invoice = dict(historical, amounts={'62800000': 3000}, evidence={'document': 'invoice'})
+        samples, basis = sources.daily_samples([historical], [invoice], '62800000')
+        from kalmora.close.rules import estimate_daily
+        amount, _ = estimate_daily([(s['amount'], D.replace(month=6, day=1),
+                                    D.replace(month=6, day=30)) for s in samples], 10)
+        self.assertEqual(amount, 1000)
+        self.assertEqual(basis, 'posted_invoice')
+
+    def test_distinct_invoices_same_coverage_are_additive(self):
+        sources = tool('m6_sources')
+        invoice = {'start': '2026-06-01', 'end': '2026-06-30',
+                   'amounts': {'62800000': 3000}, 'evidence': {'document': 'site-one'}}
+        second = dict(invoice, amounts={'62800000': 6000}, evidence={'document': 'site-two'})
+        samples, _ = sources.daily_samples([], [invoice, second], '62800000')
+        self.assertEqual(samples[0]['amount'], 9000)
+        self.assertEqual([e['document'] for e in samples[0]['source_evidence']], ['site-one', 'site-two'])
+
+    def test_history_remains_fallback_when_no_observed_account_cost(self):
+        sources = tool('m6_sources')
+        historical = {'start': '2026-06-01', 'end': '2026-06-30',
+                      'amounts': {'62800000': 1500}, 'evidence': {'document': 'history'}}
+        unrelated = dict(historical, amounts={'62300000': 9000}, evidence={'document': 'other'})
+        samples, basis = sources.daily_samples([historical], [unrelated], '62800000')
+        self.assertEqual(samples[0]['amount'], 1500)
+        self.assertEqual(basis, 'historical_close_estimate')
+
+    def test_reissued_historical_estimate_is_not_new_consumption(self):
+        sources = tool('m6_sources')
+        historical = {'start': '2026-04-01', 'end': '2026-04-30',
+                      'reference': 'ACCR-unreceived-invoice', 'closing': '2026-04-30',
+                      'amounts': {'62800000': 1500}, 'evidence': {'document': 'first-close'}}
+        reissued = dict(historical, closing='2026-05-31', amounts={'62800000': 1800},
+                        evidence={'document': 'reissued-after-reversal'})
+        samples, _ = sources.daily_samples([reissued, historical], [], '62800000')
+        self.assertEqual(samples[0]['amount'], 1800)
+        self.assertEqual(samples[0]['source_evidence'], [reissued['evidence']])
+
+    def test_distinct_historical_obligations_same_period_are_additive(self):
+        sources = tool('m6_sources')
+        historical = {'start': '2026-04-01', 'end': '2026-04-30',
+                      'reference': 'ACCR-one', 'closing': '2026-04-30',
+                      'amounts': {'62800000': 1500}, 'evidence': {'document': 'estimate-one'}}
+        second = dict(historical, reference='ACCR-two', amounts={'62800000': 3000},
+                      evidence={'document': 'estimate-two'})
+        samples, _ = sources.daily_samples([historical, second], [], '62800000')
+        self.assertEqual(samples[0]['amount'], 4500)
+
+    def test_separate_professional_events_do_not_prove_monthly_consumption(self):
+        sources = tool('m6_sources')
+        self.assertFalse(sources.monthly_coverage_observed([
+            {'start': '2026-04-12', 'end': '2026-04-12'},
+            {'start': '2026-06-25', 'end': '2026-06-25'}]))
+
+    def test_repeated_full_month_service_supports_monthly_exposure(self):
+        sources = tool('m6_sources')
+        self.assertTrue(sources.monthly_coverage_observed([
+            {'start': '2026-04-01', 'end': '2026-04-30'},
+            {'start': '2026-05-01', 'end': '2026-05-31'}]))
+        self.assertFalse(sources.monthly_coverage_observed([
+            {'start': '2026-04-01', 'end': '2026-04-30'},
+            {'start': '2026-04-01', 'end': '2026-04-30'}]))
+
     def test_evaluation_rejects_mutated_freeze_before_targets(self):
         evaluator = tool('m6_evaluate')
         with tempfile.TemporaryDirectory() as tmp:

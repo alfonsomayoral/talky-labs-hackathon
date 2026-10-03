@@ -2,10 +2,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..infra.closer import CommandCloser
 from ..infra.files import FilePackageStore, FileRunStore, FileSubmissionStore
 from ..infra.memory import InMemoryJobStore, InMemoryPhaseRepository
 from .ports import EvaluationGateway
-from .usecases import accounting, banking, catalog, entries, ingestion, runs
+from .usecases import accounting, banking, catalog, entries, files, ingestion, runs
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,8 @@ class Settings:
     submissions_dir: Path = Path("outputs/submissions")
     max_upload_bytes: int = 256 * 1024 * 1024
     cors_origins: tuple[str, ...] = ()
+    serve_golden: bool = False
+    close_command: tuple[str, ...] = ()
 
 
 class NoEvaluator:
@@ -67,6 +70,10 @@ class Services:
         self.simulate_entry = entries.SimulateEntry(repo)
         self.list_runs = runs.ListRuns(run_store)
         self.get_run = runs.GetRun(run_store)
+        closer = CommandCloser(settings.close_command, settings.run_dir) if settings.close_command else None
+        self.start_run = runs.StartRun(repo, closer)
+        self.get_run_file = files.GetRunFile(run_store)
+        self.get_phase_file = files.GetPhaseFile(repo, settings.serve_golden)
         self.get_submission = runs.GetSubmission(repo, submissions)
         self.list_submission_rows = runs.ListSubmissionRows(repo, submissions)
         self.check_submission = runs.CheckSubmission(repo, submissions, gateway)

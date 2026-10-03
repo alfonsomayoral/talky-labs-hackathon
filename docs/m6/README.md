@@ -2,18 +2,25 @@
 
 **Status: implementation delivered for review; NOT accepted as real-flow integration.**
 Existing upstream PR: #197 (draft), target `backend`, head
-`juan-fernandez-gotherlabs:codex/m6-close`. M6, #20–#23, #95–#104 and #171 stay open.
+`juan-fernandez-gotherlabs:codex/m6-close`. The same code is published directly in
+`alfonsomayoral/talky-labs-hackathon:codex/m6-close`. Implementation tracking
+#20–#23 and #95–#104 is closed; M6, #171 and #251 remain open.
 No main or M5 work-branch writes are part of this delivery.
 
-Read `METHOD.md`, `CONTRACT.md`, `RESULTS.md`, `ISSUES.md` and `REVIEW.md` together.
-`PR_BODY.md` is replacement text for the existing PR, to be transferred with the
-user's own gh session. Do not create another PR.
+Read `METHOD.md`, `CONTRACT.md`, `RESULTS.md`, `ISSUES.md`, `REVIEW.md` and the current
+incremental `SCORE_INVESTIGATION.md` together. RESULTS.md preserves the original
+78.507% baseline; the source corrections now yield 79.0977% in simulated close.
+`PR_BODY.md` is the maintained description for the existing PR. Current source
+reviews are in `reviews/` and machine evidence in `evidence/score-investigation.json`.
+Source CI passes in both repositories: 66 M6 passes and 839 backend passes /
+40 skips on Python 3.12.14. The real-flow gate remains open.
 
 ## Reproduce
 
 Use Python >=3.12 and an unmodified participant directory containing `phase_dev`
-and `score.py`. Outputs must be outside the phase. The supplied participant ZIP
-has no `phase_test`; no blind-phase result is claimed.
+and `score.py`. Outputs must be outside the phase. The July participant ZIP has
+no `phase_test`. September originals are available in the primary checkout under
+`data/septiembre/participant/phase_test`; no blind-phase result is claimed.
 
 ```bash
 python -m pip install -c requirements-m1.lock -e '.[documents,llm,landing,api,dev]'
@@ -75,6 +82,6 @@ gh pr checks 197 --repo alfonsomayoral/talky-labs-hackathon
 
 These commands neither mark the PR ready nor merge it. Independent review,
 remaining accounting acceptance and real M1–M5 evidence are still required.
-The connector is fork-write-only; its two early upstream PR-create attempts
-returned 403. The user created #197, and subsequent publication only updates
-this same branch. No upstream PR write is attempted by these development tools.
+The original connector was fork-write-only. The native gh session now has upstream
+push access; both repositories receive the same branch commits. PR #197 keeps its
+original fork head for continuity and its description is updated through gh.

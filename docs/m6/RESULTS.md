@@ -1,5 +1,8 @@
 # July M6 evaluation — simulated integration, not acceptance
 
+This report preserves the original frozen **78.507% baseline**. The current source
+corrections, **79.0977%** result and balance tradeoff are in `SCORE_INVESTIGATION.md`.
+
 ## Frozen run
 
 The original output was frozen at **2026-10-03T13:28:42.739651Z**, before the

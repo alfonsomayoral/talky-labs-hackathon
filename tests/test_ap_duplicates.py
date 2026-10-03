@@ -23,10 +23,11 @@ def record(id="A", **kwargs):
 
 
 class DuplicateTests(unittest.TestCase):
-    def test_separators_case_and_explicit_prefix_not_digit_guess(self):
-        self.assertEqual(normalize_number(" fv-2026 / 0001 "), "FV20260001")
+    def test_separators_case_and_letter_prefix_not_digit_guess(self):
+        self.assertEqual(normalize_number(" fv-2026 / 0001 "), "20260001")
         self.assertEqual(normalize_number("Factura: 2026/0001", ["FACTURA:"]), "20260001")
-        self.assertNotEqual(normalize_number("F00001"), normalize_number("00001"))
+        self.assertEqual(normalize_number("F-F2611803"), normalize_number("2611803"))
+        self.assertNotEqual(normalize_number("F00001"), normalize_number("0001"))
         self.assertNotEqual(normalize_number("2026-0001"), normalize_number("2026-001"))
         self.assertNotEqual(normalize_number("2026-0001-R"), normalize_number("2026-0001"))
         with self.assertRaises(ValueError):
@@ -108,7 +109,7 @@ class DuplicateTests(unittest.TestCase):
         self.assertEqual(duplicate_result(current, [previous_month], inventory_complete=True).status, "CLEAR")
         self.assertEqual(duplicate_result(current, [record(number="2026-0002")], inventory_complete=True).status, "CLEAR")
         self.assertEqual(duplicate_result(current, [record(amount_cents=12200)], inventory_complete=True).status, "CLEAR")
-        self.assertEqual(duplicate_result(current, [record()], inventory_complete=True).status, "UNKNOWN")
+        self.assertEqual(duplicate_result(current, [record()], inventory_complete=True).duplicate_of, "A")
 
     def test_scope_and_document_type_isolation(self):
         current = record("B", received_at="2026-07-02T10:00:00")

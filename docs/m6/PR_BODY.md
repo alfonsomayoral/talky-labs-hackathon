@@ -1,70 +1,70 @@
 ## Summary
 
-Implements an isolated M6 close module and publishes simulated integration evidence
-on the existing `juan-fernandez-gotherlabs:codex/m6-close` branch. This remains a
-**draft for review, not full accounting or real-flow acceptance**. Target: `backend`.
-No writes to main, the M5 work branch or its solver.
+Adds the M6 month-end close module to `backend`, with sealed M1–M5 handoffs,
+original/pre-close/final ledger projections, and a separate frozen-output evaluator.
+This draft now also fixes source-cost aggregation and unsupported professional
+extrapolation. The same commits are published directly on the upstream
+`codex/m6-close` branch; this existing PR retains its original fork head.
 
-The branch incorporates current upstream backend through
-`e448f7fd07448fe3c0b43b0605935a6f73738fac` without rewriting history. Upstream's AP
-solver/evaluator-boundary fix is reused; no parallel AP correction was developed.
-Implementation/tests/tools were published in `1e85d58ab63d64981017c525e24398ca3cd2a863`.
-Subsequent docs/workflow evidence commits do not change the frozen accounting rules.
+The branch incorporates upstream backend through
+`bf7943ffa9c6572b8d936c701b4ee7f855015488` without rewriting history.
 
-## Changes
+## Behavior
 
-- `python -m kalmora.close`: ACCRUAL, PREPAID of both signs, WIP_REVENUE,
-  FX_REVAL after earlier adjustments, BAD_DEBT and declaration-month DOUBTFUL_RECLASS.
-- Minimal shared CloseType extension; shared Ledger, RateTable, Evidence,
-  DocumentFacts, JournalEntry/JournalLine, CloseRow and M2 certification DTOs reused.
-- Sealed, phase-bound M1–M5 handoffs; full receipt coverage, semantic business-key
-  and event/stage deduplication; immutable original/pre-M6/final projections.
-- Explicit upstream-only `golden_fixture` adapters; original-source saved facts;
-  separate evaluator reads close/balance targets only after verifying frozen output.
-- Ten deterministic accounting payloads, source/output hashes, replay denying
-  golden/documents/network, detailed journal/dimension and balance comparisons.
-- 59 M6 regression tests, clean fork CI, reproducible commands and issue-by-issue
-  status under `docs/m6/`.
+- Supports ACCRUAL, signed PREPAID, WIP_REVENUE, FX_REVAL, BAD_DEBT and
+  declaration-month DOUBTFUL_RECLASS using the shared ledger, money, evidence,
+  journal and certification contracts. Entries are month-end only and retain
+  supplier/customer, account and cost-object dimensions.
+- Requires complete phase-bound producer coverage and deduplicates business
+  identities and event/stage ownership. Original ERP data remains immutable.
+- Keeps independent posted invoice costs additive within their service interval.
+  Reissued historical estimates retain only the latest closing per obligation;
+  actual costs replace estimates for the same period. The historical median remains.
+- Treats isolated professional jobs as unknown additional consumption rather than
+  inventing a full new month. Repeated full-month history is an explicit conservative
+  evidence assumption, not a policy threshold.
+- Enables the existing M6 CI job in both the upstream repository and fork.
 
-## Executed evidence
+## Result and validation
 
-Clean CI run 37127732110 on 1e85d58 (Python 3.12.14): **555 discovered, 506 passed,
-49 skipped; no failures**. M6 subset: **59 passed**, also on Python 3.13.5.
-Published-source fixture rebuild is byte-identical; replay against an ERP/tasks-only
-phase reproduces all ten accounting payloads with zero forbidden solver accesses,
-zero document calls and zero LLM calls. Earlier local optional-import failures and
-the original upstream AP CI failure are retained, not described as passing.
+The original July baseline is byte-for-byte reproduced. After freezing the new
+output and evaluating separately, the **close component rises from 78.50746% to
+79.09774% (+0.59028 percentage points)**. Output is 78 rows / 69 keys, versus
+76 / 64 in the reference. Recall is unchanged; one unsupported accrual key was
+removed. No missing key was recovered. This is simulated integration, not the
+whole-challenge score or real-flow acceptance.
 
-Frozen `close.jsonl` SHA-256:
-`4be0b8e740d56d26bd3810e75dc81993cdb54fc4f3fdfc98ac971cda01879810`.
-The published solver fingerprint equals the pre-evaluation frozen fingerprint.
-Original participant integrity: 2014 files checked, zero modifications.
+The original and pre-M6 account balances match their reference stages. Final
+balances still differ: company 1000's two-sided absolute account difference
+worsens from EUR 76,005.86 to EUR 82,806.94; company 1100 improves from EUR 6,991.20
+to EUR 6,958.08. Currency amounts are not combined. Six original open USD credit
+notes remain because source review found no clearing evidence. Accrual coverage
+and small prepaid rounding discrepancies remain documented.
 
-## Accounting result and limitations
+Local Python 3.12.4: 66 M6 tests pass; full backend has 815 passes and
+64 skips (879 discovered), with no failures. Source CI on `95cd046` is green
+in both repositories: Python 3.12.14, 66 M6 passes and 839 backend passes /
+40 skips. [Upstream run](https://github.com/alfonsomayoral/talky-labs-hackathon/actions/runs/37131128321),
+[fork run](https://github.com/juan-fernandez-gotherlabs/talky-labs-hackathon/actions/runs/37131153914).
+Full results are recorded in `docs/m6/evidence/score-investigation.json`. A fresh-process replay
+against a physical ERP/tasks-only phase reproduces all ten accounting files,
+with zero forbidden accesses, document calls or LLM calls. Its handoff was built
+from authorized development fixtures; replay does not prove real M1–M5 execution.
 
-**Simulated integration; official close score 78.50746268656715%.**
-79 rows / 70 keys versus reference 76 / 64. Actual rows: 54 ACCRUAL, 9 PREPAID,
-14 FX_REVAL, 1 WIP_REVENUE and 1 BAD_DEBT. No July doubtful reclassification event;
-the policy is covered by invented boundary/variation tests.
+Frozen close SHA-256:
+`8f062c48fc8951f4462b07f67cb3d0d3dd33e4d22e0fefd1d05589c9637562e9`.
+The imported original package has 830 verified files and zero modifications.
+Three parallel team reviews, source evidence and rejected forecasting experiment
+are documented in `docs/m6/SCORE_INVESTIGATION.md` and `docs/m6/reviews/`.
 
-WIP, BAD_DEBT and the eight expected FX amounts are exact. Five prepaid amounts
-have 1–2-cent rounding differences. Six additional historical USD credit notes
-remain open under the original positions and are not removed to force row counts.
-Accruals retain material estimate/coverage discrepancies, including two missing
-and two extra aggregate identities. All such differences and sensitivity are
-reported; no formula was calibrated after reading close targets.
+## Remaining acceptance
 
-Original and simulated pre-M6 account balances exactly match their reference
-stages. Final balances do NOT match: M6 differences are quantified by society and
-account in RESULTS.md and the detailed delivery reports. Aggregate tolerance is
-not a substitute for journal/dimension acceptance. `phase_test` was not supplied;
-no blind-phase success is claimed.
+At the user's request, fourteen modular tracking issues were closed; unresolved
+scope from superseded items is consolidated in **#251 (score/accounting work)**.
+**#171 stays open** for actual M1–M5 producers with no golden-derived dependencies,
+physical golden exclusion, September execution, rerun/ownership evidence and
+reviewed accounting output. September originals are available; this real-flow
+execution has not been completed. The milestone and draft remain open.
 
-## Review and gate
-
-Self-review: `docs/m6/REVIEW.md`; it is not an independent approval. Remaining
-criteria: `docs/m6/ISSUES.md`. Keep M6, its epics/tasks and #171 **OPEN**. Real
-M1–M5 → M6 execution with genuine producer versions/coverage has NOT been run.
-No merge or issue closure is requested on simulated evidence alone.
-
-Refs #20, #21, #22, #23, #95, #96, #97, #98, #99, #100, #101, #102, #103, #104, #171.
+Refs #20, #21, #22, #23, #95, #96, #97, #98, #99, #100, #101, #102, #103, #104,
+#171, #251.

@@ -1,0 +1,725 @@
+{
+  "schema": "kalmora.m6.score-investigation/v1",
+  "date": "2026-10-03",
+  "phase": "phase_dev",
+  "month": "2026-07",
+  "integration": "simulated",
+  "real_flow_verified": false,
+  "real_flow_gate_171": "OPEN",
+  "score_work_251": "OPEN",
+  "source_code_commit": "95cd046a3d440c5d7510ad9eb85508327699625d",
+  "source_fix_commit": "c2d5aeebf2e87822f75f1af5b5a25a4560809249",
+  "upstream_base": "bf7943ffa9c6572b8d936c701b4ee7f855015488",
+  "adapter_sha256": "d2fb44631970ccd46e57d73adc6d3ad0964d8e5b9c0987b6db92c103faf1bd0e",
+  "solver_code_sha256": "9f2933dde5e9f5398ec33886cc973d0b3e49583df673a8501ce496e55eaf5931",
+  "original_package": {
+    "checked_files": 830,
+    "mismatches": [],
+    "archive_sha256": "c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109"
+  },
+  "scorer_sha256": "b8adec99c609098c7781b4d34cd08ddd6c7d62830800ac9b37d5b1213ca0828e",
+  "runs": [
+    {
+      "run": "original_reproduced",
+      "retained": false,
+      "frozen_at": "2026-10-03T14:30:32.197893+00:00",
+      "evaluated_at": "2026-10-03T14:30:32.403322+00:00",
+      "close_sha256": "4be0b8e740d56d26bd3810e75dc81993cdb54fc4f3fdfc98ac971cda01879810",
+      "handoff_payload_sha256": "7ce3769988c91f5e6da77692df692fb3e9b7bd9972dca896a58ff38a04dfa755",
+      "official_close_score": [
+        0.7850746268656715,
+        {
+          "items": 64,
+          "recall": 0.822,
+          "precision": 0.751
+        }
+      ],
+      "rows": 79,
+      "aggregate_keys": {
+        "gold": 64,
+        "actual": 70
+      },
+      "counts": {
+        "ACCRUAL": {
+          "gold_rows": 57,
+          "actual_rows": 54,
+          "gold_keys": 45,
+          "actual_keys": 45
+        },
+        "BAD_DEBT": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        },
+        "FX_REVAL": {
+          "gold_rows": 8,
+          "actual_rows": 14,
+          "gold_keys": 8,
+          "actual_keys": 14
+        },
+        "PREPAID": {
+          "gold_rows": 9,
+          "actual_rows": 9,
+          "gold_keys": 9,
+          "actual_keys": 9
+        },
+        "WIP_REVENUE": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        }
+      },
+      "balances_by_company": {
+        "1000": {
+          "final_abs_difference": 7600586,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 7600586,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1100": {
+          "final_abs_difference": 699120,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 699120,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1200": {
+          "final_abs_difference": 2541360,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 2541360,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1300": {
+          "final_abs_difference": 1474660,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1474660,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1910": {
+          "final_abs_difference": 8770,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8770,
+          "original_abs_difference": 0,
+          "different_final_accounts": 3,
+          "currency": "EUR"
+        },
+        "2100": {
+          "final_abs_difference": 61060,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 61060,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "EUR"
+        },
+        "3100": {
+          "final_abs_difference": 797158,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 797158,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "MXN"
+        }
+      }
+    },
+    {
+      "run": "rejected_all_invoice_priority",
+      "retained": false,
+      "frozen_at": "2026-10-03T14:35:19.941139+00:00",
+      "evaluated_at": "2026-10-03T14:35:20.126283+00:00",
+      "close_sha256": "ec90bfaac6c88a4d64508ae19a6f950e48afac45a9240e29e9cb89ad7c07846a",
+      "handoff_payload_sha256": "55961574c630678e4fe6ace995dbd143e5198f94b133dae4ed421172e1558119",
+      "official_close_score": [
+        0.7791044776119403,
+        {
+          "items": 64,
+          "recall": 0.816,
+          "precision": 0.746
+        }
+      ],
+      "rows": 79,
+      "aggregate_keys": {
+        "gold": 64,
+        "actual": 70
+      },
+      "counts": {
+        "ACCRUAL": {
+          "gold_rows": 57,
+          "actual_rows": 54,
+          "gold_keys": 45,
+          "actual_keys": 45
+        },
+        "BAD_DEBT": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        },
+        "FX_REVAL": {
+          "gold_rows": 8,
+          "actual_rows": 14,
+          "gold_keys": 8,
+          "actual_keys": 14
+        },
+        "PREPAID": {
+          "gold_rows": 9,
+          "actual_rows": 9,
+          "gold_keys": 9,
+          "actual_keys": 9
+        },
+        "WIP_REVENUE": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        }
+      },
+      "balances_by_company": {
+        "1000": {
+          "final_abs_difference": 8304506,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8304506,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1100": {
+          "final_abs_difference": 668412,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 668412,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1200": {
+          "final_abs_difference": 4311526,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 4311526,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1300": {
+          "final_abs_difference": 1441014,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1441014,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1910": {
+          "final_abs_difference": 23634,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 23634,
+          "original_abs_difference": 0,
+          "different_final_accounts": 3,
+          "currency": "EUR"
+        },
+        "2100": {
+          "final_abs_difference": 15072,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 15072,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "EUR"
+        },
+        "3100": {
+          "final_abs_difference": 1021490,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1021490,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "MXN"
+        }
+      }
+    },
+    {
+      "run": "same_period_invoice_costs",
+      "retained": false,
+      "frozen_at": "2026-10-03T14:36:58.212871+00:00",
+      "evaluated_at": "2026-10-03T14:36:58.405247+00:00",
+      "close_sha256": "1501e143b6eb53cfa5a4fe4fe29ac8a28d5e444f97a9bc2896d8e0d6cbeaf30e",
+      "handoff_payload_sha256": "ef6b7b4e35b2f19584db25a46e3b8ff940f7a8123c4f1eaf21378757a5408470",
+      "official_close_score": [
+        0.7850746268656715,
+        {
+          "items": 64,
+          "recall": 0.822,
+          "precision": 0.751
+        }
+      ],
+      "rows": 79,
+      "aggregate_keys": {
+        "gold": 64,
+        "actual": 70
+      },
+      "counts": {
+        "ACCRUAL": {
+          "gold_rows": 57,
+          "actual_rows": 54,
+          "gold_keys": 45,
+          "actual_keys": 45
+        },
+        "BAD_DEBT": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        },
+        "FX_REVAL": {
+          "gold_rows": 8,
+          "actual_rows": 14,
+          "gold_keys": 8,
+          "actual_keys": 14
+        },
+        "PREPAID": {
+          "gold_rows": 9,
+          "actual_rows": 9,
+          "gold_keys": 9,
+          "actual_keys": 9
+        },
+        "WIP_REVENUE": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        }
+      },
+      "balances_by_company": {
+        "1000": {
+          "final_abs_difference": 7600586,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 7600586,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1100": {
+          "final_abs_difference": 695806,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 695806,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1200": {
+          "final_abs_difference": 2541360,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 2541360,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1300": {
+          "final_abs_difference": 1474660,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1474660,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1910": {
+          "final_abs_difference": 8770,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8770,
+          "original_abs_difference": 0,
+          "different_final_accounts": 3,
+          "currency": "EUR"
+        },
+        "2100": {
+          "final_abs_difference": 61060,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 61060,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "EUR"
+        },
+        "3100": {
+          "final_abs_difference": 797158,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 797158,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "MXN"
+        }
+      }
+    },
+    {
+      "run": "professional_consumption_guard",
+      "retained": false,
+      "frozen_at": "2026-10-03T14:39:27.885338+00:00",
+      "evaluated_at": "2026-10-03T14:39:28.089457+00:00",
+      "close_sha256": "94720e340fd042dc7ddc52695422bc5966bd254a072abfdaf6909a644aa8ac44",
+      "handoff_payload_sha256": "dcafa74ff8d5a5ce3d35b61c2482a9724f807d38230132d706f9d523ef88a38f",
+      "official_close_score": [
+        0.7909774436090226,
+        {
+          "items": 64,
+          "recall": 0.822,
+          "precision": 0.762
+        }
+      ],
+      "rows": 78,
+      "aggregate_keys": {
+        "gold": 64,
+        "actual": 69
+      },
+      "counts": {
+        "ACCRUAL": {
+          "gold_rows": 57,
+          "actual_rows": 53,
+          "gold_keys": 45,
+          "actual_keys": 44
+        },
+        "BAD_DEBT": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        },
+        "FX_REVAL": {
+          "gold_rows": 8,
+          "actual_rows": 14,
+          "gold_keys": 8,
+          "actual_keys": 14
+        },
+        "PREPAID": {
+          "gold_rows": 9,
+          "actual_rows": 9,
+          "gold_keys": 9,
+          "actual_keys": 9
+        },
+        "WIP_REVENUE": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        }
+      },
+      "balances_by_company": {
+        "1000": {
+          "final_abs_difference": 8280694,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8280694,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1100": {
+          "final_abs_difference": 695806,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 695806,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1200": {
+          "final_abs_difference": 2541360,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 2541360,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1300": {
+          "final_abs_difference": 1474660,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1474660,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1910": {
+          "final_abs_difference": 8770,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8770,
+          "original_abs_difference": 0,
+          "different_final_accounts": 3,
+          "currency": "EUR"
+        },
+        "2100": {
+          "final_abs_difference": 61060,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 61060,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "EUR"
+        },
+        "3100": {
+          "final_abs_difference": 797158,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 797158,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "MXN"
+        }
+      }
+    },
+    {
+      "run": "retained_after_historical_deduplication",
+      "retained": true,
+      "frozen_at": "2026-10-03T14:47:29.554734+00:00",
+      "evaluated_at": "2026-10-03T14:47:46.037918+00:00",
+      "close_sha256": "8f062c48fc8951f4462b07f67cb3d0d3dd33e4d22e0fefd1d05589c9637562e9",
+      "handoff_payload_sha256": "78e250da8ab55ce233df5be1365b986f9c0d55d2f4743473c76570a8e45aaa1e",
+      "official_close_score": [
+        0.7909774436090226,
+        {
+          "items": 64,
+          "recall": 0.822,
+          "precision": 0.762
+        }
+      ],
+      "rows": 78,
+      "aggregate_keys": {
+        "gold": 64,
+        "actual": 69
+      },
+      "counts": {
+        "ACCRUAL": {
+          "gold_rows": 57,
+          "actual_rows": 53,
+          "gold_keys": 45,
+          "actual_keys": 44
+        },
+        "BAD_DEBT": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        },
+        "FX_REVAL": {
+          "gold_rows": 8,
+          "actual_rows": 14,
+          "gold_keys": 8,
+          "actual_keys": 14
+        },
+        "PREPAID": {
+          "gold_rows": 9,
+          "actual_rows": 9,
+          "gold_keys": 9,
+          "actual_keys": 9
+        },
+        "WIP_REVENUE": {
+          "gold_rows": 1,
+          "actual_rows": 1,
+          "gold_keys": 1,
+          "actual_keys": 1
+        }
+      },
+      "balances_by_company": {
+        "1000": {
+          "final_abs_difference": 8280694,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8280694,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1100": {
+          "final_abs_difference": 695808,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 695808,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1200": {
+          "final_abs_difference": 2541360,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 2541360,
+          "original_abs_difference": 0,
+          "different_final_accounts": 7,
+          "currency": "EUR"
+        },
+        "1300": {
+          "final_abs_difference": 1474660,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 1474660,
+          "original_abs_difference": 0,
+          "different_final_accounts": 6,
+          "currency": "EUR"
+        },
+        "1910": {
+          "final_abs_difference": 8770,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 8770,
+          "original_abs_difference": 0,
+          "different_final_accounts": 3,
+          "currency": "EUR"
+        },
+        "2100": {
+          "final_abs_difference": 61060,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 61060,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "EUR"
+        },
+        "3100": {
+          "final_abs_difference": 797158,
+          "upstream_abs_difference": 0,
+          "m6_abs_difference": 797158,
+          "original_abs_difference": 0,
+          "different_final_accounts": 2,
+          "currency": "MXN"
+        }
+      }
+    }
+  ],
+  "close_component_gain_percentage_points": 0.5902816743351025,
+  "whole_challenge_score_measured": false,
+  "final_close_sha256": "8f062c48fc8951f4462b07f67cb3d0d3dd33e4d22e0fefd1d05589c9637562e9",
+  "final_accounting_files": {
+    "balance_impact.json": "b346b40fdc76eb0e8553a8c3ed89b6744b3a69f860853142103525480c438782",
+    "close.jsonl": "8f062c48fc8951f4462b07f67cb3d0d3dd33e4d22e0fefd1d05589c9637562e9",
+    "close_decisions.jsonl": "ed07b0b4f9aa3994bce0909fbbe9db7a4106ade19b73bfa36c65329724ef8b3a",
+    "erp_original_balance.json": "d2dd2c19e7a3fabc6fa488172ea9131c070e91de527e91406b415b94cc23fd96",
+    "erp_original_positions.json": "c5da8543896043e34f5fc3613fb4e4054093a570580b01b25a991d54880f7587",
+    "final_balance.json": "893adb40d38df9f9b76e89bf68243a19487c415abdc0c495fb0614e6f743e56c",
+    "final_positions.json": "30a0254f458cc513faa7110d935bdc616ec768d3ea7a3a06c1b4cc32334ae1d6",
+    "pre_m6_balance.json": "e822b9cadd3fa5ad896ae43a2a1fb7c7c03c517fc408b53eb474b833286e23fc",
+    "pre_m6_positions.json": "8a9a3d420c54381026a65faf57f5cb5a0a5c64932b05b72cfd88a7378cd70cee",
+    "projection_events.jsonl": "b0d77d4a5f50f7fed676db57d75c88fab8a326aa16391a030d3ad0e9e790c438"
+  },
+  "validation": {
+    "python": "3.12.4",
+    "m6": {
+      "discovered": 66,
+      "passed": 66,
+      "failures": 0,
+      "log_sha256": "37d3a6b28c8709b3e875d805a792f61675a22b21619f2e436b45652fc52700a9"
+    },
+    "full_backend": {
+      "discovered": 879,
+      "passed": 815,
+      "skipped": 64,
+      "failures": 0,
+      "log_sha256": "b1795f6269add56f68f815d83418568b782efd2459d3276c3d6dbaafa30fc9a3"
+    },
+    "structural_errors": [],
+    "journal_invariant_errors": [],
+    "amount_sign_errors": [],
+    "date_errors": [],
+    "boundary": {
+      "scanned_modules": 161,
+      "allowed_dispatchers": [
+        "cli.py"
+      ],
+      "violations": []
+    }
+  },
+  "replay": {
+    "result": "PASS",
+    "integration": "simulated",
+    "files_equal": {
+      "balance_impact.json": "b346b40fdc76eb0e8553a8c3ed89b6744b3a69f860853142103525480c438782",
+      "close.jsonl": "8f062c48fc8951f4462b07f67cb3d0d3dd33e4d22e0fefd1d05589c9637562e9",
+      "close_decisions.jsonl": "ed07b0b4f9aa3994bce0909fbbe9db7a4106ade19b73bfa36c65329724ef8b3a",
+      "erp_original_balance.json": "d2dd2c19e7a3fabc6fa488172ea9131c070e91de527e91406b415b94cc23fd96",
+      "erp_original_positions.json": "c5da8543896043e34f5fc3613fb4e4054093a570580b01b25a991d54880f7587",
+      "final_balance.json": "893adb40d38df9f9b76e89bf68243a19487c415abdc0c495fb0614e6f743e56c",
+      "final_positions.json": "30a0254f458cc513faa7110d935bdc616ec768d3ea7a3a06c1b4cc32334ae1d6",
+      "pre_m6_balance.json": "e822b9cadd3fa5ad896ae43a2a1fb7c7c03c517fc408b53eb474b833286e23fc",
+      "pre_m6_positions.json": "8a9a3d420c54381026a65faf57f5cb5a0a5c64932b05b72cfd88a7378cd70cee",
+      "projection_events.jsonl": "b0d77d4a5f50f7fed676db57d75c88fab8a326aa16391a030d3ad0e9e790c438"
+    },
+    "guard": "builtins.open + io.open + os.open + imports + socket; fresh process",
+    "solver_forbidden_accesses": 0,
+    "unique_file_accesses": 62,
+    "document_calls": 0,
+    "llm_calls": 0,
+    "handoff_sha256": "78e250da8ab55ce233df5be1365b986f9c0d55d2f4743473c76570a8e45aaa1e",
+    "python": "3.12.4"
+  },
+  "replay_physical_phase_directories": [
+    "erp",
+    "tasks"
+  ],
+  "replay_golden_documents_bank_present": false,
+  "replay_handoff_contains_fixture_derived_upstream": true,
+  "phase_test": {
+    "originals_available": true,
+    "real_flow_executed": false,
+    "score_measured": false
+  },
+  "issue_closures": {
+    "completed": [
+      21,
+      23,
+      98,
+      99,
+      101,
+      102,
+      103,
+      104
+    ],
+    "superseded_scope_transferred": [
+      20,
+      22,
+      95,
+      96,
+      97,
+      100
+    ],
+    "open": [
+      171,
+      251
+    ]
+  },
+  "ci": {
+    "source_commit": "95cd046a3d440c5d7510ad9eb85508327699625d",
+    "python": "3.12.14",
+    "upstream": {
+      "run_id": 37131128321,
+      "status": "success",
+      "url": "https://github.com/alfonsomayoral/talky-labs-hackathon/actions/runs/37131128321"
+    },
+    "fork": {
+      "run_id": 37131153914,
+      "status": "success",
+      "url": "https://github.com/juan-fernandez-gotherlabs/talky-labs-hackathon/actions/runs/37131153914"
+    },
+    "m6": {
+      "discovered": 66,
+      "passed": 66,
+      "failures": 0
+    },
+    "full_backend": {
+      "discovered": 879,
+      "passed": 839,
+      "skipped": 40,
+      "failures": 0
+    },
+    "doctor": {
+      "version": "0.1.1",
+      "python": "3.12.14",
+      "supported": true
+    },
+    "source_archive_sha256": "f5548e095f217d87811d0f97295130a93ee329fb7ae6fa769aeff253798008b6",
+    "logs_sha256": {
+      "m6-tests.log": "e6843c9d68a781f760e02c25ea47df2354da339c25d6a3a38dfa9f5e53e2e689",
+      "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "doctor.log": "61d37fe29f3de7b84d2f844578124c9d82cdf2d18e8835d8f4c19ed6bdbb2528",
+      "tests.log": "f0d4e050d6bd83c7a55cf2aceb2537774b8d900d734479a319a69836d8edaa6e",
+      "install.log": "b547d807b3892d89c2277a52ee8fb85ea0f1f2c39d7a393a55b27b88b184a5fd"
+    },
+    "archived_adapter_equals_retained_source": true,
+    "note": "CI results are for the source commit above; the subsequent delivery commit adds documentation and evidence only."
+  },
+  "limitations": [
+    "Close precision increases; recall and missing identity coverage are unchanged.",
+    "Company1000 account L1 difference worsens; account L1 is two-sided, not a loss, and currencies are separate.",
+    "Historical open foreign credit notes have no observed clearing; they are retained.",
+    "Professional full-month evidence guard is a conservative assumption, not a literal policy threshold.",
+    "Saved-fact replay is not real M1-M5 integration or September acceptance."
+  ]
+}

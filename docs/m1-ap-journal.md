@@ -111,6 +111,10 @@ on both 407 and reconciliation lines.
 
 `AdvanceBalance` carries original document cents and booked local cents, the
 source invoice/date/PO, and cumulative document/local consumption.
+[`resolve_historical_advances`](ap-advance-history.md) reconstructs those
+balances and recorded consumption from complete scoped ERP evidence through an
+explicit cutoff. Unknown manual movements suppress usable capacity; original
+null-partner diagnostics are retained without rewriting historical entries.
 `AdvanceApplication` supplies amount, classification and evidence; unknown
 classification blocks. The invoice must explicitly resolve the same PO and
 company/vendor/currency. Every application names an invoice line and an explicit

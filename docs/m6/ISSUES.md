@@ -1,8 +1,11 @@
 # M6 issue-by-issue status
 
-All listed issues remain **OPEN**. This file reports development evidence, not
-issue closure, independent approval or real-flow acceptance. Existing PR #197
-remains a draft pending review and unresolved accounting acceptance.
+Implementation tracking #20–#23 and #95–#104 is **CLOSED** at the user's request.
+The unresolved accounting work is consolidated in **#251 (OPEN)**; final real-flow
+execution outside golden, including September, is **#171 (OPEN)**. Existing PR
+#197 remains a draft. Closure of the modular tracking is not real-flow acceptance.
+The table below preserves the original delivery evidence and its remaining work;
+current score evidence is in `SCORE_INVESTIGATION.md`.
 
 | Issue | Delivered modular implementation/evidence | Remaining evidence or acceptance |
 |---|---|---|
@@ -15,10 +18,12 @@ remains a draft pending review and unresolved accounting acceptance.
 | #101 M6-07 | After-cash ageing and required-minus-existing 490; threshold, insolvency, guarantees, exclusions and reversal tests; exact July amount | Real M3/M4 applications and ageing completeness; external review |
 | #102 M6-08 | Minimal shared CloseType extension; invoice-by-invoice 430-to-436 in declaration month only; multiple invoices/rerun/prior-month tests | July has no such event; real-flow variation evidence and review |
 | #103 M6-09 | Month-end-only entry validation; historical reversals read; no new day-one reversals; ERP immutability and idempotence tests | Real pipeline rerun/event-stage ownership evidence |
-| #104 M6-10 | Frozen-output evaluator, original/pre/final books, strict and aggregate differences, per-account impact, replay and real CI logs | Overall scorer 78.507%, not full accounting acceptance; review and real integration |
+| #104 M6-10 | Frozen-output evaluator, original/pre/final books, strict and aggregate differences, per-account impact, replay and real CI logs | Original close component 78.507%, not full accounting acceptance; review and real integration |
 | #171 M6-11 | Explicit real-compatible contract and mock/real substitution tests | Actual M1–M5-to-M6 execution with no golden_fixture dependencies, producer versions, positive coverage and reviewed output: NOT RUN |
 
 Epics #20 (accruals), #21 (prepaids/WIP), #22 (FX/customers), #23 (export/validation)
-and milestone 7 remain open. No automatic closing keywords are used in this PR.
+are closed; milestone 7 remains open with #171 and #251. Issues #20, #22,
+#95–#97 and #100 were closed as superseded, with their unresolved scope transferred
+to those issues; the other modular tracking issues were closed as completed.
 CI proves tested code behavior; it does not replace the missing accounting or
 real-flow acceptance evidence.
