@@ -48,6 +48,11 @@ del subcomando. Las llamadas LLM futuras registrarán proveedor, modelo, tokens,
 caché y tarifas explícitas; si faltan datos, el coste queda desconocido. Las
 ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 
+## Entorno local
+
+[Levantar backend, MCP, agente de chat y front](docs/local-setup.md): comandos,
+variables de entorno y problemas frecuentes.
+
 ## Facturación AR desde soportes originales
 
 `solve-ar-billing` usa por defecto `--engine sources`: lee los cinco tipos de
