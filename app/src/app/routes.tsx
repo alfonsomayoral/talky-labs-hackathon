@@ -3,12 +3,18 @@
 import type { RouteObject } from 'react-router'
 import AppShell from '@/shell/AppShell'
 
+// Shown while the first lazy route module loads (avoids react-router's missing HydrateFallback warning).
+function RouteFallback() {
+  return null
+}
+
 const page = (load: () => Promise<{ default: React.ComponentType }>) => async () => ({ Component: (await load()).default })
 
 export const routes: RouteObject[] = [
   {
     path: '/',
     Component: AppShell,
+    HydrateFallback: RouteFallback,
     children: [
       { index: true, lazy: page(() => import('@/features/overview/OverviewPage')) },
       { path: 'atencion', lazy: page(() => import('@/features/attention/AttentionPage')) },
