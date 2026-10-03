@@ -64,7 +64,10 @@ class Evidence:
     quote: str | None = None
 
     def __post_init__(self):
-        if not self.document or not self.field or (self.page is not None and self.page < 1):
+        if (not isinstance(self.document, str) or not self.document
+                or not isinstance(self.field, str) or not self.field
+                or (self.page is not None and (type(self.page) is not int or self.page < 1))
+                or (self.quote is not None and not isinstance(self.quote, str))):
             raise ValueError("Evidence requires document, field and a positive page when supplied")
 
 
@@ -72,6 +75,10 @@ class Evidence:
 class Fact:
     value: object
     evidence: Evidence
+
+    def __post_init__(self):
+        if not isinstance(self.evidence, Evidence):
+            raise ValueError("Fact requires structured Evidence")
 
 
 @dataclass(frozen=True)
@@ -81,10 +88,15 @@ class DocumentFacts:
     fields: dict[str, list[Fact]]
 
     def __post_init__(self):
-        if len(self.source_sha256) != 64 or any(c not in "0123456789abcdef" for c in self.source_sha256):
+        if (not isinstance(self.source_sha256, str) or len(self.source_sha256) != 64
+                or any(c not in "0123456789abcdef" for c in self.source_sha256)):
             raise ValueError("Invalid source SHA-256")
-        if not self.extractor_version:
+        if not isinstance(self.extractor_version, str) or not self.extractor_version:
             raise ValueError("Extractor version is required")
+        if (not isinstance(self.fields, dict) or any(not isinstance(key, str) or not key
+                or not isinstance(values, list) or any(not isinstance(fact, Fact) for fact in values)
+                for key, values in self.fields.items())):
+            raise ValueError("Fields require named lists of Fact objects")
 
     def to_dict(self):
         return {"source_sha256": self.source_sha256, "extractor_version": self.extractor_version,

@@ -43,3 +43,10 @@ class FactsTests(unittest.TestCase):
             Evidence("", "total")
         with self.assertRaises(ValueError):
             Evidence("a", "total", 0)
+        for page in (True, 1.5, "1", []):
+            with self.subTest(page=page), self.assertRaises(ValueError):
+                Evidence("a", "total", page)
+        with self.assertRaises(ValueError):
+            Fact(100, {"document": "a", "field": "total"})
+        with self.assertRaises(ValueError):
+            DocumentFacts("0" * 64, "v1", {"total": [100]})
