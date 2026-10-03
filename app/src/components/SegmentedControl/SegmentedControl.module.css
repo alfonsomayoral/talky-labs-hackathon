@@ -18,7 +18,7 @@
   gap: var(--space-1);
   padding: 0 10px;
   border-radius: var(--radius-sm);
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-size: var(--text-12);
   font-weight: var(--weight-medium);
   white-space: nowrap;
