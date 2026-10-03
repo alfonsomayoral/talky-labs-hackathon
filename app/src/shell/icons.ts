@@ -16,6 +16,7 @@ import {
   Play,
   Receipt,
   Scale,
+  Settings,
   Sparkles,
   type LucideIcon,
 } from 'lucide-react'
@@ -36,6 +37,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   Play,
   Receipt,
   Scale,
+  Settings,
   Sparkles,
 }
 
