@@ -61,6 +61,9 @@ golden or official score is claimed.
 
 Current-backend suite: **1,246 discovered; 1,203 passed; 43 optional-data/service
 skips; zero failures** on Python 3.12.2. Compile, doctor and diff checks passed.
+The M5 CI workflow now installs that locked backend runtime before its full
+suite; its previous core-only install failed current document tests with
+missing pydantic/pypdf dependencies.
 IC replay on the corrected projection retains the exact corrected ledger hash,
 eight findings and zero new adjustment lines. Four negative probes reject an
 incomplete audit, missing pair, empty IC output and changed AP delivery.
