@@ -67,7 +67,7 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
         normalized = normalize_document_facts(facts)
         self.assertEqual(normalized.diagnostics, ())
         expected = {"net_cents": 10000, "tax_cents": 2100, "withholding_cents": 1500,
-                    "payable_cents": 10600, "line.1.quantity_milli": 2000,
+                    "payable_cents": 5000, "line.1.quantity_milli": 2000,
                     "line.1.unit_price_e4": 500000, "line.2.quantity_milli": 125,
                     "tax.charge.1.tax_rate_e4": 2100, "tax.charge.2.tax_rate_e4": 200,
                     "tax.withheld.1.tax_rate_e4": 1500, "line.1.tax.charge.1.tax_rate_e4": 2100,
