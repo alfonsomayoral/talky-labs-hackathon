@@ -24,6 +24,9 @@ runs/<run_id>/
 
 ### 1.1 `manifest.json`
 
+El backend ya escribe un informe por ejecución en `outputs/runs/<uuid>.json` (`kalmora.runlog`, `schema_version: 1`). Incluye las llamadas a modelos con tokens y coste estimado, la duración y el estado. **La app acepta ese informe tal cual** si va en el paquete como `manifest.json` o `run.json`, y lo traduce a este formato. Si el backend añade a su informe los tiempos por tarea y las correcciones humanas, se muestran sin cambios en la app.
+
+
 ```json
 {"run_id": "dev-2026-07-r003", "dataset": "phase_dev", "month": "2026-07",
  "started_at": "2026-10-03T10:00:00Z", "finished_at": "2026-10-03T10:21:40Z", "runtime_s": 1300,

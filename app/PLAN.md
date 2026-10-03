@@ -167,6 +167,23 @@ La capa de datos es del equipo de backend. Lo que construye el paquete 1.B es un
 - **Cambiar de origen** (carpeta local, middleware de desarrollo o API del backend) es añadir o cambiar un proveedor, sin tocar stores ni vistas.
 - **Los parsers del navegador** (N43, CAMT.053, CSV, Facturae y CFDI) solo sirven para mostrar evidencias. Si el backend entrega los datos ya parseados, se retiran.
 
+### 3.4.1 Alineación con los milestones del backend
+
+El backend se construye en los milestones del repo, de M0 a M7, en el mismo orden de dependencias que el frontend.
+
+| Milestone | Qué produce | Qué consume el frontend | Pantalla |
+| --- | --- | --- | --- |
+| M0 — Base, contratos y auditoría | Lectura reproducible, contratos de salida (M0-06), informe de ejecución con modelo, coste y tiempo (M0-11), comparador con golden (M0-09) | Informe de ejecución como `manifest.json`; los mismos contratos de salida | Ejecuciones, Coste, Comparar |
+| M1 — AP | `ap.jsonl` | Decisiones, motivos, asientos | Bandeja AP, Actividad, Atención |
+| M2 — Facturación | `ar_billing.jsonl` | Facturas y pendientes de aprobación | Facturación, Cierre (obra pendiente) |
+| M3 — Bancos | `bank_rec.jsonl` | Casaciones, sin casar y ajustes | Bancos |
+| M4 — Cobros | `ar_cash.jsonl` | Aplicaciones y diferencias | Cobros |
+| M5 — Intragrupo | `ic.jsonl` | Diferencias por pareja y causa | Intragrupo |
+| M6 — Cierre | `close.jsonl` | Periodificaciones, anticipados, divisa, deterioro | Cierre, Balance |
+| M7 — Integración y entrega | Ejecución completa, paquete de 6 ficheros y memoria | Paquete de ejecución completo; eventos y atención si los emite | Todas; Entregables valida el mismo paquete |
+
+Cada milestone que termina se ve en la app al importar su JSONL: lo que aún no existe aparece como fichero ausente, con nota 0 en esa tarea.
+
 ### 3.5 Datos en desarrollo
 
 `dev/kalmoraData.ts` sirve las carpetas definidas en `.env.local`:
@@ -175,6 +192,8 @@ La capa de datos es del equipo de backend. Lo que construye el paquete 1.B es un
 KALMORA_DATASETS=dev:../../participant/phase_dev,test:../../participant-2/phase_test
 KALMORA_RUNS=../runs
 ```
+
+`KALMORA_RUNS` puede apuntar a la carpeta `outputs/` del backend. El backend guarda los datos en `participant/` o `data/`, ambos fuera de git; `KALMORA_DATASETS` puede apuntar ahí.
 
 - Los datos **nunca** se copian al repo.
 - `runs/` está en `.gitignore`. En particular, no se publican resultados de septiembre en el repo público.
