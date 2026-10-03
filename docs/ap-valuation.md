@@ -22,21 +22,23 @@ company are never combined across invoices. Scope and quantity mismatches fail.
 `VALUED` requires the upstream POST or POST_PAYMENT_BLOCK decision. Other valid
 decisions return `INELIGIBLE` with no components; missing/blocked allocations return
 `UNALLOCATED`. No price tolerance, tax, fraud, certificate or payee rule is inferred.
-Negative invoice net values are rejected pending credit-note/reversal integration.
+Input net values are unsigned document cents. #54 reverses eligible credit-note
+debit/credit sides after validating the original imputation and fiscal evidence.
 Master existence and cost-object ownership must be validated by the caller using
 M0 validation; the core checks the explicit assignment's company and exclusivity.
 
-## Connections still pending
+## Integration boundaries
 
 - #43/#44 adapters provide resolved quantities and historical consumption.
-- #45 supplies expense/asset accounts and company-owned cost objects; defaults or
-  historical recovery are not implemented here.
+- #45 supplies expense/asset accounts and company-owned cost objects through
+  the deterministic coding resolver; recovery remains outside valuation.
 - #49/#50 supply eligibility and price-tolerance/payment-block decisions. Retain
   tentative #44 state only after every posting stage succeeds.
-- #52/#53/#54 add taxes, withholding, guarantees, advances, supplier reconciliation
-  account/payable and a complete balanced journal. They must use `net_local` as
-  the net posting contribution rather than independently converting its total.
-- #32 adapts to the final six delivery contracts; no interface changes here.
+- #52/#53 supply fiscal components; #54 assembles complete scoped journals with
+  credits and advances. They use `net_local` as the posting contribution rather
+  than independently converting its total.
+- #55 exports validated delivery rows. #140 binds documentary facts to these
+  interfaces and owns full-phase coverage and final evaluation.
 
 Synthetic tests compose a net-only supplier fixture and validate Debe/Haber with
 M0. They cover fragmented receipts, multiple prices, signed differences, direct

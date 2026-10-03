@@ -94,6 +94,6 @@ validation loaded 6,343 expense/asset historical records from original July ERP
 and resolved its explicit notarized-fee cost object without golden access. Account
 and treatment in that case remain those of the current vendor master.
 
-Normalized document facts/extraction (#41) and end-to-end phase adaptation remain
-pending. This core supplies deterministic recovery but does not claim full July
-AP output validation or issue closure.
+The deterministic recovery criteria of #45 are complete. Normalized document
+facts/extraction (#41) and end-to-end phase adaptation/evaluation (#140/#55)
+remain separate work; this core does not claim full July AP output validation.
