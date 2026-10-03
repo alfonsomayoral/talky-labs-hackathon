@@ -72,7 +72,7 @@ def semantic_requests(document, facts, data):
     if len(vendors) != 1:
         return []
     vendor = next(iter(vendors))
-    recipient = observed(facts, 'recipient_tax_id')
+    recipient = observed(facts, 'recipient_tax_id', 'customer_tax_id', 'buyer_tax_id')
     companies = {str(row['code']) for row in data.companies if recipient & {row.get('tax_id'), row.get('vat_id')}}
     if len(companies) != 1:
         return []
@@ -130,7 +130,8 @@ async def capture(args):
                        model_output_capacity_tokens=128_000)
     args.output.mkdir(parents=True, exist_ok=True)
     global_recorder = RunRecorder(args.output / 'reports', sys.argv,
-                                   {'partition': args.partition, 'manifest_sha256': hashlib.sha256(args.manifest.read_bytes()).hexdigest()})
+                                   {'partition': args.partition, 'manifest_sha256': hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+                                    'capture_mode': 'captured_live', 'transport_mode': 'default', 'response_source': 'provider_api'})
     with global_recorder:
         mux = RecorderMux(global_recorder)
         client = AsyncLLMClient(config, mux)
@@ -146,7 +147,8 @@ async def capture(args):
                 started = time.perf_counter()
                 directory = args.output / case['case_id']
                 recorder = RunRecorder(directory / 'reports', ['capture_document_sample', case['case_id']],
-                                       {'partition': args.partition, 'case_id': case['case_id']})
+                                       {'partition': args.partition, 'case_id': case['case_id'],
+                                        'capture_mode': 'captured_live', 'transport_mode': 'default', 'response_source': 'provider_api'})
                 status = {'case_id': case['case_id'], 'partition': args.partition, 'attachments': [],
                           'status': 'completed', 'new_capture': False}
                 token = ACTIVE_CASE.set(recorder)
