@@ -12,7 +12,7 @@
   font-weight: var(--weight-medium);
 }
 
-/* Libre Baskerville only here (PLAN §2.2). */
+/* Libre Baskerville only here and in the Assistant headline (PLAN §2.2, Fase 6). */
 .headline {
   max-width: 30em;
   color: var(--ink-3);

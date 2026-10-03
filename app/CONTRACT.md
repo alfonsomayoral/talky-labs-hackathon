@@ -96,6 +96,21 @@ La app la usa si `VITE_API_URL` está definida. Mientras no exista, se importan 
 | `GET /api/runs/{id}/files/{ruta}` | Cualquier fichero del paquete (`deliverables/ap.jsonl`, `trace/events.jsonl`…) | El fichero |
 | `POST /api/chat` | Pregunta al Asistente: `{"run_id", "dataset_id", "messages": [{"role", "content"}], "mode": "fast|deep"}` | SSE: `event: delta` con texto, `event: card` con una tarjeta (`{"type": "items|table|reasoning|metric", …}`), `event: citation` con `{"item"}` o `{"policy_ref"}`, y `event: done` |
 
+
+### 2.1 Tarjetas del Asistente (`event: card`)
+
+Mismo formato que `src/features/assistant/engine/types.ts` (`AssistantCard`). Importes en céntimos enteros con su moneda.
+
+| `type` | Campos |
+| --- | --- |
+| `metric` | `title?`, `metrics: [{label, value, delta?, comparison?, hint?}]`; `value` es `{kind: "number", value}`, `{kind: "percent", value}`, `{kind: "money", cents, currency}` o `{kind: "text", text}` |
+| `table` | `title?`, `columns: [{label, align?}]`, `rows`: lista de filas de celdas `{kind: "text"\|"mono", text}`, `{kind: "number"\|"percent", value}`, `{kind: "money", amounts: [{cents, currency}]}` o `{kind: "item", item, label}` |
+| `items` | `title?`, `items: [{item, title?, amount?, currency?, priority?, status?}]` (cada `item` es un id de partida `<tarea>:<clave>`), `total?` |
+| `reasoning` | `item`, `headline`, `facts`, `steps` |
+| `process` | `task`: la app dibuja el mapa de decisión de esa tarea |
+
+`event: delta` lleva `{"text": "…"}`. La app también acepta una cadena JSON o texto plano, y descarta las tarjetas de tipo desconocido.
+
 CORS abierto a `http://localhost:5173` en desarrollo.
 
 ## 3. Lo que hace la app con lo recibido
