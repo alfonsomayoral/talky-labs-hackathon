@@ -625,8 +625,8 @@
     "threshold_revision": "user-no-temporal-limit-2026-10-03",
     "threshold_revision_reason": "User removed temporal limits before holdout evaluation; elapsed time and p95 remain reported, all accuracy/evidence/completeness/cost gates unchanged",
     "budget": {
-      "smoke_plus_sample_spend_cap_usd": "3.00",
-      "spend_cap_change": "User approved USD3 on 2026-10-03 to compare GPT-6.1 Sol without an output-token cap; labels, partitions and quality/latency/per-document-cost gates unchanged",
+      "smoke_plus_sample_spend_cap_usd": "5.00",
+      "spend_cap_change": "User approved USD5 and any necessary further extension on 2026-10-03 to complete model comparisons; spending and unknown reservations remain recorded, non-temporal quality and per-document-cost gates unchanged",
       "max_attempts_per_document": 2,
       "max_concurrency": 2,
       "output_token_limit": null,

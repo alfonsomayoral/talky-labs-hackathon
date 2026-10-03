@@ -1,7 +1,7 @@
 """Read selected originals into page/field evidence without deciding accounting."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from io import BytesIO
 import json
@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 from .contracts import ParsedBlock, ParsedDocument, PageImage, digest, source_path
 
-PARSER_VERSION = "source-router-v1/pypdf-6.19.0"
+PARSER_VERSION = "source-router-v1"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 
 
@@ -55,10 +55,16 @@ def _xml_blocks(data: bytes):
 
 
 class DocumentRouter:
-    def __init__(self, phase_path: str | Path):
+    def __init__(self, phase_path: str | Path, *, use_preparsed: bool = False,
+                 normalized_dir: str | Path | None = None):
         self.phase_path = Path(phase_path).resolve()
         if "golden" in self.phase_path.parts:
             raise ValueError("golden is not a document input")
+        if type(use_preparsed) is not bool:
+            raise TypeError("use_preparsed must be a boolean")
+        self.use_preparsed = use_preparsed
+        self.normalized_dir = (Path(normalized_dir).resolve() if normalized_dir is not None
+                               else self.phase_path.parent / "normalized_sources")
 
     def _path(self, relative: str):
         source_path(relative)
@@ -76,15 +82,19 @@ class DocumentRouter:
         if path.stat().st_size > MAX_SOURCE_BYTES:
             raise ParseError(relative, "source_size_limit")
         data = path.read_bytes()
+        if self.use_preparsed:
+            return self._load_preparsed(relative, data)
         suffix = path.suffix.lower()
+        parser_version = PARSER_VERSION
         blocks, images, warnings = (), (), ()
         try:
             if suffix == ".pdf":
                 try:
-                    from pypdf import PdfReader
+                    from pypdf import PdfReader, __version__ as pypdf_version
                 except ImportError:
                     raise ParseError(relative, "missing_documents_extra") from None
                 reader = PdfReader(BytesIO(data), strict=True)
+                parser_version += "/pypdf-" + pypdf_version
                 if reader.is_encrypted:
                     raise ParseError(relative, "encrypted_pdf")
                 block_list, image_list, warning_list = [], [], []
@@ -125,7 +135,30 @@ class DocumentRouter:
             raise
         except Exception:
             raise ParseError(relative, "invalid_" + suffix.lstrip(".")) from None
-        return ParsedDocument(relative, digest(data), media, PARSER_VERSION, blocks, images, warnings)
+        return ParsedDocument(relative, digest(data), media, parser_version, blocks, images, warnings)
+
+    def _load_preparsed(self, relative: str, source: bytes) -> ParsedDocument:
+        """Load a prior router snapshot, tied to these exact source bytes.
+
+        This opt-in path is a development shortcut. It never falls back to
+        parsing when the snapshot is absent, invalid, or stale.
+        """
+        snapshot_path = self.normalized_dir / self.phase_path.name / (relative + ".json")
+        if not snapshot_path.is_file():
+            raise ParseError(relative, "missing_preparsed_snapshot")
+        try:
+            value = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            document = ParsedDocument.from_dict(value)
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            raise ParseError(relative, "invalid_preparsed_snapshot") from None
+        expected_path = f"{self.phase_path.name}/{relative}"
+        if document.path not in {relative, expected_path}:
+            raise ParseError(relative, "preparsed_path_mismatch")
+        if document.source_sha256 != digest(source):
+            raise ParseError(relative, "preparsed_source_hash_mismatch")
+        # The corpus dump is participant-relative; router consumers use paths
+        # relative to the selected phase. Preserve that existing contract.
+        return replace(document, path=relative)
 
     def parse_folder(self, relative: str) -> ParsedFolder:
         path = self._path(relative)

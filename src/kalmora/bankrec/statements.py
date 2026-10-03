@@ -97,6 +97,28 @@ def _csv(path: Path) -> tuple[int, int, list[dict]]:
 _READERS = {"n43": ("n43", _n43), "camt053": ("camt053.xml", _camt), "csv_mx": ("csv", _csv)}
 
 
+def receipt_narratives(data: PhaseData, account: str, month: Month) -> dict[str, str]:
+    """Retain N43 references and concepts omitted by the JSONL movement twin.
+
+    JSON-only fixtures have no original statement and receive no enrichment.
+    An available original must align with the twin; corrupt sources fail closed.
+    """
+    path = data.phase_dir / "bank" / account / f"{month}.n43"
+    if not path.is_file():
+        return {}
+    twin = list(data.bank_lines(account, month))
+    opening, closing, moves = _n43(path)
+    if len(twin) != len(moves) or any(line["amount"] != move["amount"] for line, move in zip(twin, moves)):
+        raise StatementError(f"{account} {month}: original file and .lines.jsonl differ")
+    if opening + sum(move["amount"] for move in moves) != closing:
+        raise StatementError(f"{account} {month}: opening plus movements does not equal closing")
+    return {
+        line["bank_line"]: " ".join([line["text"], move["reference"], move["receipt"],
+                                    *(part for _, a, b in move["concepts"] for part in (a, b))])
+        for line, move in zip(twin, moves)
+    }
+
+
 def read_statement(data: PhaseData, account: BankAccount, month: Month) -> Statement:
     """One month of one account; StatementError if the files disagree or the balances do not close."""
     try:

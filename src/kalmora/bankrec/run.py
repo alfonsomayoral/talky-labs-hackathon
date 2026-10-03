@@ -52,6 +52,8 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
         except (StatementError, FileNotFoundError, KeyError) as error:
             unresolved.append(Unresolved(account.id, (f"statements: {error}",)))
     live = [a for a in accounts if a.id in statements]
+    if not live:
+        return BankRecRun((), tuple(unresolved))
     first = min(s.month for a in live for s in statements[a.id][:1])
     month_start, month_end = f"{month}-01", classify.month_end(month)
     book, entries, before = load_book(data, live, first, month_end)
@@ -145,9 +147,14 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
             left = validate.after_adjustments(closing, balance, effect, errors, b["unmatched_book"])
             if left:
                 diagnostics.append(f"identity: {left} unexplained after adjustments")
-        results.append(AccountReconciliation(
+        result = AccountReconciliation(
             a, month, statements[a.id][-1].opening, closing, balance,
             tuple(m for m in b["current"] if not (len(m.bank_lines) == 0)), tuple(b["unmatched_bank"]),
-            tuple(b["unmatched_book"]), tuple(b["adjustments"]), tuple(diagnostics)))
+            tuple(b["unmatched_book"]), tuple(b["adjustments"]), tuple(diagnostics))
+        problems = validate.reconciliation(result, statements[a.id][-1], b["bank_by_id"], b["books"])
+        if problems:
+            from dataclasses import replace
+            result = replace(result, diagnostics=result.diagnostics + tuple(problems))
+        results.append(result)
     order = {a.id: i for i, a in enumerate(accounts)}
     return BankRecRun(tuple(sorted(results, key=lambda r: order[r.account.id])), tuple(unresolved))

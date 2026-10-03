@@ -77,11 +77,12 @@ def direct_debits(b: Builder, lines: list[StatementLine]) -> None:
 
 def returned(b: Builder, lines: list[StatementLine]) -> None:
     ordered = sorted(lines, key=lambda x: (x.booking_date, x.id))
+    used_fees: set[str] = set()
     for index, x in enumerate(ordered):
         if not x.text.upper().startswith("DEVOLUCION RECIBO"):
             continue
         commission = next((c for c in ordered[index + 1:] if c.text.upper().startswith("COMISION DEVOLUCION")
-                           and c.booking_date == x.booking_date), None)
+                           and c.booking_date == x.booking_date and c.id not in used_fees), None)
         customer = b.ctx.receipt_customer(x.receipt) if x.receipt else None
         if not customer:
             b.diagnostics.append(f"{x.id}: returned receipt {x.receipt} has no customer; no entry built")
@@ -93,6 +94,8 @@ def returned(b: Builder, lines: list[StatementLine]) -> None:
             rows.append(b.line(FEE, fee))
         rows.append(b.line(b.account.gl_account, credit=debit_receipt + fee))
         b.add(Category.RETURNED_DIRECT_DEBIT, rows, [x.id] + ([commission.id] if commission else []))
+        if commission:
+            used_fees.add(commission.id)
 
 
 def interest(b: Builder, lines: list[StatementLine]) -> None:

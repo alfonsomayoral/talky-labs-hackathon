@@ -1,10 +1,11 @@
 """Journal entry and delivery row from a resolved invoice (policy §3.1 "Asiento")."""
 from ..model import JournalEntry, JournalLine
 from ..output_models import ArBillingRow, ArDeduction, ArFace, ArInvoice, ArInvoiceLine
-from .model import BillingResult, Invoice
+from .model import BillingResult, Invoice, PendingWip
 
 RECEIVABLE, GUARANTEE, ADVANCE, MX_LEVY, VAT = "43000000", "43000900", "43800000", "63100000", "47700000"
 _DEDUCTION_ACCOUNT = {"MX5MILL": MX_LEVY, "ADV_AMORT": ADVANCE}
+REVERSE_CHARGE_NOTICE = "Inversión del sujeto pasivo conforme al art. 84.Uno.2º f de la Ley del IVA."
 
 
 def build_entry(invoice: Invoice, *, company: str, customer: str, customer_name: str) -> JournalEntry:
@@ -33,8 +34,11 @@ def build_entry(invoice: Invoice, *, company: str, customer: str, customer_name:
             cost_center=line.cost_center, tax_code=invoice.tax_code, text=line.description)
     if invoice.tax:
         add(VAT, 0, invoice.tax, partner=None, tax_code=invoice.tax_code, text=f"IVA repercutido {invoice.tax_code}")
+    header = f"Factura {customer_name}"
+    if invoice.tax_code == "RISP":
+        header += " — " + REVERSE_CHARGE_NOTICE
     return JournalEntry(company=company, doc_type="DR", posting_date=invoice.date, document_date=invoice.date,
-                        reference=invoice.number, header_text=f"Factura {customer_name}", source="SD",
+                        reference=invoice.number, header_text=header, source="SD",
                         currency=invoice.currency, lines=lines)
 
 
@@ -46,6 +50,7 @@ def to_row(result: BillingResult) -> ArBillingRow:
     if invoice is None or result.journal_entry is None:
         return row
     body = ArInvoice(
+        number=invoice.number, currency=invoice.currency, gross=invoice.gross,
         date=invoice.date, due_date=invoice.due_date, tax_code=invoice.tax_code, net=invoice.net,
         tax=invoice.tax, retention=invoice.retention, payable=invoice.payable,
         deductions=[ArDeduction(code=d.code, amount=d.amount, account=d.account) for d in invoice.deductions],
@@ -55,6 +60,18 @@ def to_row(result: BillingResult) -> ArBillingRow:
         body["face"] = ArFace(oficina_contable=invoice.face.oficina_contable,
                               organo_gestor=invoice.face.organo_gestor,
                               unidad_tramitadora=invoice.face.unidad_tramitadora)
+    if invoice.tax_code == "RISP":
+        body["legal_notice"] = REVERSE_CHARGE_NOTICE
     row["invoice"] = body
     row["journal_entry"] = result.journal_entry
     return row
+
+
+def to_pending_row(pending: PendingWip) -> dict:
+    """Close input, separate from delivery rows and from WIP accounting postings."""
+    return {"billing_item": pending.item.id, "company": pending.item.company,
+            "customer": pending.item.customer, "contract": pending.item.contract,
+            "month": pending.item.month, "amount": pending.amount,
+            "lines": [{"amount": x.amount, "wbs": x.wbs} for x in pending.lines],
+            "evidence": [{"document": e.document, "field": e.field, "page": e.page, "quote": e.quote}
+                         for e in pending.evidence]}
