@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
-    metadata = {"package_version": __version__}
+    metadata: dict[str, object] = {"package_version": __version__}
     for name in ("phase", "archive", "destination"):
         if hasattr(args, name):
             metadata[name] = str(getattr(args, name).resolve())
@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     return status
 
 
-def _execute(args) -> int:
+def _execute(args: argparse.Namespace) -> int:
     if args.command == "doctor":
         supported = sys.version_info >= (3, 12)
         print(json.dumps({"version": __version__, "python": sys.version.split()[0], "supported": supported}))

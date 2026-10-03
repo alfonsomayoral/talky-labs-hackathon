@@ -6,18 +6,36 @@ Master cost records may contain company; dates are checked when supplied.
 Financial fees, FX, tax, impairment and cash residuals follow the organizer's
 golden journals, which intentionally carry no cost object on these accounts.
 """
+from collections.abc import Mapping
 from datetime import date
+from typing import Any
 import re
 from .ledger import is_open_item_account
-NO_COST_REQUIRED = {
+from .model import Diagnostic, JournalEntry, ValidationContext
+NO_COST_REQUIRED: frozenset[str] = frozenset({
     '62600000', '63100000', '66200000', '66210000', '66500000',
     '66800000', '66900000', '69400000', '70590000', '75900000',
     '76200000', '76800000', '79400000',
-}
+})
 
-def validate_entry(entry, context=None):
+def validate_entry(entry: JournalEntry, context: ValidationContext | None = None) -> list[Diagnostic]:
+    """Return every problem found in ``entry``; an empty list means it is valid.
+
+    Never raises for bad data: malformed input becomes a diagnostic, so a caller can
+    correct, hold or reject. The rules mirror the accounting policies:
+
+    * the entry balances to the cent and every line is a non-negative debit *or* credit;
+    * open-item accounts carry a partner of the right kind (policy §1): ``FACTOR-BAE`` on
+      55300000, another group company on 552/2423/1633;
+    * expense, income and fixed-asset accounts carry a cost center **or** a WBS element,
+      never both, except the accounts in ``NO_COST_REQUIRED`` (fees, interest, FX,
+      impairment, cash residuals) which the reference journals leave without one;
+    * for each key present in ``context``, the referenced master records exist and a cost
+      object belongs to the entry's company, and ``posting_date`` falls in the close window.
+    """
     context = context or {}
-    errors = []
+    raw: Mapping[str, object] = entry  # dynamic field names below
+    errors: list[Diagnostic] = []
     if not isinstance(entry, dict):
         return ['entry: expected object']
     company = entry.get('company')
@@ -30,13 +48,14 @@ def validate_entry(entry, context=None):
     for field in ('posting_date', 'document_date'):
         if field in entry:
             try:
-                value = entry[field]
+                value = raw[field]
                 if not isinstance(value, str) or date.fromisoformat(value).isoformat() != value:
                     raise ValueError()
                 if field == 'posting_date' and (value < context.get('min_date', value) or value > context.get('max_date', value)):
                     errors.append(field + ': outside allowed period')
             except (ValueError, TypeError):
                 errors.append(field + ': invalid YYYY-MM-DD date')
+    registries: Mapping[str, Any] = context
     lines = entry.get('lines')
     if not isinstance(lines, list) or not lines:
         return errors + ['lines: nonempty array required']
@@ -47,6 +66,7 @@ def validate_entry(entry, context=None):
         if not isinstance(line, dict):
             errors.append(path + ': expected object')
             continue
+        raw_line: Mapping[str, object] = line
         if line.get('company', company) != company:
             errors.append(path + '.company: differs from entry company')
         number = line.get('line', index)
@@ -99,13 +119,13 @@ def validate_entry(entry, context=None):
             if value is not None and (not isinstance(value, str) or not value):
                 errors.append(path + '.' + field + ': nonempty string or null required')
             if isinstance(value, str) and value and (registry in context):
-                records = context[registry]
+                records = registries[registry]
                 if value not in records:
                     errors.append(path + '.' + field + ': unknown reference')
                 elif isinstance(records, dict) and isinstance(records[value], dict) and (records[value].get('company', company) != company):
                     errors.append(path + '.' + field + ': belongs to another company')
         for field in ('currency',):
-            if field in line and (not isinstance(line[field], str) or not re.fullmatch('[A-Z]{3}', line[field])):
+            if field in line and (not isinstance(raw_line[field], str) or not re.fullmatch('[A-Z]{3}', str(raw_line[field]))):
                 errors.append(path + '.currency: expected ISO currency')
     if total:
         errors.append(f'entry: unbalanced by {total} cents')

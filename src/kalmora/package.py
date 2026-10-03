@@ -8,8 +8,10 @@ import stat
 import tempfile
 import zipfile
 
+from .model import Manifest, ManifestFile, ManifestPhase
 
-def register_package(archive: Path, destination: Path) -> dict:
+
+def register_package(archive: Path, destination: Path) -> Manifest:
     """Extract into a new directory; refuse every existing destination.
 
     Inventory paths are relative to destination, including participant/. Originals,
@@ -26,7 +28,7 @@ def register_package(archive: Path, destination: Path) -> dict:
         shutil.copyfile(archive, snapshot)
         with snapshot.open("rb") as handle:
             digest = hashlib.file_digest(handle, "sha256").hexdigest()
-        files = []
+        files: list[ManifestFile] = []
         seen = set()
         with zipfile.ZipFile(snapshot) as source:
             for member in source.infolist():
@@ -52,7 +54,7 @@ def register_package(archive: Path, destination: Path) -> dict:
                 with target.open("rb") as handle:
                     sha = hashlib.file_digest(handle, "sha256").hexdigest()
                 files.append({"path": key, "size": target.stat().st_size, "sha256": sha})
-        phases = []
+        phases: list[ManifestPhase] = []
         for close in sorted((staging / "participant").glob("*/tasks/close.json")):
             data = json.loads(close.read_text(encoding="utf-8"))
             month = data.get("month")
@@ -63,7 +65,7 @@ def register_package(archive: Path, destination: Path) -> dict:
             phases.append({"phase": close.parent.parent.name, "month": month})
         if not phases:
             raise ValueError("Package contains no phase tasks/close.json")
-        manifest = {"schema_version": 1, "archive_sha256": digest,
+        manifest: Manifest = {"schema_version": 1, "archive_sha256": digest,
                     "files": sorted(files, key=lambda item: item["path"]), "phases": phases}
         snapshot.unlink()
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
