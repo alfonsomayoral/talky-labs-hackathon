@@ -43,6 +43,33 @@ class ProjectionTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             journal_entries(data, replace(run, results=(replace(run.results[0], row=row),)))
 
+    def test_note_overpayment_preserves_suspense_and_marks_projection_incomplete(self):
+        from kalmora.bankrec.model import BankRecRun
+        self._jsonl("erp/promissory_notes.jsonl", [{
+            "number": "123", "customer": "C1", "company": "1100",
+            "maturity": "2026-07-01", "amount": 5000,
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("NOTE", "2026-06-01", [self.line("43100000", 5000, 0, "C1", "PAG123"),
+                                                self.line("43000000", 0, 5000, "C1", "INV-1")]),
+            self.entry("CASH", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                self.line("55500000", 0, 8000)]),
+        ])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "CLIENTE ALFA PAG123",
+        }])
+        data = PhaseData(self.phase)
+        cash = self._run()
+        self.assertEqual(cash.results[0].row['applications'], [{'pagare': '123', 'amount': 5000}])
+        projection = project_cash(data, cash, BankRecRun(results=()))
+        self.assertFalse(projection.complete)
+        self.assertEqual(projection.unresolved, ('BL1',))
+        self.assertEqual(projection.projected.balances()[('1100', '55500000')], -3000)
+        self.assertEqual(projection.projected.open_items()[('1100', '43100000', 'C1', 'PAG123')], 0)
+        self.assertEqual(projection.projected.balances()[('1100', '43000000')],
+                         projection.recorded.balances()[('1100', '43000000')])
+
     def test_missing_task_result_cannot_be_published_as_complete(self):
         with self.assertRaisesRegex(ValueError, "exactly one result"):
             project_cash(PhaseData(self.phase), replace(self._run(), results=()), None)
