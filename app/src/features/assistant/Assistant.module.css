@@ -1,7 +1,9 @@
 /* Assistant: page, ⌘J panel and answer cards. Orange only on the send button, selection and focus. */
 
 .page {
+  flex: 1;
   min-height: 100%;
+  margin-inline: auto;
 }
 
 /* ---------------------------------------------------------------- welcome */
@@ -11,8 +13,8 @@
   gap: var(--space-5);
   width: 100%;
   max-width: 720px;
-  margin: 0 auto;
-  padding-top: var(--space-16);
+  margin: auto;
+  padding-bottom: var(--space-16);
 }
 
 /* Libre Baskerville, as the Overview opener (PLAN §2.2, Fase 6). */
