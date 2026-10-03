@@ -95,3 +95,22 @@ _Avoid_: write-off or debt forgiveness.
 **Work performed pending certification (WIP revenue)**:
 Construction work executed by close but not yet approved/certified, handled under the challenge's specific close rule.
 _Avoid_: an approved AR invoice.
+
+## Evaluation
+
+**Golden**:
+The organizer's reference deliverables and trial balances for the development phase; evaluation evidence only.
+_Avoid_: expected output the solver may consult, training data.
+
+**Submission**:
+The set of delivery files produced for one phase and evaluated against the golden.
+_Avoid_: golden, run report.
+
+**Comparator**:
+The evaluator-side tool that explains, per entity, how a submission differs from the golden without changing the official score.
+_Avoid_: scorer, when referring to the organizer's scoring.
+
+**Scoring key**:
+The identity under which the scorer groups submission rows for one module, such as a close key or an intercompany pair and cause.
+_Avoid_: row, when several rows share one key.
+
