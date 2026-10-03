@@ -18,6 +18,8 @@ Foco, ARIA y teclado:
 - `FilterBar` pasa de `toolbar` a `group` (no tenía navegación con flechas). `Metric.hint` es un botón. El tirador de `SidePanel` tiene `aria-valuemax`.
 - Todo compatible con las props actuales: no cambia ninguna firma.
 
+`DataTable`, petición de qa-tasks (segunda PR): en una celda alineada a la derecha que no cabía, el importe se recortaba por la izquierda (`-15.603.148,68 MXN` se leía `5.603.148,68 MXN`). Ahora la celda usa `justify-content: safe flex-end`, de modo que lo que no cabe empieza en el borde izquierdo, y su contenido termina en elipsis por la derecha. Las celdas centradas usan `safe center`. Solo CSS, sin cambios en las props. Los anchos que qa-tasks puso como parche pueden volver a su valor.
+
 Demo (5.C): sección «Recorrido de demo» en `app/README.md`, con los 7 pasos sobre julio (URL y qué enseñar). **`app/README.md` no es de mi carpeta**: revísalo en esta PR.
 
 ## Verificación
@@ -28,6 +30,8 @@ Demo (5.C): sección «Recorrido de demo» en `app/README.md`, con los 7 pasos s
   - Recorrido de demo completo sin recargar: Resumen → `g a` Atención → tarjeta `API005229` → ⌘K `API004128` (panel con el asiento de 7 líneas) → `g 4` Bancos → `BIN-1200` → casación N:1 `BL0004009`+`BL0004010` → `g c` Comparar → `g e` Entregables (nota 100,00) → `g i` Asistente («¿Qué partidas tengo que revisar?»: 56, 11,6 M€). **Cero errores y cero avisos en consola.**
   - Teclado: el primer Tab muestra el enlace de salto y Enter enfoca `<main>`; el panel de partida recibe el foco al abrirse y Esc lo cierra.
   - Contraste medido en el DOM, en todas las rutas: shell y componentes base, sin fallos. Los que quedan son de otras carpetas (abajo).
+
+- Recorte de `DataTable`, en Actividad: con la columna de importe a 64 px, antes los 5 primeros importes perdían el principio y ahora no pierden ninguno y acaban en «…». A 128 px siguen alineados a la derecha, con 12 px de padding. Consola sin errores. Comprobaciones en la segunda PR: typecheck y lint con salida 0, 354 tests en verde y build correcto. Es CSS de maquetación, que jsdom no calcula, así que no tiene test de vitest.
 
 ## Sin verificar
 
@@ -56,3 +60,4 @@ Demo (5.C): sección «Recorrido de demo» en `app/README.md`, con los 7 pasos s
 - `68f4b11 fix: darken unselected segments and tab counts on grey fills`
 - `f931b59 docs: add the demo walkthrough over july to the readme`
 - `8812ce1 docs: document orange indicators, grey text and table keys in the component guide`
+- `de1b2eb fix: keep the start of right-aligned table cells that do not fit`
