@@ -18,7 +18,7 @@ from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.money import RateTable, company_local_currency, round_cents
 
 CONTINUOUS = {'ELEC', 'WATER', 'TELECOM', 'FUEL', 'TRAVEL', 'COURIER', 'OFFICE', 'LANDFILL',
-              'PT_UTIL', 'MX_UTIL', 'MARKET_REP_FEE'}
+              'PT_UTIL', 'MX_UTIL'}
 EPISODIC = {'PROF_IND', 'PROF_CORP', 'PT_PROF', 'MX_PROF'}
 PREPAID = {'INSURANCE', 'RENT_RUSTIC', 'RATING_GB'}
 
@@ -170,6 +170,10 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         for (cc, wbs), amounts in groups.items():
             if archetype in CONTINUOUS | EPISODIC:
                 s = get_series(row['company'], row['vendor_id'], cc, wbs)
+                if row['decision'] == 'REJECT':
+                    # A rejected invoice is not booked; the period stays unbilled until the reissue.
+                    s['evidence'].append(evidence)
+                    continue
                 s['received_coverage'].append({'start': start.isoformat(), 'end': end.isoformat(),
                     'document': row['doc_id'], 'decision': row['decision'], 'evidence': evidence})
                 if first_arrival:
@@ -206,35 +210,23 @@ def build_facts(data, upstream, ledger, sources, diagnostics):
         accounts = sorted({a for h in histories + observations for a in h['amounts']})
         s['components'] = []
         if typ in EPISODIC:
-            last_months = {h['closing'] for h in histories}
-            current_points = [c for c in s['received_coverage'] if c['start'][:7] == data.month]
-            if len(last_months) < 2 or current_points:
-                diagnostics.append({'kind': 'episodic_service_not_invented', 'series': s['series_id'],
-                    'observed_closes': sorted(last_months), 'current_received': current_points,
-                    'exposure': 'unknown additional service consumption'})
-                continue
-            s['method'] = 'recurring_unbilled_monthly_history'
-            for account in accounts:
-                grouped = defaultdict(int)
-                for h in histories:
-                    grouped[h['closing']] += h['amounts'].get(account, 0)
-                samples = [{'amount': a, 'closing': c} for c, a in sorted(grouped.items()) if a > 0]
-                if samples:
-                    s['components'].append({'account': account, 'cost_center': s['cost_center'],
-                                            'wbs': s['wbs'], 'samples': samples})
-        else:
-            s['method'] = 'median_observed_daily_rate'
-            for account in accounts:
-                samples_by_span = {}
-                for h in histories + observations:
-                    amount = h['amounts'].get(account, 0)
-                    if amount > 0:
-                        samples_by_span[h['start'], h['end']] = {'amount': amount, 'start': h['start'],
-                            'end': h['end'], 'evidence': h['evidence']}
-                samples = sorted(samples_by_span.values(), key=lambda x: (x['end'], x['start']), reverse=True)[:3]
-                if samples:
-                    s['components'].append({'account': account, 'cost_center': s['cost_center'],
-                                            'wbs': s['wbs'], 'samples': samples})
+            # Whether a discrete professional service happened is not observable before its invoice.
+            diagnostics.append({'kind': 'episodic_service_not_invented', 'series': s['series_id'],
+                'observed_closes': sorted({h['closing'] for h in histories}),
+                'exposure': 'unknown additional service consumption'})
+            continue
+        s['method'] = 'median_observed_daily_rate'
+        for account in accounts:
+            samples_by_span = {}
+            for h in histories + observations:
+                amount = h['amounts'].get(account, 0)
+                if amount > 0:
+                    samples_by_span[h['start'], h['end']] = {'amount': amount, 'start': h['start'],
+                        'end': h['end'], 'evidence': h['evidence']}
+            samples = sorted(samples_by_span.values(), key=lambda x: (x['end'], x['start']), reverse=True)[:3]
+            if samples:
+                s['components'].append({'account': account, 'cost_center': s['cost_center'],
+                                        'wbs': s['wbs'], 'samples': samples})
         if s['components']:
             accruals.append(s)
 
