@@ -70,6 +70,18 @@ class APSourceIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("decision", artifact)
         self.assertNotIn("journal_entry", artifact)
 
+    async def test_original_message_fields_are_preserved_for_identity_and_chronology(self):
+        path = self.phase / "inbox" / "ap" / "OPAQUE-NEW" / "message.json"
+        message = json.loads(path.read_text())
+        message.update({"from": "billing@example.test", "uploaded_by": "uploader@example.test",
+                        "subject": "Original source subject", "body": "Original source body"})
+        path.write_text(json.dumps(message))
+        result = await prepare_ap_sources(self.phase, self.out)
+        metadata = DocumentFacts.from_dict(result.manifest["documents"][0]["metadata"])
+        for key in message:
+            self.assertEqual(metadata.fields[key][0].value, message[key])
+            self.assertEqual(metadata.fields[key][0].evidence.document, "inbox/ap/OPAQUE-NEW/message.json")
+
     async def test_every_attachment_is_retained_and_uninterpreted_sources_do_not_become_not_invoice(self):
         self.source("OPAQUE-NEW", {"source.xml": XML, "dua.txt": "Customs invoice VAT 9.00", "hours.txt": "Work hours"},
                     declared=["source.xml", "missing.pdf"])

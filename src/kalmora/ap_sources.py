@@ -20,7 +20,6 @@ from .documents.xml_extractor import XMLDocumentExtractor, XMLExtractionError, X
 from .facts import DocumentFacts, Evidence, Fact, atomic_json
 
 SOURCE_RUNNER_VERSION = "ap-source-runner-v1"
-_MESSAGE_FIELDS = ("doc_id", "channel", "received_at", "mailbox", "attachments", "source")
 _FACTURAE_CLASS = "/Facturae/Invoices[1]/Invoice[1]/InvoiceHeader[1]/InvoiceClass[1]"
 
 
@@ -154,7 +153,7 @@ async def prepare_ap_sources(phase_path: str | Path, destination: str | Path, *,
                 raise ValueError("AP message identity differs from its canonical task")
             metadata = DocumentFacts(source_hashes[message_path], "ap-message-source-v1", {
                 key: [Fact(message[key], Evidence(message_path, "/" + key))]
-                for key in _MESSAGE_FIELDS if key in message})
+                for key in message})
             declared = message.get("attachments")
             if (not isinstance(declared, list) or any(not isinstance(name, str) or not name
                     or Path(name).name != name or name in (".", "..", "message.json") or "\\" in name
