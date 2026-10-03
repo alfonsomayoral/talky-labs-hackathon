@@ -379,6 +379,13 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
         source = submissions / f"{module}.jsonl" if submissions else None
         notes: list[Row] = []
         work = Path(tempfile.mkdtemp(prefix=f"kalmora-{module}-"))
+        if module in ENGINES:
+            # A live follower sees the task start, not only its rows once the engine is done.
+            written += 1
+            with trace.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"event_id": f"e-{written:06d}", "seq": written, "ts": _now(),
+                                         **note(f"{module}:inicio", "CHECK", "start", "INFO", "Tarea en curso")},
+                                        ensure_ascii=False, separators=(",", ":")) + "\n")
         try:
             if module in ENGINES:
                 task.update(ENGINES[module](phase, target, work, notes), source="engine")
