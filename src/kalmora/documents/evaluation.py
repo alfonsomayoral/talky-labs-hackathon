@@ -34,6 +34,9 @@ ALIASES = {"document_number": "invoice_number", "recipient_tax_id": "buyer_tax_i
            "vat_amount": "tax", "gross_amount": "gross", "due_on": "due_date",
            "certification_current": "certified_current", "certification_cumulative": "certified_cumulative",
            "certification_previous": "certified_previous_displayed"}
+ALIASES.update({"cert_current": "certified_current", "cert_previous": "certified_previous_displayed",
+                "cert_cumulative": "certified_cumulative", "document_currency": "currency",
+                "po_reference": "purchase_order_reference"})
 TYPE_PHRASES = [
     ("DEPOSIT REQUEST", "DOWN_PAYMENT_REQUEST"), ("PROFORMA", "PROFORMA"),
     ("RECTIFICATIVA", "CREDIT_NOTE"), ("NOTA DE CREDITO", "CREDIT_NOTE"),
@@ -57,6 +60,7 @@ def _text(value):
 
 def canonical_field(field):
     field = str(field).strip()
+    field = re.sub(r"_(?:cents|milli|e4)$", "", field)
     field = re.sub(r"^line\.", "lines.", field)
     field = re.sub(r"\b(lines|detail_lines|statement)\.(\d+)\.", r"\1[\2].", field)
     if "." in field:
@@ -100,7 +104,8 @@ def _number(value, unit=None):
         raise ValueError("Unsupported source number")
     if not result.is_finite():
         raise ValueError("Nonfinite value")
-    return result / 100 if unit == "integer_cents" else result
+    scale = {"integer_cents": 100, "integer_milli": 1000, "integer_e4": 10000}.get(unit, 1)
+    return result / scale
 
 
 def _date(value, order="DMY"):
@@ -128,7 +133,7 @@ def normalize_value(field, value, *, unit=None, date_order="DMY"):
     if tail.endswith("_date") or tail in {"valid_until"}:
         return _date(value, date_order)
     if (field in MONEY_FIELDS or tail in {"amount", "unit_price", "quantity", "deposit_percent"}
-            or unit in {"currency_major_decimal", "source_decimal", "source_measure_decimal", "integer_cents", "percent"}):
+            or unit in {"currency_major_decimal", "source_decimal", "source_measure_decimal", "integer_cents", "integer_milli", "integer_e4", "percent"}):
         return _number(value, unit)
     if isinstance(value, str):
         return _text(value)
@@ -267,6 +272,15 @@ class SourceAudit:
 
 def _value_supported(observed, quote, label):
     value, field = observed["value"], observed["field"]
+    if field.endswith("_date") or field == "valid_until":
+        for token in re.findall(r"\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{4}", str(quote)):
+            try:
+                if _date(value, (label or {}).get("date_order", "DMY")) == _date(token, (label or {}).get("date_order", "DMY")):
+                    return True
+            except ValueError:
+                pass
+    if field == "document_type" and _type(value) == _type(quote):
+        return True
     if label:
         try:
             matches = normalize_value(field, value, unit=observed.get("unit") or label.get("unit"),
@@ -326,10 +340,19 @@ def _predictions(capture):
                 value = _decode_value(fact["value"]) if document.get("fact_value_encoding") else fact["value"]
                 evidence = dict(fact["evidence"])
                 evidence["document"] = _source_path(evidence["document"])
+                inferred_unit = next((unit for suffix, unit in (("_cents", "integer_cents"),
+                    ("_milli", "integer_milli"), ("_e4", "integer_e4")) if key.endswith(suffix)), None)
+                unit = fact.get("unit") or inferred_unit
                 item = {"field": canonical_field(key), "value": value, "evidence": evidence,
-                        "source_sha256": document["source_sha256"], "unit": fact.get("unit")}
+                        "source_sha256": document["source_sha256"], "unit": unit}
+                try:
+                    equivalent_value = normalize_value(item["field"], value, unit=unit)
+                except (ValueError, TypeError, InvalidOperation):
+                    equivalent_value = repr(value)
+                if isinstance(equivalent_value, Decimal):
+                    equivalent_value = equivalent_value.normalize()
                 fingerprint = (item["field"], evidence["document"], evidence.get("page"),
-                               evidence.get("field"), evidence.get("quote"), repr(value), item["unit"])
+                               evidence.get("field"), evidence.get("quote"), repr(equivalent_value))
                 if fingerprint not in seen:
                     seen.add(fingerprint)
                     result.append(item)
@@ -419,7 +442,13 @@ def _runtime(case_ids, reports, contract):
         calls = report.get("calls", [])
         if not isinstance(calls, list):
             calls = []
-        if len(calls) > contract["budget"]["max_attempts_per_document"]:
+        operations = defaultdict(int)
+        for call in calls:
+            request = (call.get("usage") or {}).get("request") or {}
+            identity = {key: request.get(key) for key in (
+                "instructions_sha256", "prompt_sha256", "output_schema_sha256", "images")}
+            operations[json.dumps(identity, sort_keys=True)] += 1
+        if any(count > contract["budget"]["max_attempts_per_document"] for count in operations.values()):
             reason.append("attempt cap exceeded")
         if meta.get("synthetic") or meta.get("test_fixture"):
             reason.append("synthetic capture is not a live benchmark")
@@ -441,6 +470,8 @@ def _runtime(case_ids, reports, contract):
                 if any(r < 0 for r in rates):
                     raise ValueError("negative price")
                 estimate = _number(call["estimated_cost"])
+                if estimate <= 0:
+                    raise ValueError("zero-cost capture cannot establish paid live provenance")
                 if estimate != sum((rate * count for rate, count in zip(rates, counts)), Decimal(0)):
                     raise ValueError("cost does not reproduce supplied prices and usage")
                 estimates.append(estimate)
@@ -532,8 +563,6 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
             grounded += proven
             counters["required_exact"][0] += correct
             counters["required_exact"][1] += 1
-            counters["grounded_evidence"][0] += proven
-            counters["grounded_evidence"][1] += 1
             if _critical(label):
                 counters["critical_exact"][0] += correct
                 counters["critical_exact"][1] += 1
@@ -562,7 +591,11 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
                 label = equal_labels[0] if equal_labels else slot_labels[0]
             else:
                 label = None
-            proof, reason = audit.proof(predicted, label)
+            proof, reason = audit.proof(predicted)
+            if proof == "unreviewed" or predicted["value"] is None or isinstance(predicted["value"], bool) or (label and label.get("unit") in {"rows", "nodes"}):
+                proof, reason = audit.proof(predicted, label)
+            counters["grounded_evidence"][0] += proof == "grounded"
+            counters["grounded_evidence"][1] += 1
             if proof == "unsupported":
                 unsupported += 1
                 violations.append({"case_id": cid, "field": predicted["field"], "code": "unsupported_observation", "reason": reason})

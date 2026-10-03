@@ -103,6 +103,33 @@ class EvaluationTests(unittest.TestCase):
         self.manifest['evaluation_contract']['thresholds']['grounded_evidence_location_min'] = '0.5'
         self.assertIn('frozen_thresholds_changed', [x['code'] for x in self.report()['violations']])
 
+    def test_nineteen_of_twenty_correct_grounded_predictions_pass_coverage(self):
+        captures = self.capture()
+        for index in range(16):
+            label = copy.deepcopy(self.labels[1])
+            label.update(field=f'reference_{index}', value='TAX-A')
+            label['evidence']['quote'] = 'supplier TAX-A'
+            self.annotations['cases'][0]['facts'].append(label)
+            captures['T']['fields'][label['field']] = [
+                {'value': 'TAX-A', 'evidence': {'document': self.path, 'field': 'text',
+                    'quote': 'supplier TAX-A', 'page': None}}]
+        del captures['T']['fields']['reference_15']
+        result = self.report(captures)
+        self.assertTrue(result['capture_correctness_passed'])
+        self.assertEqual(result['metrics']['critical_exact']['numerator'], 19)
+        self.assertEqual(result['metrics']['critical_exact']['denominator'], 20)
+        self.assertEqual(result['metrics']['grounded_evidence']['numerator'], 19)
+        self.assertEqual(result['metrics']['grounded_evidence']['denominator'], 19)
+
+    def test_normalized_units_and_dates_share_source_proof_without_double_count(self):
+        raw = self.capture()['T']
+        normalized = DocumentFacts(self.sha, 'normalized-fixture', {
+            'gross_cents': [Fact(123450, Evidence(self.path, 'text', quote='1.234,50 EUR'))],
+            'document_date': [Fact('2026-07-03', Evidence(self.path, 'text', quote='03/07/2026'))]})
+        result = self.report({'T': {'raw_facts': [raw], 'normalized_facts': [normalized]}})
+        self.assertTrue(result['capture_correctness_passed'])
+        self.assertEqual(result['cases']['T']['returned_values'], 4)
+
     def test_synthetic_candidate_guards_are_separate(self):
         annotations = {'semantic_candidates': [
             {'case_id': 'synthetic-ambiguous', 'resolvability': 'ambiguous'},
@@ -134,10 +161,33 @@ class EvaluationTests(unittest.TestCase):
         runtime, issues = _runtime(['T'], {'T': report}, contract)
         self.assertEqual(issues, [])  # Arithmetic/provenance unit test, never a provider benchmark.
         self.assertEqual(runtime['total_estimated_usd'], '0.00014')
+        free = copy.deepcopy(report)
+        free['calls'][0]['estimated_cost'] = '0'
+        free['calls'][0]['pricing'].update(input_rate='0', output_rate='0')
+        self.assertTrue(_runtime(['T'], {'T': free}, contract)[1])
         report['input_metadata']['test_fixture'] = True
         self.assertTrue(_runtime(['T'], {'T': report}, contract)[1])
         report['calls'][0]['pricing'] = None
         self.assertTrue(_runtime(['T'], {'T': report}, contract)[1])
+
+    def test_attempt_limit_is_per_operation_not_total_case_calls(self):
+        call = {'provider': 'openai', 'model': 'gpt-6-luna', 'input_tokens': 100,
+            'output_tokens': 20, 'estimated_cost': '0.00014',
+            'pricing': {'currency': 'USD', 'unit': 'per_token', 'provenance': 'fixture rates',
+                        'input_rate': '0.000001', 'output_rate': '0.000002'}}
+        calls = []
+        for prompt in ('attachment-a', 'attachment-b', 'semantic-request'):
+            item = copy.deepcopy(call)
+            item['usage'] = {'request': {'instructions_sha256': 'instructions',
+                'prompt_sha256': prompt, 'output_schema_sha256': 'schema', 'images': []}}
+            calls.append(item)
+        report = {'status': 'completed', 'elapsed_seconds': 1, 'calls': calls,
+            'input_metadata': {'capture_mode': 'captured_live', 'transport_mode': 'default',
+                               'response_source': 'provider_api'}}
+        contract = self.manifest['evaluation_contract']
+        self.assertEqual(_runtime(['T'], {'T': report}, contract)[1], [])
+        report['calls'] = [copy.deepcopy(calls[0]) for _ in range(3)]
+        self.assertIn('attempt cap exceeded', str(_runtime(['T'], {'T': report}, contract)[1]))
 
     def test_source_boundary(self):
         audit = SourceAudit(self.root, self.manifest)
