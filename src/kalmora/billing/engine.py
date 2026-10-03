@@ -294,6 +294,9 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
                        (("MX5MILL", amounts.levy, "63100000"), ("ADV_AMORT", amounts.advance, "43800000")) if a)
     due = (date.fromisoformat(draft.date) + timedelta(days=contract["terms_days"])).isoformat()
     dir3 = customer.get("dir3")
+    if customer["kind"] == "public" and customer["country"] == "ES" and (
+            not dir3 or any(not dir3.get(k) for k in ("oficina_contable", "organo_gestor", "unidad_tramitadora"))):
+        raise _Blocked("public Spanish customer is missing required DIR3 codes")
     face = Face(**{k: dir3[k] for k in ("oficina_contable", "organo_gestor", "unidad_tramitadora")}) \
         if customer["kind"] == "public" and customer["country"] == "ES" and dir3 else None
     invoice = Invoice(_next_number(ctx, item, draft.date), draft.date, due, code, amounts.net, amounts.tax,
@@ -308,6 +311,7 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
         raise _Blocked(*problems)
     if ctx.strict:  # consume only after the invoice and journal entry validate
         ctx.advance_used[key] = ctx.advance_used.get(key, 0) + amounts.advance
+    entry["provenance"] = {"event_id": item.id, "stage": "ar_billing"}
     return BillingResult(item, Decision.INVOICE, invoice, entry, draft.evidence, tuple(draft.notes))
 
 

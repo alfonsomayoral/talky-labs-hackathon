@@ -9,6 +9,7 @@ from enum import StrEnum
 
 from ..model import Cents, CompanyCode, Diagnostic, IsoDate, JournalEntry, Month
 from ..facts import Evidence
+from ..money import integer
 
 
 class BillingType(StrEnum):
@@ -48,6 +49,7 @@ class InvoiceLine:
     cost_center: str | None = None
 
     def __post_init__(self) -> None:
+        integer(self.amount)
         if (self.wbs is None) == (self.cost_center is None):
             raise ValueError("an invoice line needs exactly one of wbs and cost_center")
 
