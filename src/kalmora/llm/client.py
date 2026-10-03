@@ -297,6 +297,9 @@ class AsyncLLMClient:
                                   {**metadata, "attempt_metrics": attempt_metrics,
                                    "capture_cost_usd": str(capture_cost) if capture_cost is not None else None}, attempt)
             if not attempted or error.category not in RETRYABLE or attempt == self.config.max_attempts:
+                costs = [metric['estimated_cost_usd'] for metric in attempt_metrics]
+                error.request_metadata = {**metadata, 'attempt_metrics': attempt_metrics,
+                    'capture_cost_usd': str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None}
                 raise error
             delay = error.retry_after if error.retry_after is not None else self.config.retry_base_seconds * 2 ** (attempt - 1)
             await asyncio.sleep(min(max(delay, 0), self.config.retry_max_seconds))

@@ -50,8 +50,9 @@ def _invoice_number(value: object) -> str:
     return re.sub(r"[^0-9A-Z]", "", str(value or "").upper()).lstrip("0")
 
 
-def known_invoices(data: PhaseData):
-    """(vendor, invoice) -> True if the invoice is posted in the AP history or named in this month's AP inbox.
+def known_invoices(data: PhaseData, ap_rows: list[dict] | None = None):
+    """(vendor, invoice) -> True if the invoice is posted in the AP history, or posted by this month's AP
+    delivery (``ap_rows``) or, without that delivery, named in this month's AP inbox.
 
     Without an AP history there is no evidence either way, so every direct debit keeps its adjustment."""
     try:
@@ -60,6 +61,10 @@ def known_invoices(data: PhaseData):
         return lambda vendor, invoice: True
     posted = {(str(r["vendor"]), _invoice_number(r["number"])) for r in history
               if r.get("decision") in ("POST", "POST_PAYMENT_BLOCK")}
+    if ap_rows is not None:
+        posted |= {(str(r.get("vendor_id")), _invoice_number(r.get("invoice_number"))) for r in ap_rows
+                   if r.get("decision") in ("POST", "POST_PAYMENT_BLOCK")}
+        return lambda vendor, invoice: (vendor, _invoice_number(invoice)) in posted
     inbox: set[str] = set()
     for message in data.table("document_messages"):
         for attachment in message.get("attachments", []):
@@ -73,7 +78,7 @@ def known_invoices(data: PhaseData):
     return known
 
 
-def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
+def build_bank_rec(data: PhaseData, month: Month | None = None, ap_rows: list[dict] | None = None) -> BankRecRun:
     month = month or data.month
     accounts = load_accounts(data)
     by_id = {a.id: a for a in accounts}
@@ -98,7 +103,7 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
         except (KeyError, ValueError):
             return None
 
-    ctx = adj.AdjustContext(rates, entries, factoring, receipt_customer, known_invoices(data))
+    ctx = adj.AdjustContext(rates, entries, factoring, receipt_customer, known_invoices(data, ap_rows))
     bank_all = {a.id: [l for s in statements[a.id] for l in s.lines] for a in live}
     states = {a.id: match_account(a, bank_all[a.id], book.get(a.id, [])) for a in live}
     book_by_id = {a.id: {r.id: r for r in book.get(a.id, [])} for a in live}

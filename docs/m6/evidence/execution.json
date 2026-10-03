@@ -1,0 +1,57 @@
+{
+  "schema": "kalmora.m6.delivery-evidence/v1",
+  "integration": "simulated",
+  "acceptance": "NOT_ACCEPTED",
+  "real_flow_gate_171": "OPEN",
+  "code_commit": "1e85d58ab63d64981017c525e24398ca3cd2a863",
+  "upstream_base": "e448f7fd07448fe3c0b43b0605935a6f73738fac",
+  "ci": {"run_id": 37127732110, "python": "3.12.14", "discovered": 555, "passed": 506, "skipped": 49, "failures": 0},
+  "local_m6": {"python": "3.13.5", "tests": 59, "failures": 0},
+  "replay": {
+    "result": "PASS",
+    "identical_accounting_payloads": 10,
+    "manifest_is_execution_specific": true,
+    "physical_phase_directories": ["erp", "tasks"],
+    "golden_or_document_directories_present": false,
+    "forbidden_solver_accesses": 0,
+    "document_calls": 0,
+    "llm_calls": 0
+  },
+  "official_close_score": 0.7850746268656715,
+  "rows": 79,
+  "keys": 70,
+  "reference_rows": 76,
+  "reference_keys": 64,
+  "close_sha256": "4be0b8e740d56d26bd3810e75dc81993cdb54fc4f3fdfc98ac971cda01879810",
+  "handoff_file_sha256": "712d4fa9cc73f91e4e7340e47928df5e5a1da0b5549c7741337f0ea8c623c1d6",
+  "handoff_payload_sha256": "7ce3769988c91f5e6da77692df692fb3e9b7bd9972dca896a58ff38a04dfa755",
+  "solver_code_sha256": "9f2933dde5e9f5398ec33886cc973d0b3e49583df673a8501ce496e55eaf5931",
+  "original_freeze_sha256": "1e3aa41872a09e3fbb761d6ed8d5175cfb6d12407c379e1c7c052b30614349f8",
+  "original_erp_and_pre_m6_account_balances_exact": true,
+  "final_balances_exact": false,
+  "original_participant": {"checked_members": 2014, "mismatches": 0},
+  "context_manifest": {"checked_members": 160, "mismatches": 0},
+  "boundary": {"scanned_modules": 128, "violations": []},
+  "dependency_coverage": {
+    "ap": {"expected": 305, "observed": 305, "postings": 242},
+    "ar_billing": {"expected": 26, "observed": 26, "postings": 25},
+    "bank_rec": {"expected": 12, "observed": 12, "postings": 56},
+    "ar_cash": {"expected": 32, "observed": 32, "postings": 32},
+    "ic": {"expected": 7, "observed": 7, "postings": 4, "positive_coverage_is_fixture_assumption": true}
+  },
+  "final_account_l1_difference_cents": {
+    "1000": {"currency": "EUR", "amount": 7600586},
+    "1100": {"currency": "EUR", "amount": 699120},
+    "1200": {"currency": "EUR", "amount": 2541360},
+    "1300": {"currency": "EUR", "amount": 1474660},
+    "1910": {"currency": "EUR", "amount": 8770},
+    "2100": {"currency": "EUR", "amount": 61060},
+    "3100": {"currency": "MXN", "amount": 797158}
+  },
+  "notes": [
+    "Two-sided account L1 differences are not losses or cash flows; do not add currencies.",
+    "All real-flow and issue acceptance gates remain open.",
+    "The full delivery includes saved handoffs, frozen outputs, detailed reports and actual logs.",
+    "The original import-only doctor invocation is not runtime evidence; the corrected workflow invokes python -m kalmora doctor."
+  ]
+}
