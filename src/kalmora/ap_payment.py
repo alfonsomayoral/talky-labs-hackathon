@@ -3,7 +3,10 @@
 UNKNOWN and diagnostics are internal states; never fabricate a contract decision
 from incomplete extraction, rules or chronological evidence. No entries emitted.
 """
-from .ap_chronology import replay_events
+from typing import Mapping
+
+from .ap_chronology import KINDS, replay_events
+from .facts import Evidence
 from .model.ap_event import ApEvent
 from .model.ap_notice_resolution import NoticeResolution
 from .model.ap_payment_resolution import PaymentResolution
@@ -23,6 +26,7 @@ ACTIONS = {
 def resolve_payment(
     duplicate_status: str, rejection_status: str, hold_status: str,
     construction_subcontractor: bool | None, events: InvoiceEventState,
+    *, inventory_evidence: Mapping[str, tuple[Evidence, ...]] | None = None,
 ) -> PaymentResolution:
     """Final payment metadata only after all preceding rule stages clear.
 
@@ -45,16 +49,30 @@ def resolve_payment(
         if value is not None and type(value) is not bool:
             raise ValueError("chronology observations must be boolean or unknown")
     diagnostics, evidence = [], []
+    inventories = inventory_evidence or {}
+    if any(kind not in KINDS or not isinstance(proof, tuple) or not proof
+           or any(not isinstance(item, Evidence) for item in proof)
+           for kind, proof in inventories.items()):
+        raise ValueError("complete inventories require structured source Evidence")
+    def negative_evidence(kind):
+        proof = inventories.get(kind)
+        if not proof:
+            diagnostics.append(f"{kind}:COMPLETE_INVENTORY_EVIDENCE_MISSING")
+        else:
+            evidence.extend(proof)
     block = None
     if construction_subcontractor is True:
         if events.certificate_valid is None:
             diagnostics.append("CONTRACTOR_CERTIFICATE_UNKNOWN")
         elif events.certificate_valid is False:
+            negative_evidence("CONTRACTOR_TAX_CERTIFICATE")
             block = "CONTRACTOR_CERTIFICATE_EXPIRED"
     elif construction_subcontractor is None and events.certificate_valid is not True:
         diagnostics.append("CONSTRUCTION_SUBCONTRACTOR_UNKNOWN")
     if construction_subcontractor is not False and events.certificate is not None:
         evidence.extend(events.certificate.evidence)
+    elif construction_subcontractor is not False and events.certificate_valid is True:
+        diagnostics.append("CONTRACTOR_CERTIFICATE_EVIDENCE_UNKNOWN")
     factor, embargo = events.factoring_active, events.embargo_active
     payee = None
     if factor is True and embargo is True:
@@ -63,9 +81,20 @@ def resolve_payment(
     elif factor is None or embargo is None:
         diagnostics.append("PAYEE_STATE_UNKNOWN")
     elif factor:
-        payee = "FACTOR"
+        if events.factoring is None:
+            diagnostics.append("FACTORING_RECIPIENT_UNKNOWN")
+            diagnostics.extend(d for d in events.diagnostics if d.startswith("FACTORING_NOTICE:CONFLICT"))
+        else:
+            payee = "FACTOR"
     elif embargo:
-        payee = "AEAT_EMBARGO"
+        if events.embargo is None:
+            diagnostics.append("EMBARGO_EVIDENCE_UNKNOWN")
+        else:
+            payee = "AEAT_EMBARGO"
+    if factor is False:
+        negative_evidence("FACTORING_NOTICE")
+    if embargo is False:
+        negative_evidence("TAX_GARNISHMENT_ORDER")
     if events.factoring is not None and factor:
         evidence.extend(events.factoring.evidence)
     if events.embargo is not None and embargo:

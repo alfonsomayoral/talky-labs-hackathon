@@ -11,6 +11,7 @@ from kalmora.model.ap_timeline_state import ApTimelineState
 
 SCOPE = ApScope("1100", "V1", "EUR")
 PROOF = (Evidence("synthetic-notice", "observed"),)
+INVENTORIES = {kind: (Evidence("synthetic-inventory", kind),) for kind in KINDS}
 
 
 def event(id, kind, **kwargs):
@@ -23,7 +24,7 @@ def observe(events=()):
 
 def payment(state=None, **kwargs):
     values = dict(duplicate_status="CLEAR", rejection_status="CLEAR", hold_status="CLEAR",
-                  construction_subcontractor=True, events=state or observe())
+                  construction_subcontractor=True, events=state or observe(), inventory_evidence=INVENTORIES)
     values.update(kwargs)
     return resolve_payment(**values)
 
@@ -41,7 +42,7 @@ class PaymentTests(unittest.TestCase):
         cert = event("cert", KINDS[0], valid_from="2025-07-15", valid_until="2026-07-15")
         result = payment(observe([cert]))
         self.assertEqual(result.decision, "POST")
-        self.assertEqual(result.evidence, PROOF)
+        self.assertIn(PROOF[0], result.evidence)
         self.assertIsNone(result.payment_block)
 
     def test_factor_and_prior_embargo_independent_policy_paths(self):
@@ -62,6 +63,27 @@ class PaymentTests(unittest.TestCase):
         result = payment(observe(events))
         self.assertEqual(result.decision, "UNKNOWN")
         self.assertIn("PAYEE_CONFLICT", result.diagnostics)
+
+    def test_conflicting_factor_recipient_cannot_become_operative_payee(self):
+        factor = event("a", KINDS[1], valid_from="2026-01-01", value="ESFACTOR1")
+        state = observe([factor, replace(factor, event_id="z", value="ESFACTOR2")])
+        result = payment(state, construction_subcontractor=False)
+        self.assertEqual(result.decision, "UNKNOWN")
+        self.assertIsNone(result.payee)
+        self.assertIn("FACTORING_RECIPIENT_UNKNOWN", result.diagnostics)
+        self.assertIn("FACTORING_NOTICE:CONFLICT:a,z", result.diagnostics)
+
+    def test_false_observations_require_and_retain_complete_inventory_evidence(self):
+        result = payment(inventory_evidence={})
+        self.assertEqual(result.decision, "UNKNOWN")
+        self.assertIn("CONTRACTOR_TAX_CERTIFICATE:COMPLETE_INVENTORY_EVIDENCE_MISSING", result.diagnostics)
+        result = payment()
+        self.assertEqual(result.decision, "POST_PAYMENT_BLOCK")
+        for kind in KINDS[:3]:
+            self.assertIn(INVENTORIES[kind][0], result.evidence)
+        self.assertEqual(payment(construction_subcontractor=False, inventory_evidence={}).decision, "UNKNOWN")
+        with self.assertRaises(ValueError):
+            payment(inventory_evidence={"FACTORING_NOTICE": ()})
 
     def test_earlier_rule_stages_always_win_before_payment_metadata(self):
         unknown_events = invoice_state([], SCOPE, "2026-07-15", "2026-07-16T10:00:00", "2026-07")

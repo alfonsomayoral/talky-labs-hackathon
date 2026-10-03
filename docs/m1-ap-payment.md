@@ -13,6 +13,13 @@ absent article 43 certificate gets `POST_PAYMENT_BLOCK` and
 inclusive invoice-date boundary. Other vendors do not need that certificate.
 Missing eligibility/certificate evidence remains UNKNOWN when it can change
 the result. Unknown event inventories cannot justify a default null payee.
+Every consequential false certificate/factor/embargo observation additionally
+requires `inventory_evidence={event_kind: tuple[Evidence, ...]}` from the caller's
+complete scope inventory. Declaring `complete_kinds` to the chronology observer
+alone is insufficient to release a payment or assert its block. Missing inventory
+proof yields UNKNOWN and explicit diagnostics. Proof is retained in the result.
+Positive observations require their supporting selected event; contradictory
+factoring with no selected recipient cannot produce an operative payee.
 
 A confirmed active assignment produces FACTOR. A confirmed embargo received
 strictly before the invoice produces AEAT_EMBARGO. Neither condition produces
@@ -37,6 +44,6 @@ module. Full July decision/reason comparison is outstanding; golden is never
 read by this module or its synthetic tests.
 
 Validation: `PYTHONPATH=src python3 -m unittest discover -s tests -p
-'test_ap_payment.py' -v` covers 10 policy tests for stage ordering, expired/valid
+'test_ap_payment.py' -v` covers 12 policy tests for stage ordering, expired/valid
 certificates, factor and embargo, overlap/unknowns, all notice actions,
 idempotence, no mutation and scope isolation. This draft depends on #46/#49.
