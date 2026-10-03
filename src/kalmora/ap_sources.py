@@ -3,6 +3,7 @@
 One packet per canonical task, every attachment/page retained, no accounting
 decision or AP output fabricated from an extraction failure. Golden is unavailable.
 """
+import asyncio
 from dataclasses import asdict, dataclass
 from decimal import Decimal
 import os
@@ -104,6 +105,58 @@ def _serializable(value):
     return value
 
 
+def residual_extractor(mode: str, raw_config: dict, captures, budget_usd=None, recorder=None) -> RecordedExtractor:
+    """The recorded LLM boundary for residual sources. Record mode needs an explicit positive budget;
+    the provider key comes from the environment, never from the configuration."""
+    from .documents.replay import RecordingConfig, RecordingStore
+    if mode == "record":
+        if budget_usd is None:
+            raise ValueError("record mode requires an explicitly authorized --budget-usd")
+        budget = Decimal(budget_usd)
+        if not budget.is_finite() or budget <= 0:
+            raise ValueError("record mode requires a positive finite provider budget")
+        from .llm.client import AsyncLLMClient, LLMConfig
+        from .documents.extractor import LLMDocumentExtractor
+        settings = dict(raw_config)
+        include_aids = settings.pop("include_processing_aids", True)
+        for name in ("input_rate", "output_rate"):
+            if isinstance(settings[name], bool):
+                raise ValueError("model pricing must use exact numeric rates")
+            settings[name] = Decimal(settings[name])
+        client = AsyncLLMClient(LLMConfig(budget_usd=budget, **settings), recorder)
+        adapter = LLMDocumentExtractor(client, include_processing_aids=include_aids)
+        return RecordedExtractor(RecordingStore(captures), RecordingConfig.from_adapter(adapter), mode="record",
+                                 callback=adapter.extract_with_response, budget_usd=budget, recorder=recorder)
+    if budget_usd is not None:
+        raise ValueError("replay/fixture cannot accept a provider budget")
+    return RecordedExtractor(RecordingStore(captures), RecordingConfig.from_dict(raw_config), mode=mode,
+                             recorder=recorder)
+
+
+PREFETCH_CONCURRENCY = 8
+
+
+async def _prefetch_residuals(phase: Path, doc_ids, router, transform, extractor) -> None:
+    """Record residual captures concurrently so the ordered pass reads them from the capture store.
+
+    Only warms the store: any failure here is retried and reported by the ordered pass."""
+    gate = asyncio.Semaphore(PREFETCH_CONCURRENCY)
+
+    async def one(relative: str) -> None:
+        async with gate:
+            try:
+                parsed = router.parse(relative)
+                if transform is not None and parsed.media_type == "application/pdf":
+                    parsed = await asyncio.to_thread(transform, parsed)
+                if parsed.media_type not in {"application/xml", "text/xml"}:
+                    await extractor.extract_with_response(parsed)
+            except Exception:  # noqa: BLE001 - the ordered pass owns failures
+                pass
+
+    await asyncio.gather(*(one(relative) for doc_id in doc_ids for relative in _inventory(phase, doc_id)
+                           if relative != f"inbox/ap/{doc_id}/message.json"))
+
+
 async def prepare_ap_sources(phase_path: str | Path, destination: str | Path, *,
                              mode: str = "deterministic", extractor: RecordedExtractor | None = None,
                              transform=None) -> APSourceRun:
@@ -136,6 +189,11 @@ async def prepare_ap_sources(phase_path: str | Path, destination: str | Path, *,
         xml_extractor=XML_EXTRACTOR_VERSION, normalization=NORMALIZATION_VERSION,
         classification=CLASSIFICATION_VERSION,
         residual=extractor.config.to_dict() if extractor is not None else None)
+    if extractor is not None and mode == "record":
+        await _prefetch_residuals(phase, inventory.doc_ids, router, transform, extractor)
+        # The ordered pass reads what was just recorded; a source whose capture failed stays unknown
+        # instead of being retried one at a time.
+        extractor = RecordedExtractor(extractor.store, extractor.config, mode="replay", recorder=extractor.recorder)
     packets, source_hashes, folder_inventories, provenance = [], {}, {}, []
     for doc_id in inventory.doc_ids:
         paths = _inventory(phase, doc_id)

@@ -171,6 +171,15 @@ class PostingSourceBridgeTests(unittest.IsolatedAsyncioTestCase):
         context = await self.context()
         self.assertIn("GUARANTEE_APPLICABILITY_UNKNOWN", self.prepare(context).diagnostics)
 
+    async def test_undiscounted_line_amount_is_the_line_net(self):
+        fields = dict(self.fields)
+        del fields["line.1.net"]
+        for discount in ({}, {"line.1.discount": "0.00"}):
+            context = await self.context({**fields, "line.1.amount": "100.00", **discount})
+            result = self.prepare(context)
+            self.assertEqual(result.status, "READY", result.diagnostics)
+            self.assertEqual(result.posting.valuation_lines[0].amount_doc, 10000)
+
     async def test_wrong_addressee_keeps_structural_request_for_early_rejection(self):
         context = await self.context({**self.fields, "recipient_tax_id": "BUYER-OTHER"})
         result = self.prepare(context)
@@ -289,6 +298,14 @@ class PostingSourceBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.posting.quantity_lines, ())
         self.assertIsNone(result.posting.valuation_lines[0].quantity_milli)
         del fields["quantity_check_applicable"]
+        context = await self.context(fields)  # the master's PO-free vendor without any recorded order
+        self.assertEqual(self.prepare(context).status, "READY")
+        self.write("purchase_orders", [dict(self.order, id="PO-ZETA-OPTIONAL")])
+        context = await self.context(fields)
+        self.assertEqual(self.prepare(context).status, "UNKNOWN")
+        self.write("purchase_orders", [])
+        del self.vendor["po_required"]
+        self.write("vendors", [self.vendor])
         context = await self.context(fields)
         self.assertEqual(self.prepare(context).status, "UNKNOWN")
         fields.update(quantity_check_applicable=False, po_reference="UNRESOLVED-PRINTED-PO")

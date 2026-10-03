@@ -5,7 +5,7 @@ import re
 from kalmora.facts import DocumentFacts, Evidence, Fact
 from .contracts import ParsedDocument
 
-XML_EXTRACTOR_VERSION = "xml-source-extractor-v3"
+XML_EXTRACTOR_VERSION = "xml-source-extractor-v4"
 _INVOICE = "/Facturae/Invoices[1]/Invoice[1]"
 
 
@@ -183,6 +183,18 @@ def _cfdi_field(path: str, leaves: dict[str, Fact]) -> str | None:
     return None
 
 
+_FISCAL_TOTALS = {
+    # InvoiceTotal = base + charged taxes - withheld taxes. A CFDI Total stays
+    # payable only: its PDF twin, not the XML, is the arithmetic source (§2.2).
+    _INVOICE + "/InvoiceTotals[1]/InvoiceTotal[1]": _INVOICE + "/InvoiceTotals[1]/TotalTaxesWithheld[1]",
+}
+
+
+def _gross(path: str, leaves: dict[str, Fact]) -> bool:
+    """Alias the fiscal total as gross only when no tax was withheld from it."""
+    return path in _FISCAL_TOTALS and _no_discount(leaves, _FISCAL_TOTALS[path])
+
+
 class XMLDocumentExtractor:
     """Implement DocumentExtractor for supported parsed XML, one source at a time.
 
@@ -200,4 +212,6 @@ class XMLDocumentExtractor:
             name = _facturae_field(path) if root == "Facturae" else _cfdi_field(path, leaves)
             if name:
                 fields.setdefault(name, []).append(fact)
+            if _gross(path, leaves):
+                fields.setdefault("gross", []).append(fact)
         return DocumentFacts(document.source_sha256, self.version, fields)

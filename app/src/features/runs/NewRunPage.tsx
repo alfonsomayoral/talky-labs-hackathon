@@ -223,11 +223,13 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
   const navigate = useNavigate()
   const runs = useRunStore()
   const apiConfigured = runs.canStartApiRun()
+  // The backend can only close a month it has registered: one loaded from it, not a local folder or .zip.
+  const onBackend = Boolean(meta.remoteId)
   const [pending, setPending] = useState<'api' | 'import' | 'golden' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [imported, setImported] = useState<RunBundle | null>(null)
   const hasGolden = meta.inventory.hasGolden
-  const primary = hasRun ? null : apiConfigured ? 'api' : hasGolden ? 'golden' : 'import'
+  const primary = hasRun ? null : apiConfigured && onBackend ? 'api' : hasGolden ? 'golden' : 'import'
 
   const attempt = <T,>(kind: 'api' | 'import' | 'golden', fn: () => Promise<T>, done: (r: T) => void) => {
     setError(null)
@@ -248,11 +250,12 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
         <Card title={<span className={s.optionTitle}><Server aria-hidden /> Cerrar el mes con el backend</span>} description="El agente cierra el mes y la app sigue su progreso en vivo.">
           <div className={s.optionBody}>
             {!apiConfigured && <p className={s.muted}>Define VITE_API_URL para conectar el backend.</p>}
+            {apiConfigured && !onBackend && <p className={s.muted}>Estos datos están solo en el navegador. Usa «Subir .zip al backend» en el paso 1 para cerrar el mes aquí.</p>}
             <Button
               variant={primary === 'api' ? 'primary' : 'secondary'}
               size="sm"
               leadingIcon={<Play />}
-              disabled={!apiConfigured}
+              disabled={!apiConfigured || !onBackend}
               loading={pending === 'api'}
               onClick={() => attempt('api', () => runs.startApiRun(meta.id), (runId) => navigate(runPath(runId)))}
             >

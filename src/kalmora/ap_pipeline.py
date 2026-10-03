@@ -201,8 +201,11 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
     stages, checks = [], []
 
     def finish(status, row=None, diagnostics=(), new_state=state):
+        # An undecided document that may still be rejected (and reissued) cannot
+        # yet be a later copy's duplicate root; once clear of rejection it can.
+        undecided = "RECEIVED" if ("rejection", "CLEAR") in stages else None
         observation = replace(current,
-            status=row["decision"] if row is not None else "RECEIVED",
+            status=row["decision"] if row is not None else undecided,
             duplicate_of=row.get("duplicate_of") if row is not None else None)
         return APInvoiceResult(status, row, new_state, tuple(dict.fromkeys(evidence)),
                                tuple(stages), tuple(diagnostics), tuple(checks), observation)

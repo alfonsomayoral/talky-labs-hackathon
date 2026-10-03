@@ -457,6 +457,16 @@ class APInvoicePipelineTests(unittest.TestCase):
             self.run_invoice(replace(request, price_lines=(forged,)))
         self.assertEqual(self.state.rows, ())
 
+    def test_undecided_prior_is_a_duplicate_root_only_after_clearing_rejection(self):
+        request = self.request()
+        unknown = self.run_invoice(replace(request, duplicate_inventory_complete=self.fact(False, "duplicates")))
+        self.assertEqual(unknown.status, "UNKNOWN")
+        self.assertIsNone(unknown.observation.status)  # it may still be rejected and reissued
+        fields = dict(request.hold_fields, bank_differs=())
+        cleared = self.run_invoice(replace(request, hold_fields=fields))
+        self.assertEqual((cleared.status, cleared.stages[1]), ("UNKNOWN", ("rejection", "CLEAR")))
+        self.assertEqual(cleared.observation.status, "RECEIVED")
+
     def test_header_and_resolved_context_cannot_replace_independent_attachment_amounts(self):
         request = self.direct(self.request())
         fields = dict(request.rejection_fields)

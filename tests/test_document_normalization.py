@@ -15,6 +15,16 @@ class NormalizationTests(unittest.TestCase):
         self.assertEqual(result.facts.fields['unit'][0].value, 'unrelated header')
         self.assertEqual(normalize_document_facts(result.facts).facts, result.facts)
 
+    def test_diagnostics_do_not_depend_on_field_order(self):
+        def fact(value):
+            return [Fact(value, Evidence("doc.pdf", "page.1", 1, value))]
+        fields = {"period_start": fact("01/06/2026"), "lines": [Fact([{"quantity": "2.520"}],
+                                                                     Evidence("doc.pdf", "page.1", 1, "2.520"))]}
+        forward = normalize_document_facts(DocumentFacts("a" * 64, "x", dict(fields)))
+        backward = normalize_document_facts(DocumentFacts("a" * 64, "x", dict(reversed(list(fields.items())))))
+        self.assertEqual(len(forward.diagnostics), 2)
+        self.assertEqual(forward.diagnostics, backward.diagnostics)
+
     def test_scaling_retains_digits_in_a_low_precision_decimal_context(self):
         with localcontext() as context:
             context.prec = 2

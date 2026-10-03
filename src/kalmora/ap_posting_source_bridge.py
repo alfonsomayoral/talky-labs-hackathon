@@ -13,7 +13,7 @@ from .ap_document_bridge import APFactSet
 from .ap_erp import APERPBaseline
 from .ap_identity import IdentityCatalog
 from .ap_invoice_context import APInvoiceContext
-from .ap_line_source_bridge import APLineSourceBinding, validate_ap_line_sources
+from .ap_line_source_bridge import APLineSourceBinding, _net_observation, validate_ap_line_sources
 from .ap_output import APHeader
 from .ap_pipeline import APInvoiceRequest
 from .ap_project_binding import resolve_ap_project_binding
@@ -270,7 +270,7 @@ def prepare_ap_invoice_posting(
         return stop("UNKNOWN", "SOURCE_LINE_INVENTORY_UNKNOWN")
     for line in context.lines:
         source = line.source
-        amount = source.net_cents
+        amount = _net_observation(source)  # an undiscounted row amount is its net
         proof.extend(amount.evidence)
         if not amount.known or amount.value < 0:
             return stop("UNKNOWN", f"SOURCE_LINE_EXPLICIT_NET_REQUIRED:{source.line_id}")
