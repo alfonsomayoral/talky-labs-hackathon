@@ -6,6 +6,7 @@ import unittest
 from kalmora.bankrec import Category, build_bank_rec, journal_entries
 from kalmora.bankrec.statements import read_statements
 from kalmora.data import PhaseData
+from kalmora.documents.contracts import ParsedDocument, digest
 from kalmora.money import RateTable
 
 REAL = Path(os.environ.get("KALMORA_PHASE_DEV", Path(__file__).resolve().parents[1] / "participant/phase_dev"))
@@ -63,3 +64,19 @@ class SourceExceptionTests(unittest.TestCase):
             self.assertEqual([(x.account, x.debit, x.credit) for x in adjustment.lines],
                              [("41000000", amount, 0), ("57200002", 0, amount)])
         self.assertEqual(len(journal_entries(self.reconciliation)), 59)
+
+    def test_related_problematic_ap_sources_do_not_erase_executed_bank_payments(self):
+        normalized = Path(os.environ.get("KALMORA_NORMALIZED_SOURCES", REAL.parent / "normalized_sources"))
+        import json
+        cases = [("inbox/ap/API005227/factura_2026-037570.pdf", ("2026-037570", "UTE Kalmora Construcción", "2.157,48")),
+                 ("inbox/ap/API005221/factura_26020907.pdf", ("26020907", "2.404,51", "240,45", "3.088,02"))]
+        for relative, fragments in cases:
+            doc = ParsedDocument.from_dict(json.loads((normalized / REAL.name / (relative + ".json")).read_text()))
+            self.assertEqual(doc.source_sha256, digest((REAL / relative).read_bytes()))
+            text = "\n".join(x.text for x in doc.blocks)
+            for fragment in fragments:
+                self.assertIn(fragment, text)
+        # Water source has inconsistent printed gross. Executed debit equals
+        # base + VAT; M3 records actual payment, never a new AP expense invoice.
+        self.assertEqual(240451 + 24045, 264496)
+        self.assertNotEqual(240451 + 24045, 308802)

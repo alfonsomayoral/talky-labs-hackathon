@@ -40,17 +40,20 @@
     },
     {
       "id": "SWIFT_API004253_DEBIT_768",
-      "status": "known_exception",
+      "status": "resolved",
       "evidence": [
-        "phase_dev/golden/bank_rec.jsonl SWIFT-API004253: 76800000 debit",
-        "roadmap-auditado.md §3 and M3-12: historical investigation required"
+        "phase_dev/erp/ap_invoices.jsonl API004253, issue_date 2026-06-02, payable 5145365 GBP",
+        "phase_dev/erp/fx_rates.jsonl GBP 2026-06-02=0.8942 and 2026-07-10=0.8997",
+        "phase_dev/erp/journal_entries.jsonl 1000-2026-1600000052: bank credit 5718981, FX gain 35174",
+        "phase_dev/bank/BIN-1000/2026-07.n43 BL0001816: bank debit 5743000",
+        "docs/verification/m23-77.md; tests/test_bankrec_reference_exceptions.py"
       ],
-      "convention": "Preserve this observed sign in audit evidence. Do not derive a general rule from an income account appearing on debit. Business explanation remains unresolved until historical FX/bank/journal evidence is reviewed in M3.",
+      "convention": "Correct the actual bank/book shortfall of 24019 with Dr768/Cr572, reducing the originally recorded gain from 35174 to 11155. Published four-decimal rate reproduces payment within two cents; preserve the recorded book and document that precision difference. June FX valuation has an explicit July reversal and is not posted again. Never infer the FX sign from the account name alone.",
       "issues": [
         70,
         77
       ],
-      "acceptance": "M3 documents historical amount/rate evidence and explicitly resolves or retains this exception before bank reconciliation closure"
+      "acceptance": "Historical invoice, rates, valuation/reversal, payment and bank amounts reproduced by source tests; exception explained and bank/category comparison verified in M3 #77."
     },
     {
       "id": "CLOSE_AGGREGATION",
