@@ -83,6 +83,25 @@ class ChronologyTests(unittest.TestCase):
             self.assertIn("BANK_DETAILS_CHANGE:CONFLICT:a,z", state.diagnostics)
         self.assertTrue(observe([first, replace(first, event_id="z")], bank_iban="ESBANK1").bank_change_supported)
 
+    def test_inconclusive_competing_factor_preserves_operative_unknown(self):
+        known = event("known", KINDS[1], valid_from="2026-07-01", value="ESFACTOR1")
+        for competing in (
+            replace(known, event_id="unknown", valid_from=None, value="ESFACTOR2"),
+            replace(known, event_id="unknown", valid_from=None, value=None),
+            replace(known, event_id="unknown", received_at="2026-07-16", value="ESFACTOR2"),
+        ):
+            state = observe([known, competing], bank_iban="ESFACTOR1")
+            self.assertTrue(state.factoring_active)
+            self.assertIsNone(state.factoring)
+            self.assertIsNone(state.factoring_bank_supported)
+            self.assertIn("FACTORING_NOTICE:OPERATIVE_STATE_UNKNOWN", state.diagnostics)
+            self.assertEqual(state, observe([competing, known], bank_iban="ESFACTOR1"))
+        for future in (
+            replace(known, event_id="future", valid_from=None, value="ESFACTOR2", received_at="2026-07-17T00:00:00"),
+            replace(known, event_id="future", valid_from="2026-07-17", value=None),
+        ):
+            self.assertTrue(observe([known, future], bank_iban="ESFACTOR1").factoring_bank_supported)
+
     def test_embargo_strictly_before_receipt_and_unknown_same_day(self):
         before = event("aeat", KINDS[2], received_at="2026-07-16T09:59:59")
         self.assertTrue(observe([before]).embargo_active)

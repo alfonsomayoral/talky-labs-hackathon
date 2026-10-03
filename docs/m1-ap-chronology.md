@@ -14,6 +14,9 @@ support is unknown. Both report CONFLICT with stable event IDs. Two unknown
 IBANs cannot prove equivalence either. Certificates independently prove a valid
 certificate and embargo notices independently prove the same AEAT payee type;
 their current boolean observations do not depend on choosing differing amounts.
+An inconclusively dated/received/referenced competing assignment also prevents
+selecting operative recipient data while preserving proved factoring existence.
+Assignments definitively received later or not yet valid do not compete.
 
 `invoice_state(events, scope, invoice_date, received_at, month, ...)` keeps
 reception and validity separate. Certificate and factoring validity is inclusive

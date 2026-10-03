@@ -193,6 +193,12 @@ def invoice_state(
                     observations[kind] = None
                 if observations[kind] is None:
                     diagnostics.append(f"{kind}:BANK_DETAILS_UNKNOWN")
+            if kind == "FACTORING_NOTICE" and unknown:
+                # An incompletely dated/referenced assignment could name a
+                # different recipient. A known assignment proves existence,
+                # but cannot settle operative data in that competing scope.
+                selected[kind] = None
+                diagnostics.append("FACTORING_NOTICE:OPERATIVE_STATE_UNKNOWN")
         if observations[kind] is None and not unknown:
             diagnostics.append(f"{kind}:INVENTORY_UNKNOWN")
     factor = selected[KINDS[1]]
