@@ -12,50 +12,43 @@
 - `src/features/observability/Calibration.tsx`: curva de fiabilidad en SVG con diagonal e histograma, deslizador de umbral (automáticas, a persona, errores esperados y reales), ECE y lista de «errores que pasarían el umbral», que abre cada partida con `useOpenItem`. Sin confianza muestra un estado vacío que lo explica.
 - `src/features/observability/model.test.ts`: 8 tests, con un paquete sintético de confianzas (0,95 bien calibrada y 0,75 sobreconfiada, ECE 0,2).
 
-### 4.A Explorador de datos (`/datos/*`), a medias, commit `wip`
+### 4.A Explorador de datos (`/datos/*`), commits `aa8c3b5` (wip) y `828d3e0`, verificado
 
-Escrito, sin verificar en el navegador:
-
-- `model.ts` + `model.test.ts` (9 tests en verde): rutas `dataPath`, filtros del diario en la URL (`sociedad`, `cuenta`, `origen`, `desde`, `hasta`, `q`), enlaces cruzados (`vendorLinks`, `customerLinks`, `itemsCiting`, `itemsCitingEntry`, `partnerPath`, `bankLineItems`) y ficheros (`fileKind`, `prettyXml`, `prettyJson`).
-- `DataExplorerPage.tsx`: subrutas con `<Routes>`, más un estado vacío cuando no hay dataset cargado.
-- `common.tsx`: `SectionTabs`, `useApi`, `useRunItems`, `TextLink`, `DetailHeader`, `Facts`, `ItemLinks` (abre la partida con `useOpenItem`), `tableHeight` y `NotFound`.
-- `MastersPage.tsx`: 8 maestros (proveedores, clientes, contratos, proyectos, plan de cuentas, impuestos en puntos básicos, centros de coste, cuentas bancarias).
-- `PartyPages.tsx`: fichas de proveedor (facturas, histórico de documentos, pedidos, partidas que lo citan, diario), cliente (contratos, facturas, partidas abiertas, pagarés) y proyecto (PEP, contratos, pedidos).
-- `JournalPage.tsx`: diario con `api.queryJournal`, páginas de 500 y filtros en la URL; exporta `useJournal` y `useJournalColumns`.
-- `EntryPage.tsx`: ficha de asiento con líneas, cuadre, origen (factura AP o AR) y partidas que lo citan.
-- `AccountPage.tsx`: ficha de cuenta con saldo registrado por sociedad (`recordedTrialBalance`) y sus asientos.
-- `DocumentsPage.tsx` + `FileViewer.tsx`: bandeja (AP, facturación, remesas y avisos), ficha de documento y visor (PDF en `iframe` con blob URL, XML indentado, JSON formateado, texto).
-
-## A medias
-
-1. **`src/features/data-explorer/StatementsPage.tsx` no existe.** `DataExplorerPage.tsx` lo importa y **`typecheck` falla** solo por eso (TS2307). Siguiente paso: escribir `StatementsPage` y `StatementPage`.
-   - `StatementsPage` (`/datos/extractos`): `DataTable` de `core.bankStatements` con cuenta, sociedad (de `core.bankAccounts`), banco, formato, mes, nº de líneas, saldo inicial y final (`<Amount>` en la moneda de la cuenta). Al abrir una fila, `dataPath.statement(account, month)`. Lleva `PageHeader` con `filters={<SectionTabs />}` y `Page fill`, como `DocumentsPage`.
-   - `StatementPage` (`/datos/extractos/:account/:month`): `Facts` de la cuenta (IBAN, cuenta contable con `TextLink` a `dataPath.account`, formato, `rawPath`, saldos). `DataTable` de las líneas (`bank_line`, fechas, importe con `colorize`, texto y partidas de `bankLineItems(run.itemsById, account, line)`). Al seleccionar una línea, un panel con el registro crudo: `api.rawBankDetails(account, month)` cargado una vez, indexado por `bank_line`, mostrando `raw` en `<pre>`, `concepts` y `references`. Botón «Abrir la partida» con `useOpenItem`.
-2. **`src/features/data-explorer/DataExplorer.module.css` no existe.** Todos los ficheros de 4.A usan estas clases: `link`, `muted`, `block`, `flags`, `kinds`, `kind` (con `[aria-current=page]` en marca), `headerStack`, `count`, `input`, `journalForm`, `more`, `error`, `detailHeader`, `detailTitleRow`, `detailTitle`, `detailSubtitle`, `facts`, `itemList`, `itemRow`, `itemTitle`, `linkList`, `tableWrap`, `table`, `num`, `ellipsis`, `balances`, `balance`, `viewer`, `viewerBar`, `viewerPath`, `inlineIcon`, `pdf` (alto ~70vh), `code` (`<pre>` mono con scroll) y `body`. `tableWrap`, `table` y `num` pueden copiarse de `observability/CostPage.module.css`. Solo tokens de `design/tokens.css`.
-3. Después: `npm run typecheck && npm run lint && npm run test && npm run build`. Recorrido en el navegador por `/datos`, `/datos/maestros/*`, `/datos/proveedores/V100045`, `/datos/clientes/<id>`, `/datos/cuentas/40090000`, `/datos/diario` (filtros, «Cargar más»), `/datos/diario/<id>`, `/datos/documentos/API004128` (PDF y XML), `/datos/documentos/fichero?path=…` y `/datos/extractos/BIN-1100/2026-07`, con cero errores en consola. Luego un commit `feat: add data explorer with masters, journal, documents and statements` que sustituya el `wip`.
+- `src/features/data-explorer/model.ts` + `model.test.ts` (9 tests): rutas `dataPath`, filtros del diario en la URL (`sociedad`, `cuenta`, `origen`, `desde`, `hasta`, `q`), enlaces cruzados (`vendorLinks`, `customerLinks`, `itemsCiting`, `itemsCitingEntry`, `partnerPath`, `bankLineItems`) y ficheros (`fileKind`, `prettyXml`, `prettyJson`).
+- `DataExplorerPage.tsx`: subrutas con `<Routes>` y estado vacío sin dataset.
+- `common.tsx`: `SectionTabs`, `useApi`, `useRunItems`, `TextLink`, `DetailHeader`, `Facts`, `ItemLinks` (abre la partida con `useOpenItem`), `tableHeight`, `NotFound`.
+- `MastersPage.tsx`: 8 maestros. La fila de una cuenta bancaria abre su extracto del mes.
+- `PartyPages.tsx`: fichas de proveedor (facturas, histórico de documentos, pedidos, partidas que lo citan), cliente (contratos, facturas, partidas abiertas, pagarés) y proyecto (PEP, contratos, pedidos).
+- `JournalPage.tsx`: diario con `api.queryJournal`, páginas de 500, filtros en la URL y «Cargar más».
+- `EntryPage.tsx`: asiento con líneas, cuadre, origen y partidas que lo citan.
+- `AccountPage.tsx`: cuenta con saldo registrado por sociedad y sus asientos.
+- `DocumentsPage.tsx` + `FileViewer.tsx`: bandeja (AP, facturación, remesas y avisos), ficha de documento y visor (PDF, XML indentado, JSON, texto) con descarga.
+- `StatementsPage.tsx`: lista de extractos (cuenta, sociedad, banco, formato, mes, líneas, saldos) y ficha de extracto: datos de la cuenta con enlace a su cuenta contable, líneas con importe coloreado y partidas, y al seleccionar una línea (clic o `j`/`k`) su registro crudo de `api.rawBankDetails` con conceptos y referencias, más «Abrir la partida» (o «Abrir el cobro» y «Abrir la conciliación» si alimenta dos).
+- `DataExplorer.module.css`: estilos de todo 4.A, solo con tokens.
 
 ## Verificación
 
-- 4.C: `typecheck`, `lint` y `build` en verde antes del commit `3db7f65`. Con `KALMORA_DEV_PHASE` definido: `Test Files 26 passed | 2 skipped`, `Tests 146 passed | 18 skipped`.
-- 4.C en el navegador (puerto 5176), con julio:
-  - Con la referencia golden: los estados vacíos de modelos, tiempos y calibración se muestran bien.
-  - Con un paquete sintético con confianzas: 2 modelos, Gantt de 6 tareas, curva con 363 partidas, ECE 4,4 % y umbral al 90 % (150 automáticas, 6 errores reales). Pulsar un error abre `?item=ap:API004239`.
-  - Cero errores en consola.
-- El paquete sintético se genera con `make_bundle.py` en el scratchpad de la sesión, fuera del repo, y lo sirve el dev server con `KALMORA_RUNS=<scratchpad>/runs`. No se ha commiteado ningún dato.
-- 4.A: solo `model.test.ts` (9 tests en verde). Nada revisado en el navegador.
+- Antes del commit `828d3e0`, sin `KALMORA_DEV_PHASE`: `typecheck` y `lint` sin errores; `test`: `Test Files 36 passed (36)`, `Tests 229 passed (229)`; `build` correcto (solo el aviso de chunk > 500 kB que ya había).
+- 4.A en el navegador (puerto 5176), con julio y la referencia golden: `/datos` y los 8 maestros, `/datos/proveedores/V100009` y `V100045`, `/datos/clientes/C200001`, `/datos/proyectos/OB-1100-2511`, `/datos/cuentas/40090000`, `/datos/diario` (filtro por sociedad, cuenta y fecha en la URL; «Cargar más» llega a 869 de 869), `/datos/diario/1100-2026-1600000418` (cuadrado, con su partida `bank_rec`), `/datos/documentos`, `/datos/documentos/API004128` (PDF), `API004315` (XML), `/datos/documentos/fichero?path=…` (JSON y CSV), `/datos/extractos`, `/datos/extractos/BAE-1100/2026-07` (N43 con registros 22 y 23) y `/datos/extractos/BANH-3100-MXN/2026-07` (CSV en MXN, una línea con cobro y conciliación). «Abrir la partida» abre `?item=bank_rec:BAE-1100/BL0000044`. Rutas inexistentes muestran `NotFound`. Cero errores en consola.
+- 4.C: `typecheck`, `lint` y `build` en verde antes de `3db7f65`. En el navegador, con la referencia golden (estados vacíos) y con un paquete sintético con confianzas: 2 modelos, Gantt de 6 tareas, curva con 363 partidas, ECE 4,4 %, umbral al 90 % (150 automáticas, 6 errores reales). El paquete sintético vive fuera del repo. Cero errores en consola.
 
 ## Sin verificar
 
-- Todas las pantallas de 4.A en el navegador.
-- 4.C con un informe real del backend (`outputs/runs/<uuid>.json`): solo se ha probado con el test de `normalizeManifest` y con el manifiesto sintético.
+- 4.C con un informe real del backend (`outputs/runs/<uuid>.json`): solo con el test de `normalizeManifest` y el manifiesto sintético.
+- 4.A con `phase_test` (septiembre): solo julio.
+- Extractos CAMT.053: se ha revisado N43 y CSV, no CAMT.
 
 ## Peticiones a la coordinadora
 
-- `src/engine/score/parity.test.ts` revienta al recoger tests en los worktrees si no se define `KALMORA_DEV_PHASE`. `devPhase()` resuelve `../../participant/phase_dev`, que no existe en `talky-wt/<rama>/`. Además, el cuerpo de `describe.skipIf(!ready)` lee `golden.deliverables` con `golden = null`. Arreglo propuesto: crear `golden` dentro de los tests o en un `beforeAll`, o resolver la ruta de datos igual que `.env.local`.
+- 4.A y 4.C listos para integrar en `hackathon/frontend`. La rama ya contiene `hackathon/frontend` hasta `754a270`, incluido el `wip` de 2.C (`3cb7318`), así que el merge solo añade `src/features/data-explorer/`, `src/features/observability/` y este fichero.
 - `TASK_LABEL` está duplicado en `observability/model.ts` y `overview/model.ts` (`TASK_META`). Estaría mejor un catálogo único de nombres de tarea en `src/domain/catalog/`.
 - Rutas de detalle acordadas con 4.D (⌘K): `/datos/proveedores/:id`, `/datos/clientes/:id`, `/datos/cuentas/:account` y `/datos/diario/:entryId`. Además existen `/datos/proyectos/:id`, `/datos/documentos/:id` y `/datos/extractos/:account/:month`.
 
 ## Commits
 
 - `3db7f65 feat: add cost page with model usage, task timeline and confidence calibration`
-- `wip: data explorer pages without statements and styles` (ver `git log`)
+- `aa8c3b5 wip: data explorer pages without statements and styles`
+- `fb8a07a Merge remote-tracking branch 'origin/hackathon/frontend' into fe/explorer-cost` (trae el arreglo de `parity.test.ts`)
+- `828d3e0 feat: add data explorer with masters, journal, documents and statements`
+
+El `wip` ya estaba en `origin` con un merge encima, así que no se ha reescrito: 4.A queda en `aa8c3b5` + `828d3e0`.
