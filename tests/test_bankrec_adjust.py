@@ -79,6 +79,12 @@ class AdjustmentTests(unittest.TestCase):
         adj.direct_debits(b, [bank("B1", "2026-07-01", -90596, "RECIBO X", mandate="V100028-1100", invoice="2026-037541")])
         self.assertEqual(shape(b.out[0]), [("41000000", 90596, 0, "V100028", "2026-037541", None), ("57200001", 0, 90596, None, None, None)])
 
+    def test_direct_debit_of_an_unknown_invoice_is_categorised_without_adjustment(self):
+        b = adj.Builder(ACCOUNT, adj.AdjustContext(RATES, {}, {}, {}.get, invoice_known=lambda vendor, invoice: False))
+        adj.direct_debits(b, [bank("B1", "2026-07-01", -107141, "RECIBO X", mandate="V100028-1100", invoice="2026-037563")])
+        self.assertEqual((b.out, b.skipped_debits), ([], {"B1"}))
+        self.assertTrue(any("2026-037563" in d for d in b.diagnostics))
+
     def test_returned_receipt_is_one_entry_with_the_commission(self):
         b = builder(receipts={"RC26-00280": "C200041"})
         adj.returned(b, [bank("B1", "2026-07-14", -49869, "DEVOLUCION RECIBO AM04", receipt="RC26-00280"),
