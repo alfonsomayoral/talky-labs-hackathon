@@ -26,6 +26,14 @@ def main(argv: list[str] | None = None) -> int:
     ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from JSON/JSONL phase data")
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
+    ap_prepare = commands.add_parser("prepare-ap", help="Prepare AP source facts; does not post or export AP decisions")
+    ap_prepare.add_argument("phase", type=Path)
+    ap_prepare.add_argument("--state-dir", type=Path, required=True, help="Source state outside the original phase")
+    ap_prepare.add_argument("--mode", choices=("deterministic", "record", "replay", "fixture"), default="deterministic")
+    ap_prepare.add_argument("--captures", type=Path, help="Shared document capture directory")
+    ap_prepare.add_argument("--config", type=Path, help="LLM settings for record; saved RecordingConfig for replay/fixture")
+    ap_prepare.add_argument("--budget-usd", help="Explicit positive provider budget; required for record")
+    ap_prepare.add_argument("--pdf-vision", action="store_true", help="Preserve native page renders and unverified OCR aids")
     evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
     evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
     evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
@@ -46,18 +54,78 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
+    if args.command == "prepare-ap":
+        run_dir = args.run_dir.resolve()
+        if run_dir.is_relative_to(args.phase.resolve()) or "golden" in run_dir.parts or "golden" in args.run_dir.parts:
+            print(json.dumps({"error": "AP run reports must be outside the original phase and Golden"}), file=sys.stderr)
+            return 1
     from .runlog import RunRecorder
     metadata: dict[str, object] = {"package_version": __version__}
     for name in ("phase", "archive", "destination", "submission", "evaluator", "output"):
         if getattr(args, name, None) is not None:
             metadata[name] = str(getattr(args, name).resolve())
     with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata) as run:
-        status = _execute(args)
+        status = _execute(args, recorder=run)
         run.report["exit_code"] = status
     return status
 
 
-def _execute(args: argparse.Namespace) -> int:
+def _execute(args: argparse.Namespace, recorder=None) -> int:
+    if args.command == "prepare-ap":
+        import asyncio
+        from decimal import Decimal, InvalidOperation
+        from .ap_sources import prepare_ap_sources
+        from .data import load_json
+        from .documents.replay import RecordedExtractor, RecordingConfig, RecordingStore
+        from .facts import atomic_json
+        try:
+            extractor = None
+            if args.mode == "deterministic":
+                if args.config or args.captures or args.budget_usd:
+                    raise ValueError("deterministic mode cannot accept provider/capture configuration")
+            else:
+                if args.config is None or args.captures is None:
+                    raise ValueError("residual mode requires --config and --captures")
+                raw_config = load_json(args.config)
+                if args.mode == "record":
+                    if args.budget_usd is None:
+                        raise ValueError("record mode requires an explicitly authorized --budget-usd")
+                    budget = Decimal(args.budget_usd)
+                    if not budget.is_finite() or budget <= 0:
+                        raise ValueError("record mode requires a positive finite provider budget")
+                    from .llm.client import LLMClient, LLMConfig
+                    from .documents.extractor import LLMDocumentExtractor
+                    settings = dict(raw_config)
+                    include_aids = settings.pop("include_processing_aids", True)
+                    for name in ("input_rate", "output_rate"):
+                        if isinstance(settings[name], bool):
+                            raise ValueError("model pricing must use exact numeric rates")
+                        settings[name] = Decimal(settings[name])
+                    client = LLMClient(LLMConfig(budget_usd=budget, **settings), recorder)
+                    adapter = LLMDocumentExtractor(client, include_processing_aids=include_aids)
+                    config = RecordingConfig.from_adapter(adapter)
+                    extractor = RecordedExtractor(RecordingStore(args.captures), config, mode="record",
+                        callback=adapter.extract_with_response, budget_usd=budget, recorder=recorder)
+                else:
+                    if args.budget_usd is not None:
+                        raise ValueError("replay/fixture cannot accept a provider budget")
+                    config = RecordingConfig.from_dict(raw_config)
+                    extractor = RecordedExtractor(RecordingStore(args.captures), config, mode=args.mode, recorder=recorder)
+            transform = None
+            if args.pdf_vision:
+                from .documents.ocr import PDFVisionProcessor
+                transform = PDFVisionProcessor(args.phase).process
+            result = asyncio.run(prepare_ap_sources(args.phase, args.state_dir, mode=args.mode,
+                                                   extractor=extractor, transform=transform))
+            if extractor is not None:
+                atomic_json(args.state_dir / "residual-identity.json", extractor.config.to_dict())
+        except (OSError, ValueError, KeyError, TypeError, InvalidOperation) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"manifest": str(result.manifest_path), "month": result.manifest["month"],
+                          "accounting_run": False, **result.manifest["report"]}))
+        return 0 if not (result.manifest["report"]["unknown_sources"]
+                         or result.manifest["report"]["incomplete_tasks"]) else 1
     if args.command == "doctor":
         supported = sys.version_info >= (3, 12)
         print(json.dumps({"version": __version__, "python": sys.version.split()[0], "supported": supported}))
