@@ -5,7 +5,7 @@ import re
 from kalmora.facts import DocumentFacts, Evidence, Fact
 from .contracts import ParsedDocument
 
-XML_EXTRACTOR_VERSION = "xml-source-extractor-v1"
+XML_EXTRACTOR_VERSION = "xml-source-extractor-v2"
 _INVOICE = "/Facturae/Invoices[1]/Invoice[1]"
 
 
@@ -77,8 +77,17 @@ def _facturae_field(path: str) -> str | None:
         "InvoiceHeader[1]/InvoiceSeriesCode[1]": "raw.series",
         "InvoiceHeader[1]/InvoiceDocumentType[1]": "raw.invoice_document_type",
         "InvoiceHeader[1]/InvoiceClass[1]": "raw.invoice_class",
+        "InvoiceHeader[1]/Corrective[1]/InvoiceNumber[1]": "corrective.document_number",
+        "InvoiceHeader[1]/Corrective[1]/InvoiceSeriesCode[1]": "corrective.series",
+        "InvoiceHeader[1]/Corrective[1]/ReasonCode[1]": "corrective.reason_code",
+        "InvoiceHeader[1]/Corrective[1]/ReasonDescription[1]": "corrective.reason_description",
+        "InvoiceHeader[1]/Corrective[1]/CorrectionMethod[1]": "corrective.method_code",
+        "InvoiceHeader[1]/Corrective[1]/TaxPeriod[1]/StartDate[1]": "corrective.period_start",
+        "InvoiceHeader[1]/Corrective[1]/TaxPeriod[1]/EndDate[1]": "corrective.period_end",
         "InvoiceIssueData[1]/IssueDate[1]": "document_date",
         "InvoiceIssueData[1]/InvoiceCurrencyCode[1]": "currency",
+        "InvoiceIssueData[1]/ReceiverTransactionReference[1]": "po_reference",
+        "InvoiceIssueData[1]/ReceiverContractReference[1]": "receiver_contract_reference",
         "InvoiceIssueData[1]/InvoicingPeriod[1]/StartDate[1]": "period_start",
         "InvoiceIssueData[1]/InvoicingPeriod[1]/EndDate[1]": "period_end",
         "InvoiceTotals[1]/TotalGrossAmountBeforeTaxes[1]": "net",
@@ -93,9 +102,18 @@ def _facturae_field(path: str) -> str | None:
     if line:
         prefix, relative = f"line.{int(line[1])}.", line[2]
         fields = {"ItemDescription[1]": "description", "Quantity[1]": "quantity",
-                  "UnitPriceWithoutTax[1]": "unit_price", "GrossAmount[1]": "amount"}
+                  "UnitPriceWithoutTax[1]": "unit_price", "GrossAmount[1]": "amount",
+                  "IssuerTransactionReference[1]": "issuer_transaction_reference",
+                  "ReceiverTransactionReference[1]": "receiver_transaction_reference",
+                  "IssuerContractReference[1]": "issuer_contract_reference",
+                  "ReceiverContractReference[1]": "receiver_contract_reference",
+                  "SequenceNumber[1]": "order_sequence"}
         if relative in fields:
             return prefix + fields[relative]
+        delivery = re.fullmatch(r"DeliveryNotesReferences\[1\]/DeliveryNote\[(\d+)\]/(DeliveryNoteNumber|DeliveryNoteDate)\[1\]", relative)
+        if delivery:
+            field = "document_number" if delivery[2] == "DeliveryNoteNumber" else "document_date"
+            return f"{prefix}delivery.{int(delivery[1])}.{field}"
     tax = re.fullmatch(r"(TaxesOutputs|TaxesWithheld)\[1\]/Tax\[(\d+)\]/(.+)", relative)
     if tax:
         direction = "charge" if tax[1] == "TaxesOutputs" else "withheld"
@@ -131,6 +149,12 @@ def _cfdi_field(path: str, leaves: dict[str, Fact]) -> str | None:
     if path == "/Comprobante/@SubTotal" and _no_discount(leaves, "/Comprobante/@Descuento"):
         return "net"
     relative = path.removeprefix("/Comprobante/")
+    relationship = re.fullmatch(r"CfdiRelacionados\[(\d+)\]/@TipoRelacion", relative)
+    if relationship:
+        return f"related.{int(relationship[1])}.relationship_code"
+    related = re.fullmatch(r"CfdiRelacionados\[(\d+)\]/CfdiRelacionado\[(\d+)\]/@UUID", relative)
+    if related:
+        return f"related.{int(related[1])}.document.{int(related[2])}.uuid"
     prefix = ""
     line = re.fullmatch(r"Conceptos\[1\]/Concepto\[(\d+)\]/(.+)", relative)
     if line:
