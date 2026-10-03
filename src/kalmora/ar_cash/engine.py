@@ -441,11 +441,13 @@ def _casefold_map(rows: list[dict[str, Any]], field: str = "id") -> dict[str, di
 
 def _special_non_customer(text: str) -> str | None:
     normalized = _normalize(text)
-    if "IVA" in normalized and any(word in normalized for word in ("DEVOLUCION", "REEMBOLSO", "REFUND")):
+    words = set(normalized.split())
+    if "IVA" in words and words.intersection({"DEVOLUCION", "REEMBOLSO", "REFUND"}):
         return "47000000"
-    if "FIANZA" in normalized or "DEPOSITO" in normalized:
+    if "FIANZA" in words or {"DEPOSITO", "GARANTIA"}.issubset(words):
         return "56500000"
-    if "SEGURO" in normalized or "INDEMNIZACION" in normalized:
+    if "INDEMNIZACION" in words or (words.intersection({"SEGURO", "SEGUROS"})
+                                     and "SOCIALES" not in words):
         return "75900000"
     return None
 
