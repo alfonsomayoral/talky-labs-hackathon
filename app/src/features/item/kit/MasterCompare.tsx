@@ -3,6 +3,7 @@ import { Check, Minus, X } from 'lucide-react'
 import type { ApRow, Company, EInvoiceSummary, InboxMessage, Vendor } from '@/domain/types'
 import { useDatasetStore } from '@/data/stores'
 import { Mono } from '@/components'
+import { formatDate } from '@/lib/format'
 import { fileExtension } from './evidence'
 import { useAsync } from './useAsync'
 import styles from './MasterCompare.module.css'
@@ -103,7 +104,7 @@ export function apMasterRows({ row, vendor, company, message, einvoice }: ApMast
     document: einvoice?.iban ?? null,
     master: vendor ? (vendor.bank?.iban ?? null) : null,
     mono: true,
-    note: payee ? `Cesión registrada a ${payee.name} (${payee.iban}) desde ${payee.from_date}` : vendor?.bank_history?.length ? `Anteriores: ${vendor.bank_history.map((h) => h.iban).join(', ')}` : undefined,
+    note: payee ? `Cesión registrada a ${payee.name} (${payee.iban}) desde ${formatDate(payee.from_date)}` : vendor?.bank_history?.length ? `Anteriores: ${vendor.bank_history.map((h) => h.iban).join(', ')}` : undefined,
   })
   if (message?.from) rows.push({ label: 'Dominio del remitente', document: domainOf(message.from), master: domainOf(vendor?.email), mono: true })
   if (einvoice?.buyer.taxId || company) rows.push({ label: 'NIF del destinatario', document: einvoice?.buyer.taxId ?? null, master: company?.tax_id ?? null, mono: true })
