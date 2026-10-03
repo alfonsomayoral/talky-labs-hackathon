@@ -7,6 +7,7 @@ It does not inspect OCR aids or infer rows from expected labels.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import Counter
 import re
 import unicodedata
 from typing import Mapping, Sequence
@@ -14,10 +15,10 @@ from typing import Mapping, Sequence
 from .contracts import ParsedDocument
 
 
-_ROW_FIELD = re.compile(r"^(?:line|lines|detail_lines)\.(\d+)\.")
+_ROW_FIELD = re.compile(r"^line\.([1-9]\d*)\.")
 _UNIT = (
     r"(?:t|tn|ton|tons|tonelada|toneladas|h|hr|hrs|hora|horas|kg|kgs|kilogramo|kilogramos|"
-    r"m|ml|km|m2|m²|m3|m³|u|ud|uds|unidad|unidades|unit|units|pieza|piezas|pza|pzas|"
+    r"m|ml|km|m2|m²|m3|m³|u|ud|uds|un|unidad|unidades|unit|units|pieza|piezas|pza|pzas|"
     r"caja|cajas|lote|lotes|día|dias|dia|mes|meses|servicio|servicios|viaje|viajes)"
     r"\.?"
 )
@@ -41,11 +42,11 @@ def _plain(value: str) -> str:
 def _has_table_header(text: str) -> bool:
     """Recognize a narrow Spanish or English invoice-column heading."""
     words = set(re.findall(r"[a-z0-9]+", _plain(text)))
-    description = bool(words & {"descripcion", "description"})
-    quantity = bool(words & {"cant", "cantidad", "quantity", "qty"})
-    unit = bool(words & {"ud", "unidad", "unidades", "unit", "units"})
-    price = bool(words & {"precio", "price"})
-    amount = bool(words & {"importe", "amount"})
+    description = bool(words & {"descripcion", "description", "descricao"})
+    quantity = bool(words & {"cant", "cantidad", "quantity", "qty", "qtd"})
+    unit = bool(words & {"ud", "uds", "un", "unidad", "unidades", "unit", "units"})
+    price = bool(words & {"precio", "price", "preco"})
+    amount = bool(words & {"importe", "amount", "valor"})
     return description and quantity and unit and price and amount
 
 
@@ -93,6 +94,7 @@ class NativeRowCoverage:
     source_row_counts: tuple[tuple[int, int], ...] = ()
     observed_row_counts: tuple[tuple[int, int], ...] = ()
     reason: str | None = None
+    page_coverage_verified: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -104,6 +106,7 @@ class NativeRowCoverage:
             "source_row_counts": {str(page): count for page, count in self.source_row_counts},
             "observed_row_counts": {str(page): count for page, count in self.observed_row_counts},
             "reason": self.reason,
+            "page_coverage_verified": self.page_coverage_verified,
         }
 
 
@@ -133,14 +136,22 @@ def native_row_coverage(
     # Once a table header is present, scan every native page. This includes
     # continued table pages where the source omits a repeated header.
     per_page = {page: _source_row_count(text) for page, text in sorted(text_pages.items())}
+    from .native_table import extract_native_table
+    parsed = extract_native_table(document)
+    if parsed.status == 'complete':
+        per_page = dict(Counter(row.page for row in parsed.rows))
     table_pages = tuple(page for page, count in per_page.items() if count)
     expected = sum(per_page.values())
+    if not expected:
+        return NativeRowCoverage('not_applicable', None, 0, 0,
+                                 reason='no_recognized_priced_rows')
 
     if isinstance(facts, Mapping):
         field_items = facts.items()
     else:
         field_items = ((name, ()) for name in facts)
     observed_by_page: dict[int | None, set[int]] = {}
+    row_pages: dict[int, set[int]] = {}
     observed_ids: set[int] = set()
     for name, values in field_items:
         match = _ROW_FIELD.match(name)
@@ -152,14 +163,24 @@ def native_row_coverage(
             page = getattr(getattr(fact, "evidence", None), "page", None)
             if page is not None:
                 observed_by_page.setdefault(page, set()).add(row_id)
+                row_pages.setdefault(row_id, set()).add(page)
 
     observed = len(observed_ids)
     missing = max(expected - observed, 0)
-    status = "incomplete" if missing else "complete"
+    page_missing = sum(max(count - len(observed_by_page.get(page, set())), 0)
+                       for page, count in per_page.items() if count)
+    page_verified = bool(observed_by_page) and not page_missing and all(len(pages) == 1 for pages in row_pages.values())
+    if observed_by_page:
+        missing = max(missing, page_missing)
+    ambiguous_pages = any(len(pages) != 1 for pages in row_pages.values())
+    extra_rows = parsed.status == 'complete' and observed_by_page and any(
+        len(ids) > per_page.get(page, 0) for page, ids in observed_by_page.items())
+    status = 'incomplete' if missing or ambiguous_pages or extra_rows else ('complete' if page_verified else 'not_applicable')
     source_counts = tuple((page, count) for page, count in per_page.items() if count)
     observed_counts = tuple((page, len(row_ids)) for page, row_ids in sorted(observed_by_page.items())
                             if page is not None and row_ids)
     return NativeRowCoverage(
         status, expected, observed, missing, table_pages, source_counts, observed_counts,
-        "native_table_rows_missing" if missing else None,
+        ('native_table_rows_missing' if missing else 'native_table_rows_extra' if extra_rows else 'row_evidence_spans_pages' if ambiguous_pages
+         else None if page_verified else 'row_pages_unavailable'), page_verified,
     )

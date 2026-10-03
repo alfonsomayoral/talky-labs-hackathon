@@ -133,7 +133,7 @@ async def capture(args):
                        reasoning_effort=args.reasoning_effort, concurrency=2, timeout_seconds=args.timeout_seconds,
                        max_attempts=2, max_output_tokens=args.max_output_tokens,
                        model_output_capacity_tokens=128_000,
-                       image_detail=args.image_detail)
+                       image_detail=args.image_detail, max_input_tokens=args.max_input_tokens)
     processor = None
     if args.pdf_ocr:
         from kalmora.documents.ocr import PDFVisionConfig, PDFVisionProcessor
@@ -147,7 +147,9 @@ async def capture(args):
     with global_recorder:
         mux = RecorderMux(global_recorder)
         client = AsyncLLMClient(config, mux)
-        extractor = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids)
+        extractor = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids,
+                                         max_validation_attempts=args.validation_attempts,
+                                         require_line_descriptions=args.require_line_descriptions)
         resolver = LLMSemanticResolver(client)
         extraction_config = RecordingConfig.from_adapter(extractor)
         resolution_config = RecordingConfig.from_adapter(resolver)
@@ -182,6 +184,9 @@ async def capture(args):
                                         warning.endswith(':vision_required') for warning in document.warnings):
                                     document = await asyncio.to_thread(processor.process, document,
                                         artifact_dir=directory / 'pdf-tools' / entry['sha256'])
+                                if args.page_strips and document.images:
+                                    from kalmora.documents.vision import add_page_strips
+                                    document = add_page_strips(document)
                                 source_archive = directory / 'sources' / (entry['sha256'] + '.json')
                                 atomic_json(source_archive, document.to_dict(include_images=True))
                                 item.update(transformation_sha256=document.transformation_sha256,
@@ -236,6 +241,11 @@ def main():
     parser.add_argument('--timeout-seconds', type=float, default=None, help='Optional explicit request deadline; default has no temporal limit')
     parser.add_argument('--max-output-tokens', type=int, default=None)
     parser.add_argument('--image-detail', choices=('auto', 'low', 'high'), default='high')
+    parser.add_argument('--max-input-tokens', type=int, default=200_000,
+                        help='Conservative input spending bound; raise for multiple images within verified model capacity')
+    parser.add_argument('--page-strips', action='store_true', help='Add source-bound overlapping crops for dense page images')
+    parser.add_argument('--validation-attempts', type=int, default=1, help='Source-only schema/grounding repair attempts (1 to 3)')
+    parser.add_argument('--require-line-descriptions', action='store_true', help='Require a literal description/material or explicit unknown per invoice row')
     parser.add_argument('--pdf-ocr', action='store_true', help='Render scanned PDF pages and include unverified local OCR aids')
     parser.add_argument('--omit-ocr-aids', action='store_true', help='Preserve OCR in source archive but exclude it from extraction prompts')
     parser.add_argument('--pdf-renderer', help='Explicit pdftoppm executable, otherwise discover on PATH')

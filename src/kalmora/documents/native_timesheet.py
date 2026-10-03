@@ -125,6 +125,7 @@ def _parse_page(page_text: str, *, page: int, start_index: int
     rows: list[NativeTimesheetRow] = []
     started = False
     ended = False
+    footer_started = False
     for line in lines[header_index + 1:]:
         if not line.strip():
             if started:
@@ -136,6 +137,12 @@ def _parse_page(page_text: str, *, page: int, start_index: int
             cells = _cells(line)
             if cells and _DATE.fullmatch(cells[0]):
                 return [], "row_after_table_boundary", True
+            plain = _normal(line)
+            if (plain.startswith('conforme cliente') or plain.startswith('firma ')
+                    or plain.startswith('synthetic test document') or re.fullmatch(r'(?:pagina|page) \d+', plain)):
+                footer_started = True
+            if not footer_started:
+                return [], 'unsupported_continuation_after_table_row', True
             continue
 
         cells = _cells(line)
@@ -143,13 +150,9 @@ def _parse_page(page_text: str, *, page: int, start_index: int
             # Metadata before the first row is allowed, but only date-led
             # lines can plausibly be rows. A malformed dated line poisons the
             # whole table; non-date metadata is ignored before row start.
-            if not started and (not cells or not _DATE.fullmatch(cells[0])):
-                continue
             return [], "malformed_or_wrapped_timesheet_row", True
 
         date_text, operator, description, quantity = cells
-        if not started and not _DATE.fullmatch(date_text):
-            continue
         if not (_DATE.fullmatch(date_text) and operator and description and _HOURS.fullmatch(quantity)):
             return [], "malformed_timesheet_row", True
         try:

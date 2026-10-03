@@ -87,6 +87,15 @@ class NativeTimesheetTests(unittest.TestCase):
                 self.assertEqual(result.status, "ambiguous")
                 self.assertEqual(result.to_facts(document), {})
 
+    def test_dateless_first_row_and_continuation_after_blank_cannot_be_lost(self):
+        for text in (
+            '\n'.join([TITLE, HEADER, row('MISSING', 'DUMPER-10', 'Dúmper articulado 10 t', '8,0'),
+                        row('01/08/2026', 'GRUA-50', 'Grúa', '3,0')]),
+            '\n'.join([TITLE, HEADER, row('01/08/2026', 'DUMPER-10', 'Dúmper articulado', '8,0'),
+                        '', 'description continuation 10 t']),
+        ):
+            self.assertEqual(extract_native_timesheet(source(text)).status, 'ambiguous')
+
     def test_requires_exact_title_and_ordered_delimited_header(self):
         untitled = source("\n".join([HEADER, "", row(
             "01/08/2026", "DUMPER-10", "Dúmper articulado 10 t", "8,0"), ""]))

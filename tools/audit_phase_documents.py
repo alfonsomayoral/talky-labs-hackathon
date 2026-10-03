@@ -145,13 +145,21 @@ def inventory(phase_root):
             if reader.is_encrypted:
                 raise ValueError('encrypted_pdf')
             for number, page in enumerate(reader.pages, 1):
-                text = page.extract_text(extraction_mode='layout') or ''
+                native_error = None
+                try:
+                    text = page.extract_text(extraction_mode='layout') or ''
+                except Exception as error:
+                    text = ''
+                    native_error = type(error).__name__
                 item['pages'].append({'page': number, 'native_characters': len(text),
                                       'native_nonwhitespace_characters': len(''.join(text.split())),
                                       'native_sha256': hashlib.sha256(text.encode()).hexdigest(),
-                                      'vision_required': len(text.strip()) < 15})
+                                      'vision_required': len(text.strip()) < 15,
+                                      **({'native_extraction_error': native_error} if native_error else {})})
             item['page_count'] = len(item['pages'])
             parsed = router.parse(item['path'])
+            for row in item['pages']:
+                row['vision_required'] = row['vision_required'] or f'page.{row["page"]}:vision_required' in parsed.warnings
             item.update(parse_status='parsed', parser_version=parsed.parser_version,
                         transformation_sha256=parsed.transformation_sha256)
         except Exception as error:
@@ -185,6 +193,8 @@ async def capture(args, manifest, run_directory):
     from kalmora.documents.extractor import LLMDocumentExtractor
     from kalmora.documents.replay import RecordedExtractor, RecordingConfig, RecordingStore
     from kalmora.documents.xml_extractor import XMLDocumentExtractor
+    from kalmora.documents.native_table import extract_native_table
+    from kalmora.documents.composition import compose_native_invoice
     from kalmora.llm.client import AsyncLLMClient, LLMConfig
     from kalmora.runlog import RunRecorder
 
@@ -193,8 +203,9 @@ async def capture(args, manifest, run_directory):
     config = LLMConfig(args.model, args.budget, args.input_usd_per_million / Decimal(1_000_000),
                        args.output_usd_per_million / Decimal(1_000_000), args.pricing_provenance,
                        reasoning_effort=args.reasoning_effort, concurrency=args.concurrency,
+                       max_attempts=1,
                        image_detail='high', timeout_seconds=None, max_output_tokens=None,
-                       max_input_tokens=900_000 if args.page_strips else 200_000)
+                       max_input_tokens=args.max_input_tokens or (900_000 if args.page_strips else 300_000))
     selected = [item for item in manifest['sources'] if item['suffix'] in ('.pdf', '.xml')]
     if args.path:
         paths = set(args.path)
@@ -208,7 +219,9 @@ async def capture(args, manifest, run_directory):
                             'capture_mode': 'captured_live', 'transport_mode': 'default', 'response_source': 'provider_api'})
     with recorder:
         client = AsyncLLMClient(config, recorder)
-        extractor = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids)
+        extractor = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids,
+                                         max_validation_attempts=2, require_page_coverage=True,
+                                         require_line_descriptions=True, require_native_row_coverage=True)
         recording_config = RecordingConfig.from_adapter(extractor)
         identity = recording_config.sha256
         bundle = args.output / 'configurations' / identity
@@ -216,10 +229,22 @@ async def capture(args, manifest, run_directory):
         atomic_json(run_directory / 'config.json', json_value({'llm': asdict(config), 'extraction': recording_config.to_dict()}))
         recorded = RecordedExtractor(RecordingStore(bundle / 'recordings'), recording_config, mode='record',
                                      callback=extractor.extract_with_response, budget_usd=args.budget, recorder=recorder)
+        scoped_recorded = scoped_bundle = None
+        if getattr(args, 'native_tables', False):
+            scoped = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids,
+                max_validation_attempts=2, extraction_scope='outside_native_invoice_table')
+            scoped_config = RecordingConfig.from_adapter(scoped)
+            scoped_bundle = args.output / 'configurations' / scoped_config.sha256
+            scoped_bundle.mkdir(parents=True, exist_ok=True)
+            scoped_recorded = RecordedExtractor(RecordingStore(scoped_bundle / 'recordings'), scoped_config,
+                mode='record', callback=scoped.extract_with_response, budget_usd=args.budget, recorder=recorder)
+            atomic_json(run_directory / 'native-table-config.json', scoped_config.to_dict())
         router = DocumentRouter(args.phase_root)
         max_pages = max((item.get('page_count', 1) for item in selected), default=1)
         processor = PDFVisionProcessor(args.phase_root, PDFVisionConfig(max_pages=max(4, max_pages),
-                    renderer=args.pdf_renderer, tesseract=args.tesseract, timeout_seconds=args.tool_timeout_seconds))
+                    renderer=args.pdf_renderer, tesseract=args.tesseract, timeout_seconds=args.tool_timeout_seconds,
+                    ocr_enabled=not args.omit_ocr_aids,
+                    force_render_all_pages=getattr(args, 'render_all_pages', False)))
         semaphore = asyncio.Semaphore(args.concurrency)
 
         async def one(source):
@@ -229,7 +254,8 @@ async def capture(args, manifest, run_directory):
                     if sha256(args.phase_root / source['path']) != source['sha256']:
                         raise ValueError('Original source changed since inventory')
                     document = await asyncio.to_thread(router.parse, source['path'])
-                    if document.media_type == 'application/pdf' and any(warning.endswith(':vision_required') for warning in document.warnings):
+                    if document.media_type == 'application/pdf' and (getattr(args, 'render_all_pages', False)
+                            or any(warning.endswith(':vision_required') for warning in document.warnings)):
                         document = await asyncio.to_thread(processor.process, document,
                             artifact_dir=args.output / 'pdf-tools' / source['sha256'])
                     if args.page_strips and document.images:
@@ -237,17 +263,35 @@ async def capture(args, manifest, run_directory):
                         document = await asyncio.to_thread(add_page_strips, document)
                     parsed_path = args.output / 'parsed' / source['sha256'] / (document.transformation_sha256 + '.json')
                     atomic_json(parsed_path, document.to_dict(include_images=True))
+                    active_bundle = bundle
+                    derived_names = set()
                     if document.media_type == 'application/xml':
                         facts = await XMLDocumentExtractor().extract(document)
                         item.update(origin='deterministic_xml', cache_hit=False, new_provider_calls=0)
+                        item['config_sha256'] = identity
+                        derived_names = {'line_count'}
                     else:
-                        artifact = await recorded.extract_with_response(document, regenerate=args.fresh)
+                        table = extract_native_table(document) if scoped_recorded is not None and not document.images else None
+                        use_native = table is not None and table.status == 'complete'
+                        active_recorded = scoped_recorded if use_native else recorded
+                        active_bundle = scoped_bundle if use_native else bundle
+                        artifact = await active_recorded.extract_with_response(document, regenerate=args.fresh)
                         facts = artifact.facts
-                        item.update(origin='recorded', recording_key=recorded.key(document),
+                        item.update(origin='recorded', recording_key=active_recorded.key(document),
+                                    config_sha256=scoped_config.sha256 if use_native else identity,
                                     cache_hit=artifact.provenance['cache_hit'], unknowns=list(artifact.unknowns),
                                     new_provider_calls=artifact.provenance.get('new_provider_calls'),
                                     new_provider_cost_usd=artifact.provenance.get('new_provider_cost_usd'))
-                        atomic_json(bundle / 'artifacts' / (recorded.key(document) + '.json'), json_value(artifact.to_dict()))
+                        atomic_json(active_bundle / 'artifacts' / (active_recorded.key(document) + '.json'), json_value(artifact.to_dict()))
+                        derived_names = set(artifact.provenance.get('derived_fields', {}))
+                        if use_native:
+                            composed = compose_native_invoice(document, facts, table)
+                            facts = composed.facts
+                            derived_names |= set(composed.provenance['derived_fields'])
+                            item.update(origin='recorded_with_deterministic_native_rows',
+                                        native_row_count=len(table.rows), composition_version=facts.extractor_version)
+                            atomic_json(active_bundle / 'compositions' / (document.transformation_sha256 + '.json'),
+                                        json_value(composed.provenance))
                     normalized = normalize_document_facts(facts)
                     classification = classify_document(normalized.facts)
                     item.update(status='completed', field_count=len(facts.fields),
@@ -255,20 +299,27 @@ async def capture(args, manifest, run_directory):
                                 page_coverage=source_coverage(document, facts, source.get('pages', [])),
                                 literal_fidelity_independently_verified=False,
                                 native_or_xml_literal_proven_facts=sum(not fact.evidence.field.startswith('image:')
-                                    for values in facts.fields.values() for fact in values),
+                                    for name, values in facts.fields.items() if name not in derived_names for fact in values),
                                 image_literal_unverified_facts=sum(fact.evidence.field.startswith('image:')
-                                    for values in facts.fields.values() for fact in values),
+                                    for name, values in facts.fields.items() if name not in derived_names for fact in values),
+                                derived_fact_count=sum(len(facts.fields[name]) for name in derived_names if name in facts.fields),
                                 normalization_diagnostic_categories=dict(Counter(
                                     value.code for value in normalized.diagnostics)),
                                 normalization_failed_fields=sorted({value.field for value in normalized.diagnostics}),
                                 classification_status=classification.status,
                                 classification_type=classification.document_type)
-                    atomic_json(bundle / 'facts' / (document.transformation_sha256 + '.json'), json_value({
+                    if any(not page['fact_citation_present'] for page in item['page_coverage']):
+                        raise ValueError('source page has no observed facts after native/model composition')
+                    from kalmora.documents.coverage import native_row_coverage
+                    item['native_row_coverage'] = native_row_coverage(document, facts.fields).to_dict()
+                    if item['native_row_coverage']['status'] == 'incomplete':
+                        raise ValueError('composed document has omitted native invoice rows')
+                    atomic_json(active_bundle / 'facts' / (document.transformation_sha256 + '.json'), json_value({
                         'raw': facts.to_dict(), 'normalized': normalized.facts.to_dict(),
                         'normalization_diagnostics': [asdict(value) for value in normalized.diagnostics],
                         'classification': asdict(classification)}))
                 except Exception as error:
-                    item.update(error_type=type(error).__name__, error_category=getattr(error, 'category', 'parse_or_capture'),
+                    item.update(status='failed', error_type=type(error).__name__, error_category=getattr(error, 'category', 'parse_or_capture'),
                                 error_message=str(error))
                 atomic_json(run_directory / 'documents' / (hashlib.sha256(source['path'].encode()).hexdigest() + '.json'), item)
                 print(json.dumps({'path': item['path'], 'status': item['status'], 'error_category': item.get('error_category')}, ensure_ascii=False), flush=True)
@@ -277,6 +328,7 @@ async def capture(args, manifest, run_directory):
         results = await asyncio.gather(*(one(source) for source in selected))
         recorder.report['exit_code'] = int(any(item['status'] != 'completed' for item in results))
         report = {'schema_version': 1, 'phase': 'phase_test', 'source_only': True,
+                  'started_at': recorder.report['started_at'],
                   'evaluation_performed': False, 'official_golden_available': False,
                   'literal_fidelity_independently_verified': False,
                   'config_sha256': identity, 'selected_documents': len(selected), 'documents': results,
@@ -308,7 +360,12 @@ def main(argv=None):
     parser.add_argument('--output-usd-per-million', type=Decimal)
     parser.add_argument('--pricing-provenance')
     parser.add_argument('--concurrency', type=int, default=2)
+    parser.add_argument('--max-input-tokens', type=int, help='Conservative input reservation within caller-verified model capacity')
     parser.add_argument('--page-strips', action='store_true', help='Add original-page overlapping strips after rendering; raises guarded input capacity to 900000')
+    parser.add_argument('--native-tables', action='store_true',
+                        help='Parse clear native invoice rows directly; model reads headers, footers and supplemental tables')
+    parser.add_argument('--render-all-pages', action='store_true',
+                        help='Explicitly render native pages too for ambiguous layouts; recording identity includes actual images')
     parser.add_argument('--include-ocr-aids', dest='omit_ocr_aids', action='store_false',
                         help='Include unverified OCR locator aids in prompts; default omits them')
     parser.set_defaults(omit_ocr_aids=True)

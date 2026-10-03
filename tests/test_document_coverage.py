@@ -2,6 +2,7 @@ import unittest
 
 from kalmora.documents.contracts import ParsedBlock, ParsedDocument, digest
 from kalmora.documents.coverage import native_row_coverage
+from kalmora.facts import Fact, Evidence
 
 
 def document(pages, *, media_type="application/pdf", images=()):
@@ -33,7 +34,8 @@ class NativeRowCoverageTests(unittest.TestCase):
             (1, HEADER + "\n" + "Same material 1 kg 1,00 1,00"),
             (2, "Wrapped description continued\nSame material 1 kg 1,00 1,00"),
         ])
-        fields = {"line.1.amount": [], "line.2.amount": []}
+        fields = {f'line.{page}.amount': [Fact('1,00', Evidence(source.path, f'page.{page}', page, '1,00'))]
+                  for page in (1, 2)}
 
         result = native_row_coverage(source, fields)
 
@@ -54,10 +56,10 @@ class NativeRowCoverageTests(unittest.TestCase):
 
         result = native_row_coverage(source, {})
 
-        self.assertEqual(result.status, "complete")
-        self.assertEqual(result.expected_count, 0)
+        self.assertEqual(result.status, "not_applicable")
+        self.assertIsNone(result.expected_count)
         self.assertEqual(result.missing_count, 0)
-        self.assertIsNone(result.reason)
+        self.assertEqual(result.reason, 'no_recognized_priced_rows')
 
     def test_image_only_page_and_non_pdf_are_not_applicable(self):
         image_only = document([(1, "")])
@@ -81,10 +83,21 @@ class NativeRowCoverageTests(unittest.TestCase):
                 ParsedBlock("visitor.1", HEADER + "\nA 1 kg 1,00 2,00", 1),
             ))
 
-        result = native_row_coverage(source, {"line.1.amount": []})
+        result = native_row_coverage(source, {"line.1.amount": [Fact('1,00',
+            Evidence(source.path, 'page.1', 1, '1,00'))]})
 
         self.assertEqual(result.expected_count, 1)
         self.assertEqual(result.status, "complete")
+
+    def test_duplicate_first_page_ids_cannot_hide_missing_second_page_rows(self):
+        source = document([(1, HEADER + '\nA 1 kg 1,00 1,00\nB 1 kg 1,00 1,00'),
+                           (2, HEADER + '\nC 1 kg 1,00 1,00\nD 1 kg 1,00 1,00\nE 1 kg 1,00 1,00')])
+        fields = {f'line.{index}.amount': [Fact('1,00', Evidence(source.path, 'page.1', 1, '1,00'))]
+                  for index in range(1, 6)}
+        result = native_row_coverage(source, fields)
+        self.assertEqual(result.status, 'incomplete')
+        self.assertEqual(result.missing_count, 3)
+        self.assertEqual(dict(result.observed_row_counts), {1: 5})
 
 
 if __name__ == "__main__":

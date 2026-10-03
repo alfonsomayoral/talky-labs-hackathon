@@ -208,7 +208,7 @@ def _parse_row(line: str, *, index: int, page: int,
 
 
 def _parse_page_rows(text: str, *, page: int, start_index: int,
-                     has_local_header: bool) -> tuple[list[NativeTableRow], bool]:
+                     has_local_header: bool, continued_table: bool = False) -> tuple[list[NativeTableRow], bool]:
     lines = text.splitlines()
     if any(_SUPPLEMENTAL_TIMESHEET.fullmatch(_plain(line)) for line in lines[:5]):
         return [], False
@@ -246,7 +246,7 @@ def _parse_page_rows(text: str, *, page: int, start_index: int,
             # including a numeric-only continuation at end of page. Keep it
             # pending so it can never be silently discarded as a complete row.
             # Summary totals above are the only recognized boundary here.
-            pending_text = pending_text or seen_row or has_local_header
+            pending_text = pending_text or seen_row or has_local_header or continued_table
     if pending_text:
         ambiguous = True
     return rows, ambiguous
@@ -279,9 +279,12 @@ def extract_native_table(document: ParsedDocument) -> NativeTableResult:
     rows: list[NativeTableRow] = []
     ambiguous_pages: list[int] = []
     for page, text in text_pages.items():
+        if page < min(header_pages):
+            continue
         local_header = page in header_pages
         page_rows, ambiguous = _parse_page_rows(
-            text, page=page, start_index=len(rows) + 1, has_local_header=local_header)
+            text, page=page, start_index=len(rows) + 1, has_local_header=local_header,
+            continued_table=page > min(header_pages))
         rows.extend(page_rows)
         if ambiguous:
             ambiguous_pages.append(page)

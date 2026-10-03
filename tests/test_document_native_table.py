@@ -23,6 +23,12 @@ def row(description, quantity, unit, price, amount):
 
 
 class NativeTableTests(unittest.TestCase):
+    def test_unrecognized_headerless_continuation_cannot_produce_partial_complete(self):
+        document = source([(1, HEADER + '\n' + row('Bolt', '2', 'ud', '1,00', '2,00')),
+                           (2, 'Unrecognized remaining table\nOther row 3 unknown-unit 1,00 3,00')])
+        result = extract_native_table(document)
+        self.assertEqual(result.status, 'ambiguous')
+        self.assertEqual(result.to_facts(document), {})
     def test_extracts_portuguese_header_rows_units_and_gr_references_literally(self):
         source_rows = [
             row("Hormigón HA-25/B/20/IIa – GR-053273 (04/08)", "16", "m3",

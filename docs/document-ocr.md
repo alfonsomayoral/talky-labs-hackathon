@@ -13,17 +13,32 @@ tools on `PATH` (macOS: `brew install poppler tesseract`; Debian/Ubuntu:
 when the application supplies a bundled runtime. Language packs must exist for
 the configured language; the processor does not silently change languages.
 
-Original blocks, bytes and source hash remain intact. Full rendered PNGs replace
-embedded images on those pages. `processing_aids` contain OCR text and provenance,
+Original blocks, bytes and source hash remain intact. Full rendered PNGs preserve
+the entire original MediaBox. `processing_aids` contain OCR text and provenance,
 never authoritative blocks. `unverified_ocr` warnings require original-image
 review: OCR errors in amounts, dates and IBANs occur even with high confidence.
 A matching OCR quote proves transcription provenance, not original-source fidelity.
 
-Source size (20 MB), page count (4), page pixels (12 million), rendered image
+Source size (20 MB), page count (64), page pixels (12 million), rendered image
 size (10 MB), text/TSV size (2 MB each), subprocess output and timeout (30 seconds
 per invocation) are bounded. Page dimensions are checked before rendering.
 Processes receive explicit argument arrays, no shell, and one OCR thread.
-Limits apply per page/invocation; the maximum process count follows the page cap.
+Limits apply per page/invocation; total pixels (256 million) and total image
+bytes (64 MB) also bound a document. Decoded output dimensions and PNG format are
+checked after rendering. The maximum process count follows the page cap.
+
+`PDFVisionConfig(ocr_enabled=False)` renders pages without requiring Tesseract.
+It records an empty `page_render` processing aid containing render provenance,
+not fabricated OCR. `force_render_all_pages=True` can explicitly prepare every
+page; otherwise only flagged pages are rendered. The phase runner defaults to
+renderer-only processing, while `--include-ocr-aids` enables unverified OCR.
+
+Optional page strips retain full pages and add unscaled overlapping original
+pixels. Each crop records the parent image hash, original dimensions and a
+top-left pixel rectangle. Construction and replay compare decoded crop pixels
+with that exact parent rectangle, including transparency. A crop cannot replace
+its parent or redefine the source. Overlap requires row deduplication, not extra
+rows. Strips increase input cost and are not the default for Sol scan processing.
 
 Artifact destinations must be outside originals. Optional atomic artifacts are
 `<source SHA>/page-N/render.png`, `ocr.txt`, `ocr.tsv`, and `metadata.json`.

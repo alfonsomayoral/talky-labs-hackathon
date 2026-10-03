@@ -50,11 +50,13 @@ Capture selects all PDF and XML attachments by default, including sources outsid
 AP. `--path inbox/...` can select a concrete original source for configuration
 checks. XML uses `XMLDocumentExtractor` with zero provider calls. PDFs use the
 existing router, `PDFVisionProcessor` for image-only pages, `LLMDocumentExtractor`,
-normalization and classification. OCR aids stay in archived parsed sources and
-are omitted from prompts by default; `--include-ocr-aids` explicitly opts in.
+normalization and classification. Default vision preparation renders original
+pages without OCR. `--include-ocr-aids` enables unverified OCR in archives/prompts.
 `--page-strips` adds the image evidence module's original overlapping page strips
 after rendering and sets guarded input capacity to 900000 tokens. It requires
-the matching image-contract implementation; native-only capture keeps 200000.
+the matching image-contract implementation; native/full-page capture defaults
+to 300000. `--max-input-tokens` selects a caller-verified capacity. This is an
+input/spend guard, not a requested provider output limit.
 
 Parsed documents are addressed by original/transformation SHA-256. Recording
 stores are separated by exact model/prompt/schema/config identity. Normal resume
@@ -69,6 +71,40 @@ and per-page source/image/citation coverage. A page with no accepted citation
 remains visible. A successful extraction or exact native quote cannot establish
 that every document field was captured. Image citations remain unverified until
 independent original-image review. No accounting entries are generated.
+
+The phase runner permits two validation attempts, requires page citations and
+explicit row description states, and checks recognized native invoice row
+coverage. A detected omitted table fails even if the header JSON is valid. Raw
+responses from all repair attempts and their costs remain in recordings/reports.
+Failed captures stay in the original denominator.
+
+`--native-tables` enables deterministic invoice rows plus a separately recorded
+`outside_native_invoice_table` model scope for headers, footers and other tables.
+The full unchanged original is supplied. Composition is separate from recording;
+every page must still have a final citation. `--render-all-pages` explicitly
+prepares native pages too when their layout needs visual interpretation. Raw
+capture and composed facts use different artifacts. Each document records its
+exact configuration bundle; two configurations of the same source remain
+distinguishable. One transport attempt per validation attempt bounds actual
+model calls to two for an operation in this runner.
+
+Offline assembly combines successful captures in the caller's explicit
+precedence order and rechecks original hashes, parsed path/transformation,
+literal evidence, page coverage and native row coverage:
+
+```sh
+PYTHONPATH=src python tools/assemble_phase_document_facts.py \
+  --phase-root /path/data/septiembre --capture-root outputs/september-capture \
+  --capture-root outputs/september-repairs --native-tables \
+  --output outputs/september-assembled
+```
+
+The output manifest retains all original PDF/XML attachments, including failed
+or uncaptured sources. Every fact file includes raw/normalized facts, uncertainty,
+diagnostics, classification and exact capture lineage. Native projections are
+explicit and retain superseded fields/unknowns in lineage. Assembly makes zero
+provider calls and does not certify semantic labels or unreviewed image quotes.
+It is distinct from the frozen original-source acceptance benchmark.
 
 Focused offline validation:
 

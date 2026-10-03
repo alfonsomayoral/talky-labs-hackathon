@@ -7,10 +7,18 @@ its own original SHA-256 and relative path; the router never decides AP outcomes
 
 The `documents` extra installs pinned pypdf/Pillow. Native PDFs retain page text
 in layout mode, including table spacing and page breaks. Text-insufficient pages
-carry `vision_required` and their embedded PNG/JPEG images. All three image-only
-July AP PDFs have embedded images; interpretation happens in #137. A page with
-neither usable text nor an embedded image raises an explicit error requiring a
-renderer. No OCR weights or external parser services are downloaded.
+carry `page.N:vision_required` for subsequent whole-page rendering. Sparse text,
+broken character maps, text-extraction errors and raster content also trigger
+visual review. The router does not substitute embedded pictures for a complete
+page: pictures omit surrounding text and vector content. A textless vector page
+is retained for rendering. No OCR weights or external parser services are downloaded.
+
+The `source-router-v3/pypdf-6.19.0` adapter additionally retains exact native
+`visitor_text` callbacks as `page.N.fragment.K`, with page and source-field
+locators. These fragments help cite separate columns and overprinted stamps when
+layout text interleaves them. The original layout block is retained unchanged;
+fragments are not reordered, joined or rewritten. Capture limits or failures
+require visual review rather than silently claiming complete native evidence.
 
 Facturae/CFDI XML retains namespace-independent indexed field/attribute paths
 and original string values. Repeated elements and conflicting attachments are

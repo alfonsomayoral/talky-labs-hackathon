@@ -103,7 +103,8 @@ class ArchiveSafetyTests(unittest.TestCase):
             budget=audit.Decimal('1'), input_usd_per_million=audit.Decimal('.1'),
             output_usd_per_million=audit.Decimal('.5'), pricing_provenance='synthetic test rates',
             model='gpt-6-luna', reasoning_effort='low', concurrency=2, omit_ocr_aids=False,
-            path=None, pdf_renderer=None, tesseract=None, tool_timeout_seconds=120, fresh=False, page_strips=False)
+            path=None, pdf_renderer=None, tesseract=None, tool_timeout_seconds=120, fresh=False, page_strips=False,
+            max_input_tokens=None)
         with patch('kalmora.llm.client.AsyncLLMClient.complete', side_effect=AssertionError('Provider must not be called')):
             result = asyncio.run(audit.capture(args, audit.inventory(self.destination), run))
         self.assertEqual(result, 0)

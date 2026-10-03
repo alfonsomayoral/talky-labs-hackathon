@@ -69,10 +69,36 @@ class ParsedBlock:
 
 
 @dataclass(frozen=True)
+class ImageRegion:
+    """An exact, unscaled rectangle in a retained original page image."""
+    parent_sha256: str
+    parent_width: int
+    parent_height: int
+    box: tuple[int, int, int, int]
+
+    def __post_init__(self):
+        valid_hash(self.parent_sha256)
+        if any(type(n) is not int or n < 1 for n in (self.parent_width, self.parent_height)):
+            raise ValueError("region requires positive parent dimensions")
+        if (not isinstance(self.box, tuple) or len(self.box) != 4
+                or any(type(n) is not int for n in self.box)):
+            raise ValueError("region requires integer pixel coordinates")
+        x0, y0, x1, y1 = self.box
+        if not (0 <= x0 < x1 <= self.parent_width and 0 <= y0 < y1 <= self.parent_height):
+            raise ValueError("region lies outside parent image")
+
+    def to_dict(self):
+        return {"parent_sha256": self.parent_sha256, "parent_width": self.parent_width,
+                "parent_height": self.parent_height, "box": list(self.box),
+                "coordinate_space": "original_pixels_top_left"}
+
+
+@dataclass(frozen=True)
 class PageImage:
     page: int
     media_type: str
     data: bytes
+    region: ImageRegion | None = None
 
     def __post_init__(self):
         if type(self.page) is not int or self.page < 1:
@@ -81,6 +107,8 @@ class PageImage:
             raise ValueError("unsupported page image type")
         if not isinstance(self.data, bytes) or not self.data:
             raise ValueError("page image requires bytes")
+        if self.region is not None and not isinstance(self.region, ImageRegion):
+            raise ValueError("invalid image region")
 
     @property
     def sha256(self):
@@ -126,6 +154,15 @@ class ParsedDocument:
             raise ValueError("block identities must be unique")
         if any(not isinstance(i, PageImage) for i in self.images):
             raise ValueError("invalid page images")
+        for image in self.images:
+            if image.region is not None:
+                parent = next((p for p in self.images if p.sha256 == image.region.parent_sha256
+                               and p.page == image.page and p.region is None), None)
+                if parent is None:
+                    raise ValueError("crop requires its retained original page image")
+        if any(i.region is not None for i in self.images):
+            from .vision import validate_regions
+            validate_regions(self.images)
         if any(not isinstance(a, ProcessingAid) for a in self.processing_aids):
             raise ValueError("invalid processing aids")
         if any(a.page not in {b.page for b in self.blocks} for a in self.processing_aids):
@@ -137,6 +174,7 @@ class ParsedDocument:
                 "blocks": [{"id": b.id, "text": b.text, "page": b.page,
                             "source_field": b.source_field} for b in self.blocks],
                 "images": [{"page": i.page, "media_type": i.media_type, "sha256": i.sha256,
+                            **({"region": i.region.to_dict()} if i.region is not None else {}),
                             **({"base64": base64.b64encode(i.data).decode()} if include_images else {})}
                            for i in self.images], "warnings": list(self.warnings),
                 **({"unverified_processing_aids": [
@@ -152,7 +190,13 @@ class ParsedDocument:
             data = base64.b64decode(image["base64"], validate=True)
             if digest(data) != image["sha256"]:
                 raise ValueError("image content hash mismatch")
-            images.append(PageImage(image["page"], image["media_type"], data))
+            region = image.get("region")
+            if region is not None:
+                if region.get("coordinate_space") != "original_pixels_top_left":
+                    raise ValueError("unsupported image coordinate space")
+                region = ImageRegion(region["parent_sha256"], region["parent_width"],
+                                     region["parent_height"], tuple(region["box"]))
+            images.append(PageImage(image["page"], image["media_type"], data, region))
         return cls(value["path"], value["source_sha256"], value["media_type"],
                    value["parser_version"], tuple(ParsedBlock(**b) for b in value["blocks"]),
                    tuple(images), tuple(value.get("warnings", ())),
