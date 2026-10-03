@@ -31,6 +31,16 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--structure-only", action="store_true", help="Check the submission without the golden")
     evaluate.add_argument("--report-dir", type=Path, default=Path("outputs/evaluations"))
     evaluate.add_argument("--text", action="store_true", help="Print a readable table instead of JSON")
+    serve = commands.add_parser("serve", help="Run the HTTP API (needs the 'api' extra)")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--data-dir", type=Path, default=Path("outputs/data"), help="Where uploaded packages are extracted")
+    serve.add_argument("--submissions-dir", type=Path, default=Path("outputs/submissions"), help="<dir>/<phase>/<module>.jsonl")
+    serve.add_argument("--evaluator", type=Path, help="Enable scoring: <dir>/<phase>/golden must exist (evaluator side)")
+    serve.add_argument("--reports-dir", type=Path, default=Path("outputs/evaluations"))
+    serve.add_argument("--max-upload-mb", type=int, default=256)
+    serve.add_argument("--cors-origin", action="append", help="Allowed browser origin (default: localhost only)")
+    serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
@@ -90,6 +100,23 @@ def _execute(args: argparse.Namespace) -> int:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 1
         print(json.dumps(summary))
+        return 0
+    if args.command == "serve":
+        try:
+            import uvicorn
+            from .api.app import create_app
+        except ImportError as exc:
+            print(json.dumps({"error": f"{exc}. Install the extra: pip install 'kalmora-close[api]'"}), file=sys.stderr)
+            return 2
+        from .app.container import Services, Settings
+        from .evaluation.gateway import EvaluatorGateway
+        settings = Settings(data_dir=args.data_dir, run_dir=args.run_dir, submissions_dir=args.submissions_dir,
+                            max_upload_bytes=args.max_upload_mb * 1024 * 1024,
+                            cors_origins=tuple(args.cors_origin or ()))
+        services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
+        if not args.no_restore:
+            print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
+        uvicorn.run(create_app(services), host=args.host, port=args.port, log_level="info")
         return 0
     if args.command == "evaluate":
         from .evaluation.report import evaluate, text_summary, write_report
