@@ -54,6 +54,8 @@ ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 
 [Revisión y validación de la release M0](docs/releases/v0.1.0.md).
 
+[Hotfix v0.1.1: detección general de discrepancias](docs/releases/v0.1.1.md).
+
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
 ingesta, contratos contables, trazabilidad y evaluación reproducible.
 

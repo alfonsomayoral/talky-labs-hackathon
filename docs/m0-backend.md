@@ -108,7 +108,10 @@ de AP/AR/bancos/cierre estén implementados.
 de julio. [El registro de discrepancias](discrepancies.md) documenta los límites
 del scorer y excepciones. En particular, API004469 tiene `partner=null` en 407;
 la validación mantiene el socio obligatorio y el comparador muestra la
-discrepancia expresamente (`KNOWN_EXCEPTION`). No modificar el golden para ocultarla.
+discrepancia aplicando la regla general a los datos de referencia
+(`REFERENCE_ENTRY_RULE`). La entrega conserva su propio diagnóstico `ENTRY_RULE`
+si también incumple la regla. No hay excepciones por ID ni por mes, y no se
+modifica el golden para ocultar discrepancias.
 
 ## Evaluación contra el golden
 
