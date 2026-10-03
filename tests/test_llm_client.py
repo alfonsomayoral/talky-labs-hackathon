@@ -90,6 +90,25 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result.request_metadata["max_output_tokens"])
         self.assertEqual(result.output.currency, "EUR")
 
+    async def test_no_deadline_reaches_real_sdk_and_keeps_time_and_spend_audit(self):
+        timeouts = []
+        async def handler(request):
+            timeouts.append(request.extensions['timeout'])
+            await asyncio.sleep(0.02)
+            return httpx2.Response(200, json=body())
+        cfg = config(timeout_seconds=None)
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'OPENAI_API_KEY': 'offline-fixture'}):
+            with RunRecorder(directory, ['no-deadline-check']) as recorder:
+                result = await AsyncLLMClient(cfg, recorder, provider=OpenAIResponsesProvider(
+                    transport=httpx2.MockTransport(handler))).complete(Extracted, 'Typed result', 'Original invoice')
+        self.assertTrue(all(value is None for value in timeouts[0].values()))
+        self.assertIsNone(result.request_metadata['timeout_seconds'])
+        self.assertGreater(recorder.report['calls'][0]['usage']['elapsed_seconds'], 0)
+        self.assertEqual(Decimal(recorder.report['llm_budget']['unknown_reservations']), 0)
+        for invalid in (0, -1, True, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                config(timeout_seconds=invalid)
+
     async def test_no_price_fetch_or_external_observability(self):
         from genai_prices import UpdatePrices
         from pydantic_ai.models.instrumented import InstrumentedModel
