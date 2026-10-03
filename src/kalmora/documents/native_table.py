@@ -55,6 +55,11 @@ _SUPPLEMENTAL_TIMESHEET = re.compile(
     r"^\s*parte\s+de\s+trabajo\s*/\s*hoja\s+de\s+horas\s*$",
     re.IGNORECASE,
 )
+_CODE_TOKEN = re.compile(r"^[A-Z0-9][A-Z0-9._/-]*$")
+_CODE_PREFIX = re.compile(
+    r"^(?P<material>[A-Z0-9][A-Z0-9._/-]*)(?P<separator>\s{2,})"
+    r"(?P<description>\S(?:.*\S)?)\s*$"
+)
 
 
 def _plain(text: str) -> str:
@@ -85,6 +90,15 @@ def _header(text: str) -> bool:
     return True
 
 
+def _has_code_column(text: str) -> bool:
+    tokens = list(re.finditer(r"[a-z0-9]+", _plain(text)))
+    code_positions = [match.start() for match in tokens if match.group() in {"codigo", "code"}]
+    description_positions = [match.start() for match in tokens
+                             if match.group() in {"descripcion", "descricao", "description"}]
+    return bool(_header(text) and code_positions and description_positions
+                and min(code_positions) < min(description_positions))
+
+
 def _native_pages(document: ParsedDocument) -> dict[int, str]:
     """Return only canonical page-layout blocks emitted by the source router."""
     if document.media_type != "application/pdf":
@@ -110,6 +124,7 @@ class NativeTableRow:
     unit_price: str
     amount: str
     quote: str
+    material: str | None = None
     delivery_reference: str | None = None
 
     def facts(self, document: ParsedDocument) -> dict[str, Fact]:
@@ -121,6 +136,8 @@ class NativeTableRow:
             f"line.{self.index}.unit_price": Fact(self.unit_price, evidence()),
             f"line.{self.index}.amount": Fact(self.amount, evidence()),
         }
+        if self.material is not None:
+            fields[f"line.{self.index}.material"] = Fact(self.material, evidence())
         if self.delivery_reference is not None:
             fields[f"line.{self.index}.delivery_reference"] = Fact(
                 self.delivery_reference, evidence())
@@ -157,11 +174,18 @@ def _explicit_footer(line: str) -> bool:
                 or _SYNTHETIC_FOOTER.fullmatch(line))
 
 
-def _parse_row(line: str, *, index: int, page: int) -> NativeTableRow | None:
+def _parse_row(line: str, *, index: int, page: int,
+               has_code_column: bool = False) -> NativeTableRow | None:
     match = _ROW.search(line)
     if match is None:
         return None
     description = line[:match.start()].strip()
+    material = None
+    if has_code_column:
+        code = _CODE_PREFIX.fullmatch(description)
+        if code is not None and _CODE_TOKEN.fullmatch(code.group("material")):
+            material = code.group("material")
+            description = code.group("description")
     # Requiring explicit alphabetic description text avoids interpreting a
     # numeric footer or an orphaned quantity/price/amount as an item row.
     if not description or not re.search(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]", description):
@@ -175,6 +199,7 @@ def _parse_row(line: str, *, index: int, page: int) -> NativeTableRow | None:
         unit_price=match.group("unit_price"),
         amount=match.group("amount"),
         quote=line,
+        material=material,
         delivery_reference=(
             references[0] if len(references := _DELIVERY_REFERENCE.findall(description)) == 1
             else None
@@ -189,6 +214,7 @@ def _parse_page_rows(text: str, *, page: int, start_index: int,
         return [], False
     header_positions = [i for i, line in enumerate(lines) if _header(line)]
     start = min(header_positions) + 1 if header_positions else 0
+    has_code_column = any(_has_code_column(lines[index]) for index in header_positions)
     rows: list[NativeTableRow] = []
     ambiguous = False
     seen_row = False
@@ -202,7 +228,8 @@ def _parse_page_rows(text: str, *, page: int, start_index: int,
         if _explicit_footer(line):
             footer_seen = True
             continue
-        parsed = _parse_row(line, index=start_index + len(rows), page=page)
+        parsed = _parse_row(line, index=start_index + len(rows), page=page,
+                            has_code_column=has_code_column)
         if parsed is not None:
             if pending_text or footer_seen:
                 ambiguous = True

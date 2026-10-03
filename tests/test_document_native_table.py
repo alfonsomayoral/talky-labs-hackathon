@@ -90,6 +90,43 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(len(result.to_facts(document)), 20)
         self.assertNotIn("Certificado a origen", [row.description for row in result.rows])
 
+    def test_explicit_code_column_splits_only_unambiguous_uppercase_code_prefixes(self):
+        header = "Código                 Descripción                  Cant.  Ud.  Precio  Importe"
+        separated = [
+            "ESCOBA-VIA             Cepillo de barrido viario – AL-035831 (11/08)  51 ud 18,24 930,24",
+            "BOLSA-RES              Bolsas de basura industriales 120 l (caja) – AL-035838 (11/08)  42 caja 23,64 992,88",
+        ]
+        joined = (
+            "CONTENEDOR-1100Contenedor carga trasera 1.100 l – AL-035832 (20/08)  "
+            "3 ud 207,44 622,32"
+        )
+        document = source([(1, "\n".join([header, *separated, joined, "Base imponible 2.545,44"]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 3)
+        self.assertEqual([row.material for row in result.rows], ["ESCOBA-VIA", "BOLSA-RES", None])
+        self.assertEqual(result.rows[0].description, "Cepillo de barrido viario – AL-035831 (11/08)")
+        self.assertEqual(result.rows[2].description,
+                         "CONTENEDOR-1100Contenedor carga trasera 1.100 l – AL-035832 (20/08)")
+        facts = result.to_facts(document)
+        self.assertEqual(facts["line.1.material"][0].value, "ESCOBA-VIA")
+        self.assertEqual(facts["line.1.material"][0].evidence.quote, separated[0])
+        self.assertNotIn("line.3.material", facts)
+
+    def test_without_explicit_code_header_keeps_code_like_description_prefix(self):
+        printed = row("ESCOBA-VIA Cepillo de barrido viario – AL-035831", "51", "ud",
+                      "18,24", "930,24")
+        document = source([(1, "\n".join([HEADER, printed, "Base imponible 930,24"]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.rows[0].description, "ESCOBA-VIA Cepillo de barrido viario – AL-035831")
+        self.assertIsNone(result.rows[0].material)
+        self.assertNotIn("line.1.material", result.to_facts(document))
+
     def test_portuguese_wrapped_description_and_malformed_currency_abstain(self):
         wrapped = source([(1, "\n".join([
             PT_HEADER,
