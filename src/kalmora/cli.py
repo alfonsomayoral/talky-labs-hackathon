@@ -42,6 +42,13 @@ def main(argv: list[str] | None = None) -> int:
     bank_rec = commands.add_parser("solve-bank-rec", help="Reconcile bank statements and journal entries")
     bank_rec.add_argument("phase", type=Path)
     bank_rec.add_argument("--output", type=Path, required=True, help="Destination bank_rec.jsonl")
+    close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
+    close.add_argument("phase", type=Path)
+    close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
+    close.add_argument("--module", action="append", choices=("ap", "ar_billing", "ar_cash", "bank_rec", "ic", "close"),
+                       help="Only these modules (default: all)")
+    close.add_argument("--from-submissions", type=Path,
+                       help="Folder with <module>.jsonl for modules that have no engine here (e.g. AP)")
     evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
     evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
     evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
@@ -236,6 +243,16 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "adjustments": sum(len(result.adjustments) for result in run.results),
                           "diagnostics": sum(len(result.diagnostics) for result in run.results)}))
         return 0
+    if args.command == "close":
+        from .closing import run_close
+        try:
+            result = run_close(args.phase, args.out, args.module, args.from_submissions)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"out": str(args.out.resolve()), "ok": result["ok"],
+                          "tasks": {m: t.get("state") for m, t in result["tasks"].items()}}))
+        return 0 if result["ok"] else 1
     if args.command == "serve":
         try:
             import uvicorn
