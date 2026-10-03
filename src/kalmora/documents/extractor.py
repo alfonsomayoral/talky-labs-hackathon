@@ -265,6 +265,8 @@ def _recording_identity(client: Any, instructions: str, prompt_version: str,
         "image_token_reserve", "max_image_bytes")}
     if hasattr(config, "model_output_capacity_tokens"):
         settings["model_output_capacity_tokens"] = config.model_output_capacity_tokens
+    if hasattr(config, "image_detail"):
+        settings["image_detail"] = config.image_detail
     identity = {"provider": provider, "model": config.model,
                 "prompt_version": prompt_version,
                 "prompt_sha256": hashlib.sha256(instructions.encode()).hexdigest(),

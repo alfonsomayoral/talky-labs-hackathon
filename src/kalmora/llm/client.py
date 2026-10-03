@@ -50,6 +50,7 @@ class LLMConfig:
     model_output_capacity_tokens: int = 128_000
     image_token_reserve: int = 100_000
     max_image_bytes: int = 10_000_000
+    image_detail: str = "auto"
     retry_base_seconds: float = 1.0
     retry_max_seconds: float = 30.0
 
@@ -75,6 +76,8 @@ class LLMConfig:
                 raise ValueError(f"{name} must be positive and finite")
         if not isinstance(self.reasoning_effort, str) or self.reasoning_effort not in {"none", "minimal", "low", "medium", "high", "xhigh", "max"}:
             raise ValueError("unsupported reasoning effort")
+        if self.image_detail not in {"auto", "low", "high"}:
+            raise ValueError("image_detail must be auto, low or high")
 
     @property
     def reservation(self) -> Decimal:
@@ -221,7 +224,8 @@ class AsyncLLMClient:
                     "instructions_sha256": hashlib.sha256(instructions.encode()).hexdigest(),
                     "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
                     "output_schema_sha256": hashlib.sha256(json.dumps(schema, sort_keys=True).encode()).hexdigest(),
-                    "images": [{"sha256": hashlib.sha256(image.data).hexdigest(), "media_type": image.media_type}
+                    "images": [{"sha256": hashlib.sha256(image.data).hexdigest(), "media_type": image.media_type,
+                                "detail": self.config.image_detail}
                                for image in images]}
         request = ProviderRequest(output_type, instructions, prompt, images, self.config)
         attempt_metrics = []
@@ -385,7 +389,9 @@ class OpenAIResponsesProvider:
                                   retries=0, tools=(), model_settings=settings)
                     # Override process-global instrumentation settings; only M0 records audit.
                     agent.instrument = False
-                    prompt = [request.prompt] + [BinaryContent(image.data, media_type=image.media_type) for image in request.images]
+                    prompt = [request.prompt] + [BinaryContent(image.data, media_type=image.media_type,
+                                                               vendor_metadata={"detail": request.config.image_detail})
+                                               for image in request.images]
                     result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=1), infer_name=False)
                     return ProviderResponse(raw, result.output)
         except LLMError:
