@@ -166,6 +166,14 @@ describe('account grid', () => {
     expect(accountSummary(account, null, null, []).status).toBe('missing')
   })
 
+  it('is reconciled when open items need no adjustment or have one in another account of the company', () => {
+    const open = (key: string, outcome: string) => ({ ...it_(key, 'OPEN', -1), company: '1200', outcome }) as WorkItem
+    const items = [open('BIN-1200/T1', 'TRANSFER_IN_TRANSIT'), open('BIN-1200/W1', 'WRONG_BANK_ACCOUNT')]
+    const other = { account: 'BIN-1300', company: '1200', adjustments: [{ category: 'WRONG_BANK_ACCOUNT' }] } as unknown as BankRecRow
+    expect(accountSummary(account, row, null, items).status).toBe('open')
+    expect(accountSummary(account, row, null, items, [row, other]).status).toBe('reconciled')
+  })
+
   it('maps each line to the item that holds it', () => {
     const m = itemByLine([it_('BIN-1200/B1', 'AUTO', 0, [{ kind: 'bank', account: 'BIN-1200', bank_line: 'B1' }, { kind: 'journal', book_line: 'J1#2' }])], 'BIN-1200')
     expect(m.get('J1#2')).toBe('bank_rec:BIN-1200/B1')

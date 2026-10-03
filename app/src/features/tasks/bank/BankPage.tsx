@@ -31,7 +31,7 @@ function useAccountSummaries(data: DerivedRun, api: DatasetApi, run: RunBundle):
       const account = api.core.bankAccounts.find((a) => a.id === id)
       if (!account) return []
       const statement = api.core.bankStatements.find((s) => s.account === id && s.month === api.meta.month) ?? null
-      return [accountSummary(account, rows.find((r) => r.account === id) ?? null, statement, data.items)]
+      return [accountSummary(account, rows.find((r) => r.account === id) ?? null, statement, data.items, rows)]
     })
   }, [data.items, api, run])
 }

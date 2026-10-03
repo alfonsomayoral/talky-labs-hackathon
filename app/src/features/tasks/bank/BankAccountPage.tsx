@@ -51,7 +51,7 @@ type Show = 'all' | 'matched' | 'unmatched'
 function AccountRec({ data, api, run, account }: { data: DerivedRun; api: DatasetApi; run: RunBundle; account: BankAccount }) {
   const row = useMemo(() => (run.deliverables.bank_rec as BankRecRow[]).find((r) => r.account === account.id) ?? null, [run, account.id])
   const statement = useMemo(() => api.core.bankStatements.find((s) => s.account === account.id && s.month === api.meta.month) ?? null, [api, account.id])
-  const summary = useMemo(() => accountSummary(account, row, statement, data.items), [account, row, statement, data.items])
+  const summary = useMemo(() => accountSummary(account, row, statement, data.items, run.deliverables.bank_rec as BankRecRow[]), [account, row, statement, data.items, run])
   const acc = useAccountData(api, account, row)
   const cur = account.currency
   /** Adjusting entries are in the company's currency (MXN for the 3100 USD account). */

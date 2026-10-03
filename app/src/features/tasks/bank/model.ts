@@ -284,7 +284,7 @@ export type AccountStatus = 'missing' | 'reconciled' | 'open'
 
 export const ACCOUNT_STATUS: Record<AccountStatus, { label: string; tone: Tone }> = {
   reconciled: { label: 'Conciliada', tone: 'ok' },
-  open: { label: 'Con partidas abiertas', tone: 'warn' },
+  open: { label: 'Con partidas sin explicar', tone: 'warn' },
   missing: { label: 'Sin conciliar', tone: 'neutral' },
 }
 
@@ -305,16 +305,32 @@ export interface AccountSummary {
   openAmount: number
 }
 
-export function accountSummary(account: BankAccount, row: BankRecRow | null, statement: BankStatement | null, items: readonly WorkItem[]): AccountSummary {
+/**
+ * An account is reconciled when every open item is explained: its category needs no adjustment
+ * (in transit, bank error…) or the adjustment is delivered, in any row of the company (as the
+ * overview's bank control). `rows` are all bank_rec rows; WRONG_BANK_ACCOUNT books in another account.
+ */
+export function accountSummary(
+  account: BankAccount,
+  row: BankRecRow | null,
+  statement: BankStatement | null,
+  items: readonly WorkItem[],
+  rows: readonly BankRecRow[] = row ? [row] : [],
+): AccountSummary {
   const lines = statement?.lines ?? []
   const own = items.filter((it) => it.task === 'bank_rec' && it.key.startsWith(`${account.id}/`))
   const open = own.filter((it) => it.status === 'OPEN')
+  const adjusted = new Set(rows.flatMap((r) => (r.adjustments ?? []).map((a) => `${r.company}|${a.category}`)))
+  const unexplained = open.filter((it) => {
+    const entry = BANK_CATEGORY_CATALOG[it.outcome as BankCategory]
+    return !entry || (entry.adjustment && !adjusted.has(`${it.company}|${it.outcome}`))
+  })
   const inMonth = new Set(lines.map((l) => l.bank_line))
   const matchedBank = new Set((row?.matches ?? []).flatMap((m) => (m.bank_lines ?? []).map(String)).filter((id) => inMonth.has(id)))
   return {
     account,
     row,
-    status: !row ? 'missing' : open.length ? 'open' : 'reconciled',
+    status: !row ? 'missing' : unexplained.length ? 'open' : 'reconciled',
     opening: statement?.opening ?? null,
     closing: statement?.closing ?? (statement ? (statement.opening ?? 0) + sum(lines.map((l) => l.amount)) : null),
     statementLines: lines.length,
