@@ -10,7 +10,7 @@ from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Query, Reques
 from fastapi.dependencies.utils import get_flat_dependant
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -23,6 +23,7 @@ STATUS = {
     "phase.not_found": 404, "package.not_found": 404, "job.not_found": 404, "record.not_found": 404,
     "task.not_found": 404, "entry.not_found": 404, "document.not_found": 404, "run.not_found": 404,
     "bank_account.not_found": 404, "fx_rate.not_found": 404, "submission.not_found": 404, "route.not_found": 404,
+    "file.not_found": 404,
     "phase.not_loaded": 409, "ingestion.busy": 409, "phase.conflict": 409,
     "golden.forbidden": 403, "evaluation.unavailable": 404, "evaluation.failed": 500,
     "upload.too_large": 413, "entry.invalid": 422, "submission.invalid": 422, "method.not_allowed": 405,
@@ -97,6 +98,10 @@ def create_app(services: Services) -> FastAPI:
     @api.exception_handler(Exception)
     async def unexpected(request: Request, exc: Exception) -> JSONResponse:
         return problem(request, "internal", "Internal error", f"{type(exc).__name__}: {exc}")
+
+    def raw(result: Any) -> Any:
+        """Raw file or ``[{path, size}]`` index, without the envelope: clients parse the files."""
+        return FileResponse(result) if isinstance(result, Path) else ApiResponse(result)
 
     def call(function: Any, *args: Any, **kwargs: Any) -> Any:
         return function(*args, **kwargs)
@@ -258,6 +263,14 @@ def create_app(services: Services) -> FastAPI:
     @api.get("/v1/runs/{run_id}")
     def run(run_id: str) -> Any:
         return services.get_run(run_id)
+
+    @api.get("/v1/runs/{run_id}/files/{path:path}")
+    def run_file(run_id: str, path: str) -> Any:
+        return raw(services.get_run_file(run_id, path))
+
+    @api.get("/v1/phases/{phase}/files/{path:path}")
+    def phase_file(phase: str, path: str) -> Any:
+        return raw(services.get_phase_file(phase, path))
 
     @api.get("/v1/phases/{phase}/submission")
     def submission(phase: str) -> Any:

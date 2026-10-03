@@ -5,7 +5,7 @@ from pathlib import Path
 from ..infra.files import FilePackageStore, FileRunStore, FileSubmissionStore
 from ..infra.memory import InMemoryJobStore, InMemoryPhaseRepository
 from .ports import EvaluationGateway
-from .usecases import accounting, banking, catalog, entries, ingestion, runs
+from .usecases import accounting, banking, catalog, entries, files, ingestion, runs
 
 
 @dataclass(frozen=True)
@@ -67,6 +67,8 @@ class Services:
         self.simulate_entry = entries.SimulateEntry(repo)
         self.list_runs = runs.ListRuns(run_store)
         self.get_run = runs.GetRun(run_store)
+        self.get_run_file = files.GetRunFile(run_store)
+        self.get_phase_file = files.GetPhaseFile(repo)
         self.get_submission = runs.GetSubmission(repo, submissions)
         self.list_submission_rows = runs.ListSubmissionRows(repo, submissions)
         self.check_submission = runs.CheckSubmission(repo, submissions, gateway)

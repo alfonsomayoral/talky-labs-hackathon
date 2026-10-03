@@ -7,7 +7,7 @@ from ..ports import EvaluationGateway, PhaseRepository, RunStore, SubmissionStor
 from ..types import Envelope
 from . import phase_envelope, plain_envelope
 
-RUN_FIELDS = ("run_id", "command", "status", "started_at", "ended_at", "elapsed_seconds", "cost")
+RUN_FIELDS = ("run_id", "command", "status", "started_at", "ended_at", "elapsed_seconds", "cost", "has_files")
 
 
 class ListRuns:

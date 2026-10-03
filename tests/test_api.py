@@ -339,6 +339,34 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.data(f"/v1/runs/{report['run_id']}")["calls"], [])
         self.assertProblem(self.client.get("/v1/runs/not-a-run"), 404, "run.not_found")
 
+    def test_run_bundle_files(self):
+        run_id = "22222222-2222-2222-2222-222222222222"
+        bundle = self.settings.run_dir / run_id
+        (bundle / "deliverables").mkdir(parents=True)
+        (bundle / "deliverables" / "ap.jsonl").write_text('{"doc_id": "API1"}\n')
+        (bundle / "manifest.json").write_text(json.dumps({"run_id": run_id, "status": "completed",
+                                                          "started_at": "2026-06-30T00:00:00+00:00"}))
+        listed = {r["run_id"]: r for r in self.data("/v1/runs")["items"]}
+        self.assertTrue(listed[run_id]["has_files"])
+        self.assertEqual(self.data(f"/v1/runs/{run_id}")["status"], "completed")
+        index = self.client.get(f"/v1/runs/{run_id}/files/__index.json").json()
+        self.assertEqual([f["path"] for f in index], ["deliverables/ap.jsonl", "manifest.json"])
+        self.assertEqual(self.client.get(f"/v1/runs/{run_id}/files/deliverables/ap.jsonl").text, '{"doc_id": "API1"}\n')
+        self.assertProblem(self.client.get(f"/v1/runs/{run_id}/files/deliverables/zz.jsonl"), 404, "file.not_found")
+        self.assertProblem(self.client.get(f"/v1/runs/{run_id}/files/..%2F..%2Fsecret"), 404, "file.not_found")
+        self.assertProblem(self.client.get("/v1/runs/not-a-run/files/__index.json"), 404, "run.not_found")
+
+    def test_phase_files_hide_the_golden(self):
+        golden = self.services.repo.location("phase_dev") / "golden"
+        golden.mkdir(exist_ok=True)
+        (golden / "ap.jsonl").write_text("{}\n")
+        paths = [f["path"] for f in self.client.get(f"{self.phase}/files/__index.json").json()]
+        self.assertIn("tasks/close.json", paths)
+        self.assertFalse(any(p.startswith("golden/") for p in paths))
+        self.assertEqual(json.loads(self.client.get(f"{self.phase}/files/tasks/close.json").text)["month"], "2026-07")
+        self.assertProblem(self.client.get(f"{self.phase}/files/golden/ap.jsonl"), 404, "file.not_found")
+        self.assertProblem(self.client.get(f"{self.phase}/files/..%2Fphase_dev%2Fgolden%2Fap.jsonl"), 404, "file.not_found")
+
     def test_submission_structure_check(self):
         folder = self.settings.submissions_dir / "phase_dev"
         self.assertProblem(self.client.get(f"{self.phase}/submission/ap"), 404, "submission.not_found")
