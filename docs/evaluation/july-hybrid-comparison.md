@@ -64,3 +64,55 @@ Independent image reviews bind each exact field/value/quote to the actual
 captured source/page/image/transformation hashes. Unverified or wrong image
 quotes fail the evidence gate. Evaluation results will be recorded below;
 the July organizer golden's accounting score is outside this document benchmark.
+
+## Measured result, 2026-10-03
+
+The candidate **fails both partitions**. The frozen configuration/module hashes
+were unchanged throughout capture and evaluation. No case was rerun or chosen
+from competing successful answers. The holdout labels were opened at the offline
+evaluator boundary after every capture and the independent original-image review.
+The sanitized, versioned result is [july-hybrid-results.json](july-hybrid-results.json).
+
+| Measure | Archived v10 tuning | New v17 tuning | New v17 holdout |
+| --- | --- | --- | --- |
+| Cases with accepted captures | 9/12 | 8/12 | 7/8 |
+| Critical required-field exactness | 68/94 (72.34%) | 39/94 (41.49%) | 153/189 (80.95%) |
+| Required-field exactness | 78/114 (68.42%) | 45/114 (39.47%) | 160/199 (80.40%) |
+| Grounded returned observations | 481/546 (88.10%) | 599/647 (92.58%) | 420/433 (97.00%) |
+| Critical prediction precision | 66/68 (97.06%) | 39/40 (97.50%) | 152/152 (100%) |
+| Correct unique semantic selections / required checks | — | 0/4 | 1/8 |
+
+The new partitions cost an estimated USD 0.03774625 and USD 0.03183175,
+USD 0.06957800 total, with no unknown-cost reservation. Each case stayed below
+the unchanged USD 0.10 cost gate. Observed p95 elapsed times, including failed
+cases, were 33.11 and 32.10 seconds; no time threshold was reinstated. The old
+baseline used different price assumptions and fewer cases, so these figures
+do not establish a percentage cost or speed improvement.
+
+Seventeen accepted original attachments replayed with zero provider calls and
+network forbidden. Independent H07 review verified 66 exact raw/normalized image
+observations against the original 300 DPI full-page render; all three retained
+crops matched their declared parent pixels. One derived count was left unreviewed
+in that registry. T12 returned 26 row IDs but omitted row descriptions/explicit
+unknowns and failed coverage, so no accepted T12 image facts were credited.
+
+This reveals integration defects as well as model omissions. T01/H08 returned
+invoice rows despite outside-table scope; T10 returned unsupported `bank_details`;
+T06 failed literal grounding. Some accepted responses omit headers or return
+notice/certificate fields under names not mapped to required canonical slots.
+Deterministic XML retains original leaf values but its projection of totals,
+document types, row counts and proof units does not fully match the benchmark
+contract. H07's literal units are returned as `uom`, while the reference slots
+use `unit`. These are not all incorrect character transcriptions.
+
+Semantic extraction issued only PO/receipt requests; it did not archive supplier
+selections for seven holdout checks. Those unimplemented checks stay in the
+denominator; 1/1 supplied holdout selection was correct, but 1/8 required coverage
+is below the 80% gate. Exactness is below 95% and grounding below 100%, so neither
+partition can be approved despite correct supported tables and the reviewed scan.
+
+Issue #222 remains open for contract alignment, complete semantic integration and
+acceptance. The old holdout is now consumed: subsequent changes require a fixed
+new protocol with fresh reserved originals, rather than tuning to these answers
+and claiming a new blind pass. This benchmark does not change Luna's provisional
+approval or the already merged September extraction capability.
