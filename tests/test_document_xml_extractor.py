@@ -95,6 +95,47 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
         unsupported = await XMLDocumentExtractor().extract(self.parse(CFDI.replace('TipoDeComprobante="I"', 'TipoDeComprobante="P"')))
         self.assertEqual(classify_document(unsupported).status, "UNKNOWN")
 
+    async def test_facturae_corrective_and_line_references_keep_their_roles_and_signs(self):
+        correction = """<Corrective><InvoiceNumber>OLD-3</InvoiceNumber><InvoiceSeriesCode>Z</InvoiceSeriesCode>
+        <ReasonCode>01</ReasonCode><ReasonDescription>Refund</ReasonDescription><CorrectionMethod>02</CorrectionMethod>
+        <TaxPeriod><StartDate>2026-01-01</StartDate><EndDate>2026-01-31</EndDate></TaxPeriod></Corrective>"""
+        references = """<IssuerTransactionReference>SUPPLIER-REFERENCE</IssuerTransactionReference>
+        <ReceiverTransactionReference>CONTRACT-OR-ORDER</ReceiverTransactionReference><SequenceNumber>10.0</SequenceNumber>
+        <DeliveryNotesReferences><DeliveryNote><DeliveryNoteNumber>DEL-1</DeliveryNoteNumber><DeliveryNoteDate>2026-09-01</DeliveryNoteDate></DeliveryNote>
+        <DeliveryNote><DeliveryNoteNumber>DEL-2</DeliveryNoteNumber></DeliveryNote></DeliveryNotesReferences>"""
+        xml = FACTURAE.replace("</InvoiceHeader>", correction + "</InvoiceHeader>")
+        xml = xml.replace("<ItemDescription>Original line", references + "<ItemDescription>Original line")
+        xml = xml.replace("<TotalGrossAmountBeforeTaxes>100.00", "<TotalGrossAmountBeforeTaxes>-100.00")
+        facts = await XMLDocumentExtractor().extract(self.parse(xml))
+        self.assertEqual(facts.fields["corrective.document_number"][0].value, "OLD-3")
+        self.assertEqual(facts.fields["corrective.series"][0].value, "Z")
+        self.assertEqual(facts.fields["document_number"][0].value, "NEW-7")
+        self.assertEqual(facts.fields["line.1.receiver_transaction_reference"][0].value, "CONTRACT-OR-ORDER")
+        self.assertEqual(facts.fields["line.1.order_sequence"][0].value, "10.0")
+        self.assertEqual(facts.fields["line.1.delivery.2.document_number"][0].value, "DEL-2")
+        self.assertNotIn("po_reference", facts.fields)
+        self.assertNotIn("receipt_id", facts.fields)
+        self.assertEqual(facts.fields["net"][0].value, "-100.00")
+        normalized = normalize_document_facts(facts)
+        self.assertEqual(normalized.facts.fields["net_cents"][0].value, -10000)
+        self.assertEqual(normalized.facts.fields["corrective.period_start"][0].value, "2026-01-01")
+        header = xml.replace("</InvoiceIssueData>", "<ReceiverTransactionReference>PO-EXPLICIT</ReceiverTransactionReference></InvoiceIssueData>")
+        direct = await XMLDocumentExtractor().extract(self.parse(header))
+        self.assertEqual(direct.fields["po_reference"][0].value, "PO-EXPLICIT")
+
+    async def test_cfdi_related_groups_keep_every_uuid_without_assuming_credit_originals(self):
+        groups = """<cfdi:CfdiRelacionados TipoRelacion="01"><cfdi:CfdiRelacionado UUID="old-1"/>
+        <cfdi:CfdiRelacionado UUID="old-2"/></cfdi:CfdiRelacionados>
+        <cfdi:CfdiRelacionados TipoRelacion="07"><cfdi:CfdiRelacionado UUID="advance-1"/></cfdi:CfdiRelacionados>"""
+        facts = await XMLDocumentExtractor().extract(self.parse(CFDI.replace("<cfdi:Emisor", groups + "<cfdi:Emisor")))
+        for key, value in {"related.1.relationship_code": "01", "related.1.document.1.uuid": "old-1",
+                           "related.1.document.2.uuid": "old-2", "related.2.relationship_code": "07",
+                           "related.2.document.1.uuid": "advance-1"}.items():
+            self.assertEqual(facts.fields[key][0].value, value)
+            self.assertEqual(facts.fields[key][0].evidence.quote, value)
+        self.assertEqual(facts.fields["raw.cfdi_uuid"][0].value, "new-uuid")
+        self.assertNotIn("corrective.document_number", facts.fields)
+
     async def test_cfdi_fixed_quotas_and_unknown_factors_are_not_rates(self):
         for replacement in ('TipoFactor="Cuota"', 'TipoFactor="Exento"', ''):
             facts = await XMLDocumentExtractor().extract(self.parse(CFDI.replace('TipoFactor="Tasa"', replacement)))
@@ -166,6 +207,9 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
             document = router.parse(relative)
             facts = await XMLDocumentExtractor().extract(document)
             originals = {block.source_field: block.text for block in document.blocks}
+            correction = "/Facturae/Invoices[1]/Invoice[1]/InvoiceHeader[1]/Corrective[1]/InvoiceNumber[1]"
+            if correction in originals:
+                self.assertEqual(facts.fields["corrective.document_number"][0].value, originals[correction])
             for candidates in facts.fields.values():
                 for fact in candidates:
                     self.assertEqual((fact.value, fact.evidence.quote, fact.evidence.document),
