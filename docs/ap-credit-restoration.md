@@ -143,6 +143,29 @@ source evidence. Receipt restoration additionally needs historical per-invoice
 allocation records: aggregate GR/IR money or aggregate consumption is insufficient.
 No July state is reused in another phase. No evaluation IDs determine rules.
 
+### Separate evaluation of the two owned original-source rows
+
+The original-source regression above was additionally instrumented to capture
+the unchanged `build_ap_credit_delivery` return bytes, with Golden inaccessible
+to the producer. The 64 original sources it used had identical hashes before
+and after production. A separate evaluator process loaded the original July
+scorer and reference through `kalmora.evaluation`, selecting reference rows only
+by the two document keys observed in the produced rows. Both rows match exactly,
+including header, account/partner/CC/WBS aggregates, currency, document cents
+and assignment; there are zero scored or unscored differences and no
+`ENTRY_RULE`/`REFERENCE_ENTRY_RULE` diagnostics for this subset.
+
+This evidence is `PARTIAL_OWNED_2_CREDITS`, with `monthly_score=null`, not a
+305-task delivery or historical-restoration acceptance. The captured JSONL SHA-256
+is `72f3d6d89f2200c5a5a120527a1fb74e49a036cac259d8e70b96dbdb2190bda7`;
+the original scorer SHA-256 is
+`b8adec99c609098c7781b4d34cd08ddd6c7d62830800ac9b37d5b1213ca0828e`.
+The local reproducible capture/evaluation scripts, complete diagnostics and
+source hashes are in `outputs/m1-owned-validation/owned-credit-evaluation/`.
+No package signature manifest was available, so manifest verification is not
+claimed. The independent reviewer performed this evaluation after reviewing
+the implementation; the missing links and #140 adoption requirements remain.
+
 Focused validation:
 
 ```sh

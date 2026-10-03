@@ -133,3 +133,10 @@ historical advance applications, explicit MULTI_PO with favorable price
 differences, all notices and non-posting decisions. Additional regressions cover
 document/local currency separation, per-dimension conservation, malformed scope,
 coverage and atomic file behavior.
+
+[AP acceptance evidence](ap-acceptance.md) adds a read-only audit of existing
+RunBundle results, active-phase masters and compatible saved source facts, with
+input/rules/facts/output hashes and exact coverage. Its typed transaction replay
+uses `APTransactionState` and the real factories twice from the same baseline;
+an absent monthly run remains an explicit blocker. Source preparation and
+synthetic engine fixtures do not establish a complete monthly AP delivery.

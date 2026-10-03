@@ -93,6 +93,17 @@ class ArchiveSafetyTests(unittest.TestCase):
         self.assertEqual(manifest['summary']['parse_failures'], 1)
         self.assertFalse(manifest['evaluation_performed'])
 
+    def test_explicit_july_inventory_stays_source_only(self):
+        (self.destination / 'inbox').mkdir(parents=True)
+        (self.destination / 'inbox/message.json').write_text('{}')
+        manifest = audit.inventory(self.destination, phase='phase_dev')
+        self.assertEqual(manifest['phase'], 'phase_dev')
+        self.assertFalse(manifest['official_golden_available'])
+        self.assertFalse(manifest['evaluation_performed'])
+        self.assertEqual(manifest['summary']['sources'], 1)
+        with self.assertRaisesRegex(ValueError, 'Unknown phase'):
+            audit.inventory(self.destination, phase='invented')
+
     def test_xml_capture_has_no_provider_calls_and_serializes_diagnostics(self):
         (self.destination / 'inbox').mkdir(parents=True)
         (self.destination / 'inbox/invoice.xml').write_text(
