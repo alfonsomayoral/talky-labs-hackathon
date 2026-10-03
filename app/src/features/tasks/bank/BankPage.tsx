@@ -5,7 +5,7 @@ import { Amount, Badge, Mono, Page, PageHeader, ProgressBar, QueryState, Section
 import type { BankRecRow, DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
-import { findFlowFilter, ProcessMap, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, MissingTaskFile, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { formatNumber } from '@/lib/format'
 import { ACCOUNT_STATUS, accountSummary, type AccountSummary } from './model'
 import styles from './Bank.module.css'
@@ -17,7 +17,7 @@ export default function BankPage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && api && run ? <BankGrid data={data} api={api} run={run} /> : null)}
+        {() => (data && api && run ? !run.present.bank_rec ? <MissingTaskFile task="bank_rec" /> : <BankGrid data={data} api={api} run={run} /> : null)}
       </QueryState>
     </Page>
   )

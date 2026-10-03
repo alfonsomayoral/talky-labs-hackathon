@@ -9,7 +9,7 @@ import type { ApRow, BankAccount, BankRecRow, DatasetApi, DerivedRun, RunBundle 
 import { AP_DECISION_CATALOG } from '@/domain/catalog/policy'
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
-import { JournalEntryView, RawBankRecord } from '@/features/item/kit'
+import { JournalEntryView, MissingTaskFile, RawBankRecord } from '@/features/item/kit'
 import { formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { ACCOUNT_STATUS, accountSummary, adjustmentsOf, balanceBridge, glAdjustments, itemByLine, openDirectDebits, recView, unmatchedByCategory, type RecLine } from './model'
@@ -27,6 +27,7 @@ export default function BankAccountPage() {
       <QueryState status={status} error={error}>
         {() => {
           if (!data || !api || !run) return null
+          if (!run.present.bank_rec) return <MissingTaskFile task="bank_rec" />
           const account = api.core.bankAccounts.find((a) => a.id === id)
           if (!account)
             return (

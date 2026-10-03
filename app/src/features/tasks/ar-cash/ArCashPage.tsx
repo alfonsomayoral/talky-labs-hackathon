@@ -23,7 +23,7 @@ import { AR_CASH_OUTCOME_CATALOG, AR_RESIDUAL_CATALOG } from '@/domain/catalog/p
 import { useDatasetStore } from '@/data/stores'
 import { effectiveDeliverables, useActiveRun, useDerivedRun } from '@/engine'
 import { formatDate, formatNumber } from '@/lib/format'
-import { findFlowFilter, ProcessMap, TASK_META, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, MissingTaskFile, ProcessMap, TASK_META, useProcessFlow } from '@/features/item/kit'
 import { allocation, suspenseClearing, type Allocation, type SuspenseClearing } from './cashModel'
 import { ReceiptDetail } from './ReceiptDetail'
 import styles from './ArCash.module.css'
@@ -47,7 +47,7 @@ export default function ArCashPage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && api && run ? <Cash data={data} api={api} run={run} /> : null)}
+        {() => (data && api && run ? !run.present.ar_cash ? <MissingTaskFile task="ar_cash" /> : <Cash data={data} api={api} run={run} /> : null)}
       </QueryState>
     </Page>
   )

@@ -8,7 +8,7 @@ import { AP_DECISION_CATALOG, AP_DOCUMENT_TYPE_CATALOG, AP_REASON_CATALOG } from
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
 import { formatDate, formatNumber } from '@/lib/format'
-import { findFlowFilter, ProcessMap, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, MissingTaskFile, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { ApDocCard } from './ApDocCard'
 import { ApSankey, type SankeySelection } from './ApSankey'
 import { apListRows, apSankey, DECISION_TONE, EMPTY_FILTER, facetCounts, filterRows, isFiltering, NO_REASON, type ApFilter, type ApListRow } from './model'
@@ -24,7 +24,7 @@ export default function ApPage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && api && run ? <ApInbox data={data} api={api} run={run} /> : null)}
+        {() => (data && api && run ? !run.present.ap ? <MissingTaskFile task="ap" /> : <ApInbox data={data} api={api} run={run} /> : null)}
       </QueryState>
     </Page>
   )

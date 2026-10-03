@@ -35,6 +35,8 @@ export { RawBankRecord, type RawBankRecordProps } from './RawBankRecord'
 export { GoldenDiff, diffLabel, type GoldenDiffProps } from './GoldenDiff'
 export { findErpRecord, findStatementLine, parseBookLine, uniqueRefs } from './evidence'
 
+export { MissingTaskFile } from './MissingTaskFile'
+
 // Context and labels
 export { useItemContext, itemRows, type ItemContext, type ItemContextState } from './useItemContext'
 export { TASK_META, EVENT_KIND_META, BILLING_TYPE_LABELS, itemTaskHref, evidenceKey, evidenceLabel, erpFileLabel, type TaskMeta } from './labels'

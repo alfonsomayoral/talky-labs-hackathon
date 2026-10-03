@@ -24,7 +24,7 @@ import { AR_BILLING_OUTCOME_CATALOG } from '@/domain/catalog/policy'
 import { useDatasetStore } from '@/data/stores'
 import { effectiveDeliverables, useActiveRun, useDerivedRun } from '@/engine'
 import { formatCompactMoney, formatNumber } from '@/lib/format'
-import { BILLING_TYPE_LABELS, findFlowFilter, ProcessMap, TASK_META, useProcessFlow } from '@/features/item/kit'
+import { BILLING_TYPE_LABELS, findFlowFilter, MissingTaskFile, ProcessMap, TASK_META, useProcessFlow } from '@/features/item/kit'
 import { billingListRows, billingSummary, type BillingListRow } from './billingModel'
 import { InvoicePreview } from './InvoicePreview'
 import styles from './ArBilling.module.css'
@@ -42,7 +42,7 @@ export default function ArBillingPage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && api && run ? <Billing data={data} api={api} run={run} /> : null)}
+        {() => (data && api && run ? !run.present.ar_billing ? <MissingTaskFile task="ar_billing" /> : <Billing data={data} api={api} run={run} /> : null)}
       </QueryState>
     </Page>
   )

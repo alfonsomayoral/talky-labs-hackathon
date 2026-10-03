@@ -8,7 +8,7 @@ import { CLOSE_TYPES } from '@/domain/types'
 import { CLOSE_TYPE_CATALOG } from '@/domain/catalog/policy'
 import { useDatasetStore } from '@/data/stores'
 import { effectiveDeliverables, useActiveRun, useDerivedRun } from '@/engine'
-import { findFlowFilter, ProcessMap, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, MissingTaskFile, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { formatDate, formatMonth, formatNumber } from '@/lib/format'
 import { useActiveItemId, useOpenItem } from '@/shell/useOpenItem'
 import { AGING_LABEL, agingOf, closeKeyValue, closeRowsOf, fxBreakdown, monthEndOf, prepaidFraction, vendorHistory, type AgingBucket } from './model'
@@ -21,7 +21,7 @@ export default function ClosePage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && core && run ? <Close data={data} core={core} run={run} /> : null)}
+        {() => (data && core && run ? !run.present.close ? <MissingTaskFile task="close" /> : <Close data={data} core={core} run={run} /> : null)}
       </QueryState>
     </Page>
   )

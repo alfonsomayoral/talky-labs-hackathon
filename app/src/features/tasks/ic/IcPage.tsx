@@ -7,7 +7,7 @@ import type { DatasetApi, DerivedRun, IcRow, RunBundle, WorkItem } from '@/domai
 import { IC_CAUSE_CATALOG } from '@/domain/catalog/policy'
 import { useDatasetStore } from '@/data/stores'
 import { effectiveDeliverables, makeToEur, useActiveRun, useDerivedRun } from '@/engine'
-import { findFlowFilter, itemEurCents, JournalEntryView, ProcessMap, useAsync, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, itemEurCents, JournalEntryView, MissingTaskFile, ProcessMap, useAsync, useProcessFlow } from '@/features/item/kit'
 import { formatDate, formatMonth, formatNumber, formatPercent } from '@/lib/format'
 import { useActiveItemId, useOpenItem } from '@/shell/useOpenItem'
 import { icMatrix, interestCheck, pairBooks, pairOfItem, type BookSide, type IcMatrix } from './model'
@@ -20,7 +20,7 @@ export default function IcPage() {
   return (
     <Page>
       <QueryState status={status} error={error}>
-        {() => (data && api && run ? <Intercompany data={data} api={api} run={run} /> : null)}
+        {() => (data && api && run ? !run.present.ic ? <MissingTaskFile task="ic" /> : <Intercompany data={data} api={api} run={run} /> : null)}
       </QueryState>
     </Page>
   )
