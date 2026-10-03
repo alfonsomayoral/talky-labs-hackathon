@@ -435,7 +435,22 @@ function closeItems(c: Ctx, rows: CloseRow[]) {
     const evidence: EvidenceRef[] = [...vendorRef(r.vendor), ...customerRef(r.customer)]
     for (const x of g.rows) if (x.invoice) evidence.push({ kind: 'erp', file: 'erp/ap_invoices.jsonl', key: x.invoice })
     if (typeof r.item === 'string' && r.item.startsWith('AP:')) evidence.push({ kind: 'erp', file: 'erp/ap_invoices.jsonl', key: r.item.slice(3) })
-    if (r.billing_item) for (const path of idx.billingInbox.get(r.billing_item)?.files ?? []) evidence.push({ kind: 'doc', path })
+    if (r.billing_item) {
+      const inbox = idx.billingInbox.get(r.billing_item)
+      for (const path of inbox?.files ?? []) evidence.push({ kind: 'doc', path })
+      // A pending-approval item has no inbox files: its contract comes from the billing row.
+      const billing = (c.run.deliverables.ar_billing as ArBillingRow[] | undefined)?.find((b) => b.billing_item === r.billing_item)
+      const contract = inbox?.meta?.contract ?? str(billing?.contract)
+      if (contract) evidence.push({ kind: 'erp', file: 'erp/sales_contracts.jsonl', key: contract })
+      evidence.push(...customerRef(inbox?.meta?.customer ?? billing?.customer))
+    }
+    // A revaluation rests on the month-end rates (units per EUR) of the item's and the company's currencies;
+    // a bank one also on its account.
+    if (type === 'FX_REVAL')
+      for (const x of g.rows)
+        for (const currency of [fxRevalCurrency(idx, x), companyCurrency(idx, x.company)])
+          if (currency && currency !== 'EUR') evidence.push({ kind: 'erp', file: 'erp/fx_rates.jsonl', key: currency })
+    if (typeof r.item === 'string' && r.item.startsWith('BANK:')) evidence.push({ kind: 'erp', file: 'erp/bank_accounts.jsonl', key: r.item.slice(5) })
     const entry = CLOSE_TYPE_CATALOG[type as keyof typeof CLOSE_TYPE_CATALOG]
     push(
       c,
@@ -459,6 +474,19 @@ function closeItems(c: Ctx, rows: CloseRow[]) {
       entries,
     )
   }
+}
+
+/**
+ * Currency of what a FX_REVAL row revalues; FORMATO_ENTREGA does not require `currency`, so it comes from
+ * the bank account, the AP invoice or, for `GL:` (the intercompany loan of 3100), the lender's currency.
+ */
+function fxRevalCurrency(idx: CoreIndex, x: CloseRow): string | null {
+  if (str(x.currency)) return x.currency as string
+  const item = str(x.item) ?? ''
+  if (item.startsWith('BANK:')) return idx.bankAccounts.get(item.slice(5))?.currency ?? null
+  if (item.startsWith('AP:')) return idx.core.apInvoices.find((i) => i.doc_id === item.slice(3))?.currency ?? null
+  if (item.startsWith('GL:')) return idx.companies.get(String(idx.core.intercompanyAgreements?.loan?.lender ?? ''))?.currency ?? null
+  return null
 }
 
 const uniqEvidence = (xs: EvidenceRef[]): EvidenceRef[] => {

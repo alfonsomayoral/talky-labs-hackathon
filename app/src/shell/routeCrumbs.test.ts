@@ -1,4 +1,4 @@
-import { routeCrumbs } from './routeCrumbs'
+import { pageTitle, routeCrumbs } from './routeCrumbs'
 
 const labels = (path: string) => routeCrumbs(path).map((c) => c.label)
 
@@ -30,5 +30,21 @@ describe('routeCrumbs', () => {
 
   it('labels dev pages', () => {
     expect(labels('/dev/ui')).toEqual(['Desarrollo', 'Galería de componentes'])
+  })
+})
+
+describe('pageTitle', () => {
+  it('names the page before the app, without the section', () => {
+    expect(pageTitle('/')).toBe('Resumen · Kalmora Close')
+    expect(pageTitle('/tareas/ap')).toBe('Bandeja AP · Kalmora Close')
+    expect(pageTitle('/dev/ui')).toBe('Galería de componentes · Kalmora Close')
+  })
+
+  it('puts the most specific segment first', () => {
+    expect(pageTitle('/tareas/bancos/BIN-1200')).toBe('BIN-1200 · Bancos · Kalmora Close')
+  })
+
+  it('says when the page does not exist', () => {
+    expect(pageTitle('/balanceX')).toBe('Página no encontrada · Kalmora Close')
   })
 })

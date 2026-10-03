@@ -18,7 +18,7 @@ export interface FilterBarProps {
 /** Row of FilterChips. */
 export function FilterBar({ children, onClear, end, className }: FilterBarProps) {
   return (
-    <div className={clsx(styles.bar, className)} role="toolbar" aria-label="Filtros">
+    <div className={clsx(styles.bar, className)} role="group" aria-label="Filtros">
       <div className={styles.chips}>
         {children}
         {onClear && (

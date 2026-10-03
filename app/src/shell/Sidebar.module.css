@@ -58,7 +58,7 @@
 }
 
 .switcherSub {
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-size: var(--text-11);
 }
 
@@ -91,7 +91,7 @@
 
 .sectionTitle {
   padding: 0 var(--space-2) var(--space-1);
-  color: var(--ink-4);
+  color: var(--ink-2);
   font-size: var(--text-11);
   font-weight: var(--weight-medium);
   letter-spacing: 0.06em;
@@ -185,7 +185,7 @@
 }
 
 .footerEntry {
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-weight: var(--weight-regular);
 }
 

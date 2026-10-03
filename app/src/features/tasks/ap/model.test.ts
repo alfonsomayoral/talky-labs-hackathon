@@ -164,6 +164,7 @@ describe('masterCompare', () => {
     const certs = [{ vendor: 'V1', issued_on: '2025-01-01', valid_until: '2026-06-30', reference: 'X' }]
     const f = masterCompare({ ...base, vendor: vendor(), einvoice: null, certificates: certs }).find((x) => x.id === 'certificate')
     expect(f?.state).toBe('mismatch')
+    expect(f?.master).toBe('Vigente hasta 30 jun 2026')
   })
 })
 
