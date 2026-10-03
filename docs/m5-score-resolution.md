@@ -2,9 +2,10 @@
 
 The user authorized integrating PR #196 after resolving the three additional
 transit findings and trying to maximize the score. Investigation found no source
-rule that supports dropping those invoices. The modular implementation is ready
-for integration; reference acceptance and actual producer integration remain
-tracked separately under #94 and #159.
+rule that supports dropping those invoices. PR #196 was squash-merged into
+`backend` as `4856b1810fbb517e82e822afe7ee07d9087b5ea9`. Implementation tasks
+#88–#94 and epics #18/#19 are complete. Reference acceptance and actual producer
+integration remain tracked separately under #239 and #159.
 
 ## Remaining score penalty is structural
 
@@ -77,9 +78,28 @@ for the corrected external-ownership defect and prior evidence.
 
 ## Acceptance after integration
 
-Integrating the reusable module does not close M5, its epics, #94 or #159.
-#94 requires resolving the reference disagreement, by substantiated source/rule
-clarification or a corrected organizer reference. #159 requires real AP and bank
-deliveries through the same interfaces. Until both are demonstrated, this remains
-a modular implementation with simulated dependency validation and a disclosed
-score limit, not a completed milestone.
+The original scope of #94 requires comparison, scoring and separate validation
+of required fields; it does not require a score of 1.0. Both epics explicitly
+allow July differences to be resolved or documented. The earlier statement that
+#94 must remain open until the reference disagreement is resolved added a
+condition by interpretation. The comparison is complete and the discrepancy is
+preserved in [#239](https://github.com/alfonsomayoral/talky-labs-hackathon/issues/239).
+Tasks #88–#94 and epics #18/#19 were closed with their checklists and evidence.
+
+Verification on merged backend `4856b18`: **703 tests discovered, 607 passed,
+96 skipped**, with the original July IC corpus enabled. The earlier independent
+M5 run passed all **108 tests without skips**. Python 3.12/3.13 CI passed on the
+final PR head `326f087` before integration. These are recorded runs on those
+commits, not a claim that every optional backend feature was exercised.
+
+An additional partial integration used the real bank producer: 12 accounts,
+59 adjustments and no unresolved bank cases. IC recognized the bank-owned
+pooling correction for `BL0005652` / `CP2607221200`, retained the original
+27,053,177-cent finding and emitted `adjustment: []`. AP remained a fixture, so
+this mixed run has `real_flow_verified=false` and does not satisfy #159.
+
+M5 remains open. #239 requires substantiated source/rule clarification or a
+corrected organizer reference, followed by a new frozen comparison. #159 requires
+complete real AP receipt/export and bank deliveries through the same interfaces,
+evaluation and replay without dependency fixtures. The disclosed IC score remains
+0.8615 until the reference discrepancy is resolved.

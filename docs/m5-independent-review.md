@@ -85,7 +85,8 @@ AP entry matching these references. The declared task pairs include all three.
 Policy §6 calls for accrual of issued but unreceived invoices and contains no
 exception for these cases. On the available evidence, they cannot be removed
 solely to reproduce the reference's five-row count. This remains a source/policy/
-reference discrepancy requiring resolution under #94.
+reference discrepancy now tracked separately under #239. The comparison and
+field-validation scope of #94 is complete.
 
 ## Reproduction and remaining gates
 
@@ -104,9 +105,11 @@ normalized source joins and original/shared evaluation artifacts under its
 untracked `review-evidence/` directory. Source ERP and reference data are not
 added to this public PR.
 
-M5 and its epics remain open. #94 retains the reference disagreement; #159 still
-requires actual AP #55 and bank #73/#75 outputs through the same contracts,
-ownership checks and full evaluation. All reviewed dependency runs here are
-**simulated**. Neither a passing modular run nor matching five reference rows
-proves the real AP → banks → IC flow. The module can be integrated under the
-subsequent authorized scope; milestone acceptance remains open.
+PR #196 was subsequently integrated into `backend` as `4856b18`. Tasks #88–#94
+and epics #18/#19 were closed after checking their original criteria; the epics
+permit explicitly documented differences. #239 retains the reference disagreement.
+#159 still requires actual AP #55 and bank #73/#75 outputs through the same
+contracts, ownership checks and full evaluation. The dependency runs recorded
+in this independent review were **simulated**. A later partial run with real
+banks and fixture AP is recorded in [m5-score-resolution.md](m5-score-resolution.md).
+Neither run proves the full real AP → banks → IC flow; M5 remains open.
