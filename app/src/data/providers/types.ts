@@ -26,6 +26,8 @@ export interface RemoteProvider {
   /** Only providers that can run the agent (the backend). */
   startRun?(dataset: DatasetMeta): Promise<string>
   subscribeRun?(runId: string, onEvent: (e: MessageEvent) => void): () => void
+  /** Only the backend: uploads a phase package and resolves with the phases it loaded. */
+  uploadDataset?(file: File): Promise<string[]>
 }
 
 /** How to reopen a dataset after a reload (persisted in IndexedDB). */

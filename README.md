@@ -60,3 +60,4 @@ ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 ingesta, contratos contables, trazabilidad y evaluación reproducible.
 
 [Enunciado y reglas](https://usetalky.com/hackathon/kalmora).
+:)

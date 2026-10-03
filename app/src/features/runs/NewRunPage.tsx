@@ -42,7 +42,6 @@ function LoadingCard({ progress: p }: { progress: { phase: string; done: number;
     </Card>
   )
 }
-const apiConfigured = Boolean(import.meta.env.VITE_API_URL)
 const SOURCE_KIND: Record<DatasetMeta['sourceKind'], string> = { folder: 'Carpeta', zip: 'Zip', http: 'Servido' }
 
 function Step({ n, title, description, done, disabled, children }: { n: number; title: string; description: string; done?: boolean; disabled?: boolean; children: ReactNode }) {
@@ -128,11 +127,16 @@ function DatasetStep() {
               <ZipPicker icon={<FileArchive />} onFiles={loadFiles}>
                 Elegir .zip
               </ZipPicker>
+              {ds.canUploadToBackend() && (
+                <ZipPicker icon={<Server />} onFiles={(files) => load(() => ds.uploadToBackend(files[0]))}>
+                  Subir .zip al backend
+                </ZipPicker>
+              )}
             </div>
           </DropZone>
 
           {ds.available.length > 0 && (
-            <Card title="Servidos en desarrollo" padding="none">
+            <Card title="Servidos por el backend o en desarrollo" padding="none">
               <ul className={s.list}>
                 {ds.available.map((a) => (
                   <li key={`${a.source}:${a.id}`} className={s.listRow}>
@@ -218,6 +222,7 @@ function ImportedFiles({ run }: { run: RunBundle }) {
 function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
   const navigate = useNavigate()
   const runs = useRunStore()
+  const apiConfigured = runs.canStartApiRun()
   const [pending, setPending] = useState<'api' | 'import' | 'golden' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [imported, setImported] = useState<RunBundle | null>(null)
