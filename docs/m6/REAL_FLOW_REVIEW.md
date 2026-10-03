@@ -53,9 +53,11 @@ reported, not hidden.
 
 July still has four AP company mismatches against the reference:
 API005209, API005225, API005226 and API005227 (five diagnostics because the last
-also affects its journal). Review their original recipient evidence in the AP
-workflow before treating #171 as accepted. The reference's missing 407 partner
-is recorded separately; real delivery lines now carry that required vendor.
+also affects its journal). These are M1/AP acceptance findings for #55/#140,
+not blockers owned by #171 or M6. M6 verifies receipt/position contracts and
+its own closing behavior; AP remains responsible for document/company decisions.
+The reference's missing 407 partner is recorded separately; real delivery lines
+now carry that required vendor.
 September passes shared structure validation with no diagnostics. No September
 golden or official score is claimed.
 
@@ -111,6 +113,18 @@ PYTHONPATH=src python -m kalmora evaluate "$KALMORA_SOURCE_PHASE" \
 
 For September, replace the phase and output directory and use
 `--structure-only` without `--evaluator`. Historical simulated results remain
-in RESULTS.md and SCORE_INVESTIGATION.md. Further closure requires review of
-the remaining AP/source/reference differences; neither a high score nor
+in RESULTS.md and SCORE_INVESTIGATION.md. Further closure requires
+review and integration of PR #287, plus M6-owned accounting differences in
+#251. AP acceptance remains with M1; neither a high score nor
 `engine_data_complete` proves universal documentary correctness.
+
+## Current M6 accounting review
+
+The frozen July comparison records 13 accrual keys with differences: two missing
+keys and eleven amount differences outside the scorer's full-credit tolerance.
+The two absent service series lack positive evidence of July consumption; the
+reference is not authority to invent it. Five prepaid amounts differ by 1–2
+cents, although all nine receive full comparator credit. Six extra USD credit-note
+valuations retain original open-item evidence. These are M6 review items, not
+proof that every reference difference is an implementation defect. Their evidence,
+estimation choices, rounding and balance effects belong to #251.

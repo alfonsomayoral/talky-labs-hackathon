@@ -33,7 +33,7 @@
   },
   "limitations": [
     "Real deterministic v0 AP deliveries are used; this does not accept M1 native/model workflow quality.",
-    "Four July AP company mismatches generate five comparison diagnostics.",
+    "Four July AP company mismatches generate five comparison diagnostics; M1/#55/#140 own their review, not M6.",
     "Three source-backed IC transits remain outside the accepted reference; see #239.",
     "Six monetary open USD credit notes remain in FX under policy 5.",
     "September has no available golden or official score."
@@ -62,8 +62,8 @@
     }
   ],
   "open_gates": [
-    "#171 reviewed accounting/integration acceptance",
-    "#251 source/reference FX discrepancy review",
+    "#171 review and integration of PR #287: M6 contracts, coverage, invariants and replay",
+    "#251 M6 accrual, prepaid rounding and source/reference FX discrepancy review",
     "#159 real M5 acceptance review"
   ],
   "packages": {
@@ -558,5 +558,17 @@
   "schema": "kalmora.real-close-review/v1",
   "solver_reference_access": "Python I/O/network guard inherited by IC; golden/trial balances and original phase writes denied",
   "verification_guard_sha256": "0bdce517ba63a97b3da4cd7454c9234e32ec27b37a30fc17200dd7ca14683b7d",
-  "verified_code_commit": "c13061ff8e4e5503db993fba797e5eba7803cdc9"
+  "verified_code_commit": "c13061ff8e4e5503db993fba797e5eba7803cdc9",
+  "acceptance_scope": {
+    "ap_document_company_decisions": "M1: #55/#140; upstream findings do not become M6 acceptance criteria",
+    "m6_integration": "#171: actual dependency contracts, positive coverage, posting ownership, invariants and reproducibility",
+    "m6_accounting": "#251: source-backed accrual estimates, prepaid rounding and FX interpretation",
+    "review_comparison": {
+      "accrual_missing_keys": 2,
+      "accrual_amount_differences": 11,
+      "prepaid_rounding_differences": 5,
+      "additional_open_usd_credit_note_valuations": 6
+    },
+    "comparison_note": "Reference differences require evidence-based review; they do not by themselves prove implementation defects."
+  }
 }
