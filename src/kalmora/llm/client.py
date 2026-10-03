@@ -8,6 +8,7 @@ from decimal import Decimal
 import hashlib
 import json
 import math
+import os
 import re
 import time
 from typing import Any, Generic, Protocol, TypeVar
@@ -216,6 +217,7 @@ class AsyncLLMClient:
                     "images": [{"sha256": hashlib.sha256(image.data).hexdigest(), "media_type": image.media_type}
                                for image in images]}
         request = ProviderRequest(output_type, instructions, prompt, images, self.config)
+        attempt_metrics = []
         for attempt in range(1, self.config.max_attempts + 1):
             error = None
             async with self._semaphore:
@@ -261,6 +263,12 @@ class AsyncLLMClient:
                     await self._settle(raw, attempted)
                     if attempted:
                         inputs, outputs = token_usage(raw)
+                        cost = (inputs * self.config.input_rate + outputs * self.config.output_rate
+                                if inputs is not None and outputs is not None else None)
+                        attempt_metrics.append({"attempt": attempt,
+                                                "elapsed_seconds": time.perf_counter() - start,
+                                                "estimated_cost_usd": str(cost) if cost is not None else None,
+                                                "error": error.category if error else None})
                         self.recorder.record_call("openai" if isinstance(self.provider, OpenAIResponsesProvider) else "injected",
                                                   self.config.model, inputs, outputs, self.config.pricing,
                                                   {"provider_usage": raw.get("usage"), "raw_response": raw,
@@ -268,7 +276,12 @@ class AsyncLLMClient:
                                                    "elapsed_seconds": time.perf_counter() - start,
                                                    "error": error.category if error else None})
             if error is None:
-                return Completion(output, raw, metadata, attempt)
+                known = all(m["estimated_cost_usd"] is not None for m in attempt_metrics)
+                capture_cost = (sum((Decimal(m["estimated_cost_usd"]) for m in attempt_metrics), Decimal(0))
+                                if known else None)
+                return Completion(output, raw,
+                                  {**metadata, "attempt_metrics": attempt_metrics,
+                                   "capture_cost_usd": str(capture_cost) if capture_cost is not None else None}, attempt)
             if not attempted or error.category not in RETRYABLE or attempt == self.config.max_attempts:
                 raise error
             delay = error.retry_after if error.retry_after is not None else self.config.retry_base_seconds * 2 ** (attempt - 1)
@@ -285,6 +298,7 @@ class OpenAIResponsesProvider:
         attempted = False
         raw: dict[str, Any] = {}
         try:
+            os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
             from openai import AsyncOpenAI
             import httpx2 as httpx
             from pydantic_ai import Agent, BinaryContent, NativeOutput
