@@ -10,6 +10,8 @@ Use this knowledge base as a context map for designing and implementing accounti
 | Design or implement a solution | [Engineering playbook](engineering/implementation-playbook.md) |
 | Understand course principles and mental models | [Eight course modules](reference/course-eight-modules.md) |
 | Resolve one of Kalmora's six tasks | [Kalmora close workflows](workflows/kalmora-close-workflows.md) and the relevant policy section |
+| Parse phase inputs (sources, formats, parsing, accounting content) | [Data sources reference](reference/data-sources.html) |
+| Load phase inputs into a normalized landing database | [Landing DB proposal](reference/landing-db.html) · [DDL](reference/landing-db.sql) |
 | Generate deliverable files | [Delivery format](../participant/FORMATO_ENTREGA.md) |
 | Understand companies, phases, or data layout | [Participant README](../participant/README.md) |
 | Check scoring compatibility | `participant/score.py` and `participant/phase_dev/golden/` |
