@@ -27,8 +27,10 @@ advance_rate guarantee_amount guarantee_rate factoring_reference factor_name fac
 factoring_effective_date notice_date notice_type_hint bank_details_effective_date
 certificate_type_hint certificate_tax_id certificate_valid_from certificate_valid_until
 certificate_expiry_date contractor_certificate_valid_until embargo_reference
-embargo_amount embargo_date payment_terms line_count""".split())
-LINE_FIELDS = frozenset("""quantity uom unit_price amount net tax tax_rate description material
+embargo_amount embargo_date payment_terms line_count statement_row_count detail_line_count
+as_of_date certificate_social_security_valid_until certificate_tax_valid_until
+deposit_percent cfdi_type fiscal_validity old_iban new_iban""".split())
+LINE_FIELDS = frozenset("""quantity uom unit_price amount net tax taxable_base tax_rate description material
 po_reference purchase_order_reference po_item delivery_reference receipt_reference
 discount discount_rate retention retention_rate withholding currency tax_code_hint
 period_start period_end certification_current certification_previous certification_cumulative""".split())
@@ -39,7 +41,8 @@ certification_cumulative certification_amount current_amount previous_amount cum
 advance_amount advance_rate guarantee_amount guarantee_rate factoring_effective_date
 notice_date bank_details_effective_date certificate_valid_from certificate_valid_until
 certificate_expiry_date contractor_certificate_valid_until embargo_amount embargo_date
-quantity unit_price amount discount discount_rate""".split())
+quantity unit_price amount taxable_base discount discount_rate as_of_date deposit_percent
+certificate_social_security_valid_until certificate_tax_valid_until fiscal_validity old_iban new_iban cfdi_type""".split())
 FORBIDDEN_PARTS = frozenset("""decision action account journal_entry debit credit approved
 approval receipt_confirmed receipt_status quantity_allocation allocation posting tolerance
 payment_block payment_action reason_code""".split())
@@ -55,14 +58,30 @@ ABSENCE_ALIASES = {
 }
 
 
+DERIVED_COUNTS = {"line_count": "line", "statement_row_count": "statement", "detail_line_count": "detail_lines"}
+STATEMENT_FIELDS = frozenset("invoice_reference status date due_date amount currency description".split())
+DETAIL_FIELDS = LINE_FIELDS
+
+
+def _raw_name_allowed(name: str) -> bool:
+    # Literal source labels can retain Unicode, spaces, case and XML hierarchy.
+    if not name or len(name) > 160 or any(not char.isprintable() for char in name):
+        return False
+    parts = name.split('.')
+    return len(parts) <= 8 and all(part.strip() and part == part.strip()
+                                  and part.casefold().replace(' ', '_') not in FORBIDDEN_PARTS
+                                  for part in parts)
+
+
 def _field_allowed(name: str) -> bool:
-    if name in HEADER_FIELDS:
+    if name in HEADER_FIELDS or re.fullmatch(r"certificate_[a-z][a-z0-9_]*_valid_until", name):
         return True
-    match = re.fullmatch(r"line\.([1-9]\d*)\.([a-z][a-z0-9_]*)", name)
+    match = re.fullmatch(r"(line|statement|detail_lines)\.([1-9]\d*)\.(.+)", name)
     if match:
-        return match.group(2) in LINE_FIELDS
-    match = re.fullmatch(r"raw\.([a-z][a-z0-9_]*)", name)
-    return bool(match and not any(part in match.group(1) for part in FORBIDDEN_PARTS))
+        namespace, _, leaf = match.groups()
+        allowed = {"line": LINE_FIELDS, "statement": STATEMENT_FIELDS, "detail_lines": DETAIL_FIELDS}[namespace]
+        return leaf in allowed or (leaf.startswith('raw.') and _raw_name_allowed(leaf[4:]))
+    return name.startswith('raw.') and _raw_name_allowed(name[4:])
 
 
 @lru_cache(maxsize=1)
@@ -278,8 +297,9 @@ class LLMDocumentExtractor:
 
     def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
         schema, _ = output_models()
-        extras = {"canonical_fields": sorted(HEADER_FIELDS - {"line_count"}),
-                  "line_fields": sorted(LINE_FIELDS), "raw_extension": "raw.<literal_field_name>"}
+        extras = {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
+                  "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
+                  "detail_fields": sorted(DETAIL_FIELDS), "raw_extension": "raw.<literal_field_name>"}
         return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
                                    EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": extras},
                                    provider or _provider_name(self.client))
@@ -299,8 +319,9 @@ class LLMDocumentExtractor:
         provenance.update(provider=identity["provider"], model=identity["model"],
                           extractor_version=identity["extractor_version"])
         completion = await _complete(self.client, schema, EXTRACTION_INSTRUCTIONS,
-                                               _prompt(document, {"canonical_fields": sorted(HEADER_FIELDS - {"line_count"}),
-                                                                  "line_fields": sorted(LINE_FIELDS),
+                                               _prompt(document, {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
+                                                                  "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
+                  "detail_fields": sorted(DETAIL_FIELDS),
                                                                   "raw_extension": "raw.<literal_field_name>"}),
                                      document, provenance)
         fields: dict[str, list[Fact]] = {}
@@ -308,10 +329,10 @@ class LLMDocumentExtractor:
         try:
             for observation in completion.output.observations:
                 name = observation.field
-                if not _field_allowed(name) or name == "line_count":
+                if not _field_allowed(name) or name in DERIVED_COUNTS:
                     raise DocumentInterpretationError("field", document, "unsupported or accounting-owned field")
                 leaf = name.rsplit(".", 1)[-1]
-                if observation.kind == "OBSERVED" and leaf in RAW_STRING_FIELDS and not isinstance(observation.value, str):
+                if observation.kind == "OBSERVED" and (leaf in RAW_STRING_FIELDS or leaf.endswith("_valid_until") or ".raw." in name or name.startswith("raw.")) and not isinstance(observation.value, str):
                     raise DocumentInterpretationError("field", document, "amount/quantity/date must preserve original text")
                 evidence, review = _ground(document, observation.value, observation,
                                           explicit_absence=observation.kind == "EXPLICIT_ABSENCE")
@@ -322,23 +343,27 @@ class LLMDocumentExtractor:
             for unknown in unknowns:
                 if not unknown["reason"].strip():
                     raise DocumentInterpretationError("unknown", document, "unknown state requires a reason")
-                if not _field_allowed(unknown["field"]) or unknown["field"] == "line_count":
+                if not _field_allowed(unknown["field"]) or unknown["field"] in DERIVED_COUNTS:
                     raise DocumentInterpretationError("field", document, "unsupported unknown field")
                 if unknown["status"] == "MISSING" and unknown["field"] in fields:
                     raise DocumentInterpretationError("unknown", document, "missing field has an observation")
                 if unknown["status"] == "CONTRADICTORY" and len({fingerprint(fact.value) for fact in fields.get(unknown["field"], [])}) < 2:
                     raise DocumentInterpretationError("unknown", document, "contradiction requires distinct observed values")
-            line_ids = sorted({int(name.split(".")[1]) for name in fields if name.startswith("line.")})
-            if line_ids:
+            for count_name, namespace in DERIVED_COUNTS.items():
+                prefix = namespace + '.'
+                line_ids = sorted({int(name.split('.')[1]) for name in fields if name.startswith(prefix)})
+                if not line_ids:
+                    continue
                 if line_ids != list(range(1, len(line_ids) + 1)):
-                    raise DocumentInterpretationError("lines", document, "line IDs must be contiguous and one-based")
-                source_fact = next(fact for name, facts in fields.items() if name.startswith("line.") for fact in facts)
-                fields["line_count"] = [Fact(len(line_ids), Evidence(document.path, source_fact.evidence.field, source_fact.evidence.page,
-                                                                     source_fact.evidence.quote))]
-                provenance["derived_fields"] = {"line_count": {"method": "count_unique_contiguous_line_ids",
-                                                                "line_ids": line_ids,
-                                                                "source_fields": sorted({fact.evidence.field for name, facts in fields.items()
-                                                                                         if name.startswith("line.") for fact in facts})}}
+                    raise DocumentInterpretationError("lines", document, "row IDs must be contiguous and one-based")
+                source_fact = next(fact for name, facts in fields.items() if name.startswith(prefix) for fact in facts)
+                fields[count_name] = [Fact(len(line_ids), Evidence(document.path, source_fact.evidence.field, source_fact.evidence.page,
+                                                                  source_fact.evidence.quote))]
+                provenance.setdefault("derived_fields", {})[count_name] = {
+                    "method": "count_unique_contiguous_line_ids", "line_ids": line_ids,
+                    "source_fields": sorted({fact.evidence.field for name, facts in fields.items()
+                                             if name.startswith(prefix) for fact in facts})}
+
         except DocumentInterpretationError as error:
             error.raw_response = completion.raw_response
             error.request_metadata = {**completion.request_metadata, **provenance}

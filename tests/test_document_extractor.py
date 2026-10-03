@@ -67,6 +67,42 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
 
+    async def test_literal_raw_and_distinct_table_namespaces_are_grounded_and_counted(self):
+        from kalmora.documents.replay import validate_facts
+        text = "CSV REF-9 Régimen 601 Estado Pendiente Amount 100,00 Qty 2 IBAN ES123 Disclaimer Sin validez fiscal"
+        names = ["raw.CSV", "raw.Referencia", "raw.TipoDeComprobante", "raw.Emisor.RegimenFiscal",
+                 "raw.line.1.ObjetoImp", "line.1.raw.Factura", "line.1.raw.Fecha", "line.1.raw.Vencimiento",
+                 "line.1.raw.Estado", "raw.Saldo pendiente según nuestros registros", "raw.previous_account",
+                 "raw.transfer_account", "statement.1.invoice_reference", "detail_lines.1.quantity",
+                 "line.1.taxable_base"]
+        values = ["CSV", "REF-9", "601", "601", "601", "REF-9", "REF-9", "REF-9", "Pendiente",
+                  "100,00", "ES123", "ES123", "REF-9", "2", "100,00"]
+        payload = {"observations": [observation(name, value, text) for name, value in zip(names, values)], "unknowns": []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client(payload, directory)
+            source = document(text)
+            artifact = await LLMDocumentExtractor(client).extract_with_response(source)
+            for name in names:
+                self.assertIn(name, artifact.facts.fields)
+            for count in ('line_count', 'statement_row_count', 'detail_line_count'):
+                self.assertEqual(artifact.facts.fields[count][0].value, 1)
+            validate_facts(source, artifact.facts, artifact.facts.extractor_version, artifact.provenance)
+            from kalmora.facts import Fact
+            count = artifact.facts.fields['statement_row_count'][0]
+            artifact.facts.fields['statement_row_count'] = [Fact(2, count.evidence)]
+            with self.assertRaises(ValueError):
+                validate_facts(source, artifact.facts, artifact.facts.extractor_version, artifact.provenance)
+
+    async def test_literal_extensions_reject_accounting_fields_controls_and_derived_booleans(self):
+        invalid = [("raw.account", "121,00"), ("raw.CSV.journal_entry", "121,00"),
+                   ("raw.approval", "121,00"), ("raw.bad\nname", "121,00"),
+                   ("fiscal_validity", True), ("statement_row_count", "121,00")]
+        for name, value in invalid:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({"observations": [observation(name, value, "Gross 121,00")], "unknowns": []}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(document())
+
     async def test_decimal_candidate_proof_accepts_exact_string_and_rejects_invalid(self):
         for value, accepted in [("50.00", True), ("50.01", False), ("foo", False), ("NaN", False)]:
             with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
