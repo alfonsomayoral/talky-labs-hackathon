@@ -71,6 +71,11 @@ class IdentitySourcesTests(unittest.TestCase):
         self.assertEqual(self.resolve(recipient_tax_id="A12359962").vendor_id, "V1")
         lookalike = dict(MESSAGE, **{"from": "facturacion@v1-es.com"})
         self.assertIsNone(self.resolve(message=lookalike, recipient_tax_id="A12359962").vendor_id)
+        shared = VENDORS + [dict(id="V3", tax_id="B11111111", email="ventas@v1.es", companies=["1100"])]
+        abstained = self.resolve(shared, recipient_tax_id="A12359962")
+        self.assertEqual((abstained.vendor_id, abstained.supplier_candidates), (None, ("V1", "V3")))
+        selected = ResolutionResult("SELECTED", ("V3",), (), "proof")
+        self.assertEqual(self.resolve(shared, semantic=selected, recipient_tax_id="A12359962").vendor_id, "V3")
 
     def test_certificate_subject_and_exact_company_name_without_tax_ids(self):
         result = self.resolve(certificate_tax_id="A22905052")

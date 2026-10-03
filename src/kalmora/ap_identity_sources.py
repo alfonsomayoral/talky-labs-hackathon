@@ -25,6 +25,8 @@ class APIdentityBinding:
     identity: APIdentityResult
     diagnostics: tuple[str, ...]
     evidence: tuple[Evidence, ...]
+    supplier_candidates: tuple[str, ...] = ()
+    """Master vendors left ambiguous: the only IDs a semantic selection may pick."""
 
 
 def _fields(documents: Sequence[DocumentFacts]) -> dict[str, list[Fact]]:
@@ -48,7 +50,7 @@ def _domain(address: object) -> str | None:
 def resolve_ap_identity(documents: Sequence[DocumentFacts], message: Mapping[str, Any], data,
                         semantic: ResolutionResult | None = None) -> APIdentityBinding:
     """``semantic`` is a resolver result for the supplier; it counts only when it selects
-    exactly one ID among the core's ambiguous/conflicting master candidates."""
+    exactly one ID among ``supplier_candidates`` (ambiguous master tax ID or sender domain)."""
     catalog = IdentityCatalog.from_phase(data)
     fields = _fields(documents)
     supplier_facts = fields.get("supplier_tax_id") or fields.get("certificate_tax_id", [])
@@ -70,14 +72,9 @@ def resolve_ap_identity(documents: Sequence[DocumentFacts], message: Mapping[str
             evidence += [*(fact.evidence for fact in names),
                          Evidence("erp/companies.json", f"code={recipient_id}.name")]
 
-    vendor_id = supplier.identity
+    vendor_id, candidates = supplier.identity, ()
     if supplier.status in {"AMBIGUOUS", "CONFLICT"}:
-        if (semantic is not None and semantic.status == "SELECTED" and len(semantic.selected_ids) == 1
-                and semantic.selected_ids[0] in supplier.candidates):
-            vendor_id = semantic.selected_ids[0]
-            diagnostics.append("SUPPLIER_SEMANTIC_SELECTED")
-        else:
-            diagnostics.append("SUPPLIER_ABSTAINED")
+        candidates = supplier.candidates
     elif supplier.status in {"UNKNOWN", "MISSING"}:
         field = "from" if "from" in message else "uploaded_by"
         domain = _domain(message.get(field))
@@ -87,8 +84,16 @@ def resolve_ap_identity(documents: Sequence[DocumentFacts], message: Mapping[str
             diagnostics.append("SUPPLIER_SENDER_DOMAIN")
             evidence += [Evidence(f"inbox/ap/{message.get('doc_id')}/message.json", field, quote=message[field]),
                          Evidence("erp/vendors.jsonl", f"id={vendor_id}.email", quote=matches[0]["email"])]
+        candidates = tuple(sorted(row["id"] for row in matches)) if len(matches) > 1 else ()
     elif supplier.status == "NOT_FOUND":
         diagnostics.append("VENDOR_NOT_IN_MASTER")
+    if candidates:
+        if (semantic is not None and semantic.status == "SELECTED" and len(semantic.selected_ids) == 1
+                and semantic.selected_ids[0] in candidates):
+            vendor_id = semantic.selected_ids[0]
+            diagnostics.append("SUPPLIER_SEMANTIC_SELECTED")
+        else:
+            diagnostics.append("SUPPLIER_ABSTAINED")
 
     po_companies = {}
     for fact in (fact for key, facts in sorted(fields.items())
@@ -122,5 +127,6 @@ def resolve_ap_identity(documents: Sequence[DocumentFacts], message: Mapping[str
                                expected_company=company)
     if recipient_id is not None and company is not None and recipient_id != company:
         diagnostics.append("WRONG_ADDRESSEE")
-    return APIdentityBinding(company, vendor_id, identity, tuple(diagnostics), tuple(dict.fromkeys(evidence)))
+    return APIdentityBinding(company, vendor_id, identity, tuple(diagnostics),
+                             tuple(dict.fromkeys(evidence)), candidates)
 
