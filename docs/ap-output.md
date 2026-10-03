@@ -46,26 +46,58 @@ Serialization performs no projected-ledger insertion or consumption-state commit
 For an active-phase delivery, use `ap_phase_export.write_phase_ap_jsonl` instead
 of supplying an expected inventory manually. It reads exactly
 `tasks/ap_documents.json`, validates distinct opaque IDs without altering them,
-and passes that snapshot to the same row/coverage/atomic writer. Attachment names,
+and passes that snapshot to the same row/coverage serializer. Attachment names,
 folder contents, month and expected distributions do not determine task keys.
 The output destination is separate from the read-only phase. Its returned
-`APExportReceipt` records the phase, task-source hash, actual output hash and row
+`APExportReceipt` records the phase, task-source hash, published output hash and row
 count. No missing task receives a fabricated decision. An incomplete result set
 fails before output creation/replacement. The inventory has no fixed 305/297
 size and can be loaded independently with `load_ap_task_inventory`.
 
+Rows are copied, validated and encoded once into immutable UTF-8 bytes. The
+receipt hashes those exact publication bytes before writing; it never rereads
+the destination after publication. A later concurrent overwrite cannot change
+which publication the receipt describes. The task inventory is loaded again
+after row generation and staging, immediately before atomic publication. A
+changed inventory, even with identical IDs but different source bytes, aborts
+without replacing the previous delivery. Source mutation after that check is
+outside this snapshot; producers should use immutable phase inputs.
+
+The output directory is opened before lazy row generation and held by file
+descriptor. Directory components are opened without following symlinks, and
+directory identity is checked again before publication. Temporary creation,
+replacement/exclusive linking and cleanup use that pinned descriptor. A
+redirection detected before publication aborts; a redirection at the atomic
+operation cannot send writes into the source phase. The published file may then
+live in the renamed destination directory, so its former pathname must not be
+assumed current. Exclusive creation preserves another writer's winning file.
+
+`verify_ap_export_receipt(receipt)` returns `True` only when the current canonical
+task bytes and output bytes match the receipt and parsed output has exactly one
+row per task. Changed hashes, counts, source names, coverage, missing files or
+redirected output paths fail. Verification reads the output through its own
+descriptor and rechecks task stability. It performs no provider calls, row
+generation, journal posting or balance consumption. It verifies export identity
+and coverage, not accounting provenance: the upstream run manifest must bind
+facts, masters and rule versions to establish compatible replay. Concurrent
+changes after verification remain possible; verification does not lock producers.
+
 ```python
-from kalmora.ap_phase_export import write_phase_ap_jsonl
+from kalmora.ap_phase_export import verify_ap_export_receipt, write_phase_ap_jsonl
 
 receipt = write_phase_ap_jsonl(
     output_dir / "ap.jsonl", resolved_rows, phase_path=active_phase,
     context=master_context, tax_catalog=active_tax_catalog,
 )
+verify_ap_export_receipt(receipt)
 ```
 
 The phase-export regressions cover task-only inventory, independent phases,
 multiple attachments per task, missing/extra/duplicate rows, action validation,
 source preservation, hashes/repetition and real ES/PT/MX engine journals.
+Controlled interleavings cover inventory changes during generation and staging,
+concurrent output replacement/creation, directory redirection and publication
+failures, plus receipt tampering. No threads or timing sleeps are required.
 The source-only development check reads all 305 original task keys, without
 generating pretend results for them or consulting golden. Full July evaluation
 and the frozen September delivery remain separate acceptance requirements.

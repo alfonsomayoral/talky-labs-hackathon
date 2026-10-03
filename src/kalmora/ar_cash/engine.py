@@ -1,7 +1,8 @@
-"""Deterministic AR cash application using JSON/JSONL phase inputs only.
+"""Deterministic AR cash application using ERP and bank statement evidence.
 
 The bank movement is already posted to 572/555 by the input ERP. This engine
 only proposes the application adjustment; it never reposts the bank movement.
+N43 references/concepts enrich the abbreviated movement twin when available.
 No inbox attachment, PDF, XML, OCR or CSV is read here.
 """
 from __future__ import annotations
@@ -11,9 +12,13 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 import re
 import unicodedata
+from pathlib import Path
 from typing import Any, Iterable, cast
 
 from ..data import PhaseData
+from ..bankrec.statements import receipt_narratives
+from ..documents.router import DocumentRouter
+from .remittances import read_applications, read_face_application
 from ..model import BankLine, JournalEntry, JournalLine
 from ..output_models import ArCashRow
 
@@ -63,6 +68,7 @@ class _ReceivableTimeline:
 
     def __init__(self, entries: Iterable[JournalEntry]) -> None:
         events: list[tuple[str, str, str, str | None, str | None, int]] = []
+        self.item_metadata: defaultdict[tuple[str, str, str | None, str | None], list[tuple[str, str]]] = defaultdict(list)
         for entry in entries:
             posting_date = entry.get("posting_date")
             if not posting_date:
@@ -75,13 +81,18 @@ class _ReceivableTimeline:
                 if amount:
                     events.append((posting_date, str(entry["company"]), account,
                                    line.get("partner"), line.get("assignment"), amount))
+                    self.item_metadata[(str(entry["company"]), account, line.get("partner"),
+                                        line.get("assignment"))].append(
+                                            (posting_date, str(line.get("currency") or entry.get("currency") or "")))
         events.sort(key=lambda x: x[0])
         self.events = events
         self.cursor = 0
+        self.as_of = ""
         self.balances: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
         self.projected: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
 
     def advance(self, through: str) -> None:
+        self.as_of = through
         while self.cursor < len(self.events) and self.events[self.cursor][0] <= through:
             _, company, account, partner, assignment, amount = self.events[self.cursor]
             self.balances[(company, account, partner, assignment)] += amount
@@ -105,6 +116,24 @@ class _ReceivableTimeline:
     def apply_open_item(self, company: str, account: str, partner: str,
                         assignment: str, amount: int) -> None:
         self.projected[(company, account, partner, assignment)] += amount
+
+    def referenced_candidate(self, reference: str, company: str, customer: str,
+                             currency: str) -> _Candidate | None:
+        """Resolve an explicit bank reference against a positive, as-of ERP open item."""
+        options = []
+        for assignment in (reference, f"FT {reference}"):
+            key = (company, "43000000", customer, assignment)
+            balance = self.balance(*key)
+            metadata = [(posted, item_currency) for posted, item_currency in self.item_metadata.get(key, [])
+                        if posted <= self.as_of]
+            currencies = {item_currency for _, item_currency in metadata if item_currency}
+            if balance <= 0 or len(currencies) > 1 or (currencies and currency not in currencies):
+                continue
+            invoice_date = min((posted for posted, _ in metadata), default="")
+            invoice = _Invoice(reference, company, customer, invoice_date, "", currency,
+                               assignment.startswith("FT "))
+            options.append(_Candidate(invoice, "43000000", balance))
+        return options[0] if len(options) == 1 else None
 
     def candidates(self, invoices: dict[str, _Invoice], company: str, customer: str,
                    through: str) -> list[_Candidate]:
@@ -254,10 +283,13 @@ def _bank_line_index(data: PhaseData) -> tuple[dict[str, tuple[BankLine, str]], 
     accounts = {str(row["id"]): row for row in data.table("bank_accounts")}
     indexed: dict[str, tuple[BankLine, str]] = {}
     for account in sorted(accounts):
+        narratives = receipt_narratives(data, account, data.month)
         for line in data.bank_lines(account, data.month):
             if line["bank_line"] in indexed:
                 raise ValueError(f"duplicate bank_line across accounts: {line['bank_line']}")
-            indexed[line["bank_line"]] = (line, account)
+            enriched = cast(BankLine, dict(line))
+            enriched["text"] = narratives.get(line["bank_line"], line["text"])
+            indexed[line["bank_line"]] = (enriched, account)
     return indexed, accounts
 
 
@@ -321,7 +353,7 @@ def _unique_subset(candidates: list[_Candidate], amount: int) -> list[_Candidate
         return None
     states: dict[int, list[tuple[int, ...]]] = {0: [()]}
     for index, candidate in enumerate(candidates):
-        for subtotal, paths in list(states.items()):
+        for subtotal, paths in [(total, tuple(paths)) for total, paths in states.items()]:
             new_total = subtotal + candidate.balance
             if new_total > amount:
                 continue
@@ -359,7 +391,7 @@ def _unique_penalty_subset(candidates: list[_Candidate], penalty_rows: list[dict
     # memory growth. Each item can be omitted, applied in full, or reduced by notice.
     states: dict[int, list[tuple[tuple[int, int], ...]]] = {0: [()]}
     for index, candidate in enumerate(candidates):
-        previous = list(states.items())
+        previous = [(total, tuple(paths)) for total, paths in states.items()]
         for subtotal, paths in previous:
             for net_amount, penalty in options[index]:
                 total = subtotal + net_amount
@@ -410,14 +442,17 @@ def _as_of_balances(data: PhaseData) -> list[JournalEntry]:
     return list(data.iter_journal())
 
 
-def build_ar_cash(data: PhaseData) -> ArCashRun:
-    """Build one application result per receipt task using JSON/JSONL data only.
+def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
+                  normalized_dir: str | Path | None = None) -> ArCashRun:
+    """Build one application result per receipt task using ERP/bank evidence.
 
     Exact unique matches are auto-applied. Ambiguous payer/invoice relationships are
     left in 555 and described in diagnostics; no approximate or amount-only customer
     assignment is made.
     """
     task_ids = _task_ids(data)
+    document_router = DocumentRouter(data.phase_dir, use_preparsed=use_preparsed,
+                                     normalized_dir=normalized_dir)
     bank_index, bank_accounts = _bank_line_index(data)
     missing = [line_id for line_id in task_ids if line_id not in bank_index]
     if missing:
@@ -515,6 +550,31 @@ def build_ar_cash(data: PhaseData) -> ArCashRun:
         adjustments: list[JournalLine] = []
         chosen: list[_Candidate] | None = None
         ref = _invoice_reference(str(bank_line.get("text", "")), invoices)
+        ledger_ref_candidate = None
+        if ref is None and customer is not None:
+            ledger_references = {}
+            for match in _INVOICE_REF.finditer(str(bank_line.get("text", ""))):
+                token = match.group(0).strip().upper()
+                candidate = timeline.referenced_candidate(token, company, customer,
+                                                          str(bank_line.get("currency", "")))
+                if candidate is not None:
+                    ledger_references[token] = candidate
+            if len(ledger_references) == 1:
+                ref, ledger_ref_candidate = next(iter(ledger_references.items()))
+                diagnostics.append(f"explicit bank reference resolved from dated ERP open item {ref}")
+            elif len(ledger_references) > 1:
+                diagnostics.append("multiple explicit references have open ERP balances; left unresolved")
+        if ref and ref in invoices and invoices[ref].company == company:
+            referenced_customer = invoices[ref].customer
+            if customer is None and notice_issue is None and not notice_file:
+                customer = referenced_customer
+                diagnostics.append(f"payer identified by explicit bank invoice reference {ref}")
+            elif customer is not None and customer != referenced_customer:
+                diagnostics.append(f"bank payer conflicts with invoice reference {ref}; left unresolved")
+                results_by_id[line_id] = ArCashResult(
+                    {"bank_line": line_id, "customer": None, "applications": [],
+                     "residuals": [], "adjustment": []}, tuple(diagnostics))
+                continue
         matured_note = (_matured_note(list(data.table("promissory_notes")), timeline, company,
                                      customer, receipt_date, amount, str(bank_line.get("text", "")))
                         if customer is not None else None)
@@ -549,14 +609,58 @@ def build_ar_cash(data: PhaseData) -> ArCashRun:
         else:
             candidates = [c for c in timeline.candidates(invoices, company, customer, receipt_date)
                           if c.invoice.currency in ("", str(bank_line.get("currency")))]
+            if ledger_ref_candidate is not None:
+                candidates.append(ledger_ref_candidate)
             all_candidates = candidates
+            observed = None
+            source_conflict = False
+            if use_preparsed:
+                if notice_file:
+                    observed, source_diagnostics = read_applications(
+                        data, document_router, notice_file, company, receipt_date,
+                        amount, str(bank_line.get("currency")))
+                    diagnostics.extend(source_diagnostics)
+                    source_conflict = any("left unresolved" in item for item in source_diagnostics)
+                face_observed, face_diagnostics = read_face_application(
+                    data, document_router, company, receipt_date, amount,
+                    str(bank_line.get("currency")), customer)
+                diagnostics.extend(face_diagnostics)
+                source_conflict = source_conflict or any("left unresolved" in item for item in face_diagnostics)
+                if face_observed:
+                    if observed is not None and observed != face_observed:
+                        diagnostics.append("FACe and remittance applications conflict; left unresolved")
+                        observed = None
+                        source_conflict = True
+                    else:
+                        observed = face_observed
+            if source_conflict:
+                results_by_id[line_id] = ArCashResult(
+                    {"bank_line": line_id, "customer": customer, "applications": [],
+                     "residuals": [], "adjustment": []}, tuple(diagnostics))
+                continue
+            by_invoice = {candidate.invoice.id: candidate for candidate in candidates}
+            if observed and all(reference in by_invoice and value <= by_invoice[reference].balance
+                                for reference, value in observed):
+                chosen = [by_invoice[reference] for reference, _ in observed]
+                for reference, value in observed:
+                    candidate = by_invoice[reference]
+                    apps.append({"invoice": reference, "amount": value})
+                    timeline.apply(candidate, value)
+                    if value == candidate.balance:
+                        applied_receipts[(customer, value)].append(reference)
+            elif observed:
+                diagnostics.append("remittance applications conflict with available receivable balances")
+                results_by_id[line_id] = ArCashResult(
+                    {"bank_line": line_id, "customer": customer, "applications": [],
+                     "residuals": [], "adjustment": []}, tuple(diagnostics))
+                continue
             if ref:
                 candidates = [candidate for candidate in candidates if candidate.invoice.id == ref]
                 if not candidates:
                     diagnostics.append(f"invoice reference {ref} has no positive AR balance at the receipt date")
 
             # Explicit invoice reference beats amount matching.
-            if candidates and ref:
+            if not apps and candidates and ref:
                 candidate = candidates[0]
                 applied = min(amount, candidate.balance)
                 if applied > 0:

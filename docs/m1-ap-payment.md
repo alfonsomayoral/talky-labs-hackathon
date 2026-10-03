@@ -33,8 +33,9 @@ from policy §2.1 and a new immutable simulated state. PROFORMA and VENDOR_STATE
 have action NONE. Other notices require explicit matching event kind and receipt;
 certificates require both validity dates, assignments require validity start,
 and bank changes require verified evidence and the exact replacement IBAN.
-Incomplete/unverified notices give internal UNKNOWN, no action, and the original
-state. Repeating the identical notice is idempotent; conflicting identities fail.
+Incomplete notices give internal UNKNOWN, no action, and the original state. A
+bank letter always emits UPDATE_BANK_DETAILS (§2.1 ties the action to the type),
+but an unverified or incomplete one keeps the original state. Repeating the identical notice is idempotent; conflicting identities fail.
 ERP and masters are never modified.
 
 No journal entry or AP JSONL contract is produced here. These are internal
