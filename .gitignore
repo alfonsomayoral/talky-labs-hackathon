@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+.env.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+# Run bundles (backend outputs) never go to this public repo
+runs/
+.claude/
