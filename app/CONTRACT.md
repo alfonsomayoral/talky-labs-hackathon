@@ -111,6 +111,8 @@ Mismo formato que `src/features/assistant/engine/types.ts` (`AssistantCard`). Im
 
 `event: delta` lleva `{"text": "…"}`. La app también acepta una cadena JSON o texto plano, y descarta las tarjetas de tipo desconocido.
 
+En desarrollo, sin backend, el modo Profundo usa `dev/assistantChat.ts`: el servidor de Vite atiende `POST /api/chat` con un modelo de OpenAI (`OPENAI_API_KEY` y `OPENAI_MODEL` en `.env.local`, solo en el servidor). La petición lleva además `context`, la respuesta local de la app. El modelo solo redacta el texto, y las cifras, tarjetas y citas siguen siendo las locales.
+
 CORS abierto a `http://localhost:5173` en desarrollo.
 
 ## 3. Lo que hace la app con lo recibido

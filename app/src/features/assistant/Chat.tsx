@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowRight, ArrowUp, CalendarCheck, Inbox, ListChecks, Scale, ScanSearch, TriangleAlert, Zap, type LucideIcon } from 'lucide-react'
 import { Button, ButtonLink, SegmentedControl, Skeleton } from '@/components'
 import { AnswerCards, Citations } from './AnswerCards'
-import { assistantProvider, PRESET_QUESTIONS, type ChatMode } from './engine'
+import { assistantProvider, devChatStatus, PRESET_QUESTIONS, type ChatMode } from './engine'
 import type { Turn } from './store'
 import styles from './Assistant.module.css'
 
@@ -42,7 +42,12 @@ interface ComposerProps {
 
 export function Composer({ onAsk, mode, onModeChange, disabled, busy, autoFocus }: ComposerProps) {
   const [value, setValue] = useState('')
+  const [devModel, setDevModel] = useState<string | null>(null)
   const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    void devChatStatus().then((s) => setDevModel(s?.model ?? null))
+  }, [])
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus({ preventScroll: true })
@@ -87,7 +92,12 @@ export function Composer({ onAsk, mode, onModeChange, disabled, busy, autoFocus 
       <div className={styles.composerBar}>
         <SegmentedControl aria-label="Modo de respuesta" size="sm" options={MODES} value={mode} onChange={onModeChange} />
         <span className={styles.composerHint}>
-          {assistantProvider() === 'api' ? 'Responde el backend' : 'Respuestas locales sobre la ejecución activa'} · Mayús+Enter, salto de línea
+          {assistantProvider() === 'api'
+            ? 'Responde el backend'
+            : mode === 'deep' && devModel
+              ? `Redacta ${devModel} sobre las cifras de la app`
+              : 'Respuestas locales sobre la ejecución activa'}{' '}
+          · Mayús+Enter, salto de línea
         </span>
         <Button variant="primary" size="sm" trailingIcon={<ArrowUp aria-hidden />} onClick={send} disabled={disabled || busy || !value.trim()} loading={busy}>
           Enviar

@@ -138,6 +138,8 @@ export interface ChatRequest {
   dataset_id: string
   messages: ChatMessage[]
   mode: ChatMode
+  /** Dev extension: the local answer the model writes over (the dev /api/chat middleware). */
+  context?: unknown
 }
 
 export interface StreamOptions {
