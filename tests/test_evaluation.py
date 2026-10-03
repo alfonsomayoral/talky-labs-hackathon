@@ -54,9 +54,34 @@ class EvaluationFormatTests(unittest.TestCase):
         self.assertEqual(result["score"], 1.0)
         self.assertEqual(entity["diffs"], [])
         self.assertEqual(entity["unscored"], [{
-            "field": "residuals.invoice", "expected": [("PENALTY", "INV1")],
-            "actual": [("PENALTY", "INV2")], "kind": "unscored",
+            "field": "residuals.invoice", "expected": [("PENALTY", "INV1", 10)],
+            "actual": [("PENALTY", "INV2", 10)], "kind": "unscored",
         }])
+
+    def test_residual_invoice_amount_binding_survives_swapped_assignments(self):
+        from copy import deepcopy
+        gold = self.cash_row()
+        gold['residuals'] = [dict(type='PENALTY', invoice='INV1', amount=10),
+                             dict(type='PENALTY', invoice='INV2', amount=20)]
+        submission = deepcopy(gold)
+        submission['residuals'][0]['invoice'] = 'INV2'
+        submission['residuals'][1]['invoice'] = 'INV1'
+        result = compare_ar_cash(self.ar_cash_scorer(1.0), [gold], [submission])
+        self.assertEqual(result['entities'][0]['diffs'], [])
+        self.assertEqual(result['entities'][0]['unscored'][0]['field'], 'residuals.invoice')
+
+    @unittest.skipUnless(os.environ.get('KALMORA_SCORER'), 'official scorer path unavailable')
+    def test_official_scorer_ignores_residual_invoice_but_comparator_exposes_it(self):
+        scorer, _ = load_scorer(Path(os.environ['KALMORA_SCORER']))
+        result = compare_ar_cash(scorer, [self.cash_row()], [self.cash_row(residual_invoice='INV2')])
+        self.assertEqual(result['score'], 1.0)
+        self.assertTrue(result['reconciliation']['ok'])
+        self.assertEqual(result['entities'][0]['unscored'][0]['field'], 'residuals.invoice')
+        gold = self.cash_row()
+        gold['applications'] = [{'pagare': '123', 'amount': 100}]
+        result = compare_ar_cash(scorer, [gold], [self.cash_row()])
+        self.assertIn('applications', {d['field'] for d in result['entities'][0]['diffs']})
+        self.assertLess(result['score'], 1.0)
 
     def test_ar_cash_comparator_reports_application_customer_and_entry_differences(self):
         gold = [self.cash_row(invoice="PAG123")]

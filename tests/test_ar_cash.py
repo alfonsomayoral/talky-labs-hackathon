@@ -302,6 +302,17 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(result.row["adjustment"][1]["account"], "55300000")
         self.assertEqual(result.row["adjustment"][1]["partner"], "FACTOR-BAE")
 
+    def test_factored_receipt_requires_matching_document_currency(self):
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 8000, factored=True, currency="USD")])
+        self._jsonl("erp/factoring_assignments.jsonl", [{
+            "invoice": "INV-1", "date": "2026-06-10", "customer": "C1",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
     def test_netting_against_same_counterparty_vendor_is_balanced(self):
         self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
                                             "tax_id": "TAX1", "companies": ["1100"]}])
@@ -363,6 +374,17 @@ class ArCashTests(unittest.TestCase):
             {"company": "1100", "account": "43100000", "debit": 0, "credit": 8000,
              "partner": "C1", "assignment": "PAG7654321"},
         ])
+
+    def test_matured_note_cannot_be_consumed_by_two_receipts(self):
+        self.test_matured_promissory_note_is_applied_to_431()
+        first = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        second = dict(first, bank_line="BL2", booking_date="2026-07-03", value_date="2026-07-03")
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [first, second])
+        run = self._run()
+        self.assertEqual(run.results[0].row["applications"], [{"pagare": "7654321", "amount": 8000}])
+        self.assertEqual(run.results[1].row["applications"], [])
+        self.assertEqual(run.results[1].row["adjustment"], [])
 
     def test_unmatured_promissory_note_is_not_available_on_receipt_date(self):
         self._jsonl("erp/promissory_notes.jsonl", [{
