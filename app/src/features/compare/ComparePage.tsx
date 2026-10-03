@@ -58,7 +58,10 @@ export default function ComparePage() {
       <PageHeader
         title="Comparar con golden"
         subtitle="En qué se equivoca el agente: cada partida que difiere de la referencia, ordenada por la nota que pierde."
-        actions={<SegmentedControl aria-label="Comparar" size="sm" options={VIEWS} value={params.view} onChange={(view) => update({ view })} />}
+        actions={
+          // Without golden there is nothing to filter: the switch would do nothing.
+          data?.score && <SegmentedControl aria-label="Comparar" size="sm" options={VIEWS} value={params.view} onChange={(view) => update({ view })} />
+        }
       />
       <QueryState status={status} error={error}>
         {() =>
