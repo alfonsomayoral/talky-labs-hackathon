@@ -23,7 +23,7 @@ class ApLine(TypedDict, total=False):
     """One coded line of a posted AP document."""
 
     amount: Required[Cents]
-    """Net amount of the line in local currency, in cents."""
+    """Net amount of the line in document currency, in cents (M0 convention)."""
 
     account: Required[AccountCode]
     cost_center: str | None
@@ -42,7 +42,8 @@ class ApRow(TypedDict, total=False):
 
     Exactly one row per ``doc_id``. The header, ``lines`` and ``journal_entry`` are scored
     only for ``POST`` and ``POST_PAYMENT_BLOCK``; ``journal_entry`` exists only for those two
-    decisions. Amounts are integer cents in the company's local currency.
+    decisions. Header and coded-line amounts are integer cents in document currency;
+    journal-entry amounts are in local currency (see docs/discrepancies.md).
     """
 
     doc_id: Required[str]
@@ -57,7 +58,7 @@ class ApRow(TypedDict, total=False):
     vendor_id: PartnerCode | None
     """``None`` when the vendor does not exist in the master."""
 
-    invoice_number: str
+    invoice_number: str | None
     """Compared after removing punctuation and leading zeros."""
 
     invoice_date: IsoDate

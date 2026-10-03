@@ -21,7 +21,9 @@ def load_scorer(path: Path, manifest_path: Path | None = None) -> tuple[ModuleTy
         raise FileNotFoundError(f"Scorer not found: {path}")
     digest = sha256_file(path)
     verified: bool | None = None
-    if manifest_path is not None and manifest_path.is_file():
+    if manifest_path is not None:
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"Package manifest not found: {manifest_path}; register the package with import-package")
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         expected = next((item["sha256"] for item in manifest.get("files", [])
                          if item.get("path") == SCORER_MEMBER), None)

@@ -104,5 +104,6 @@ def _execute(args: argparse.Namespace) -> int:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 1
         print(text_summary(report) if args.text else json.dumps({"report": str(path.resolve()), **report_summary(report)}))
-        return 0 if report.get("reconciliation_ok", True) and not report["separation"]["violations"] else 1
+        valid_structure = not report["diagnostic_counts"].get("INVALID_STRUCTURE")
+        return 0 if valid_structure and report.get("reconciliation_ok", True) and not report["separation"]["violations"] else 1
     return 2

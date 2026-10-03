@@ -2,9 +2,10 @@ name: Backend CI
 
 on:
   push:
-    branches: [backend]
+    branches: [backend, main]
+    tags: ['v*']
   pull_request:
-    branches: [backend]
+    branches: [backend, main]
   workflow_dispatch:
 
 permissions:
@@ -22,4 +23,3 @@ jobs:
       - run: python -m compileall -q src
       - run: python -m unittest discover -s tests -v
       - run: kalmora doctor
-

@@ -11,6 +11,7 @@ from .compare import (compare_ap, compare_ar_billing, compare_ar_cash, compare_b
                       compare_tb)
 from .diagnostics import check_submission, phase_ids
 from .scorer import load_scorer, sha256_file
+from .structure import check_structure
 
 MODULES = ("ap", "ar_billing", "ar_cash", "bank_rec", "ic", "close")
 COMPARERS = {"ap": compare_ap, "ar_billing": compare_ar_billing, "ar_cash": compare_ar_cash,
@@ -22,7 +23,18 @@ def _load_rows(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
     with path.open(encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+        rows = []
+        for number, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+                if not isinstance(row, dict):
+                    raise ValueError("JSONL row must be an object")
+            except ValueError as exc:
+                raise ValueError(f"{path}:{number}: {exc}") from exc
+            rows.append(row)
+        return rows
 
 
 def _hashes(directory: Path, names: list[str]) -> dict[str, str | None]:
@@ -38,6 +50,9 @@ def evaluate(phase_dir: Path, submission_dir: Path, evaluator_dir: Path | None =
         raise FileNotFoundError(f"Submission directory not found: {submission_dir}")
     files = [f"{name}.jsonl" for name in MODULES]
     subs = {name: _load_rows(submission_dir / f"{name}.jsonl") for name in MODULES}
+    structure_errors = check_structure(subs)
+    if evaluator_dir is not None and structure_errors:
+        raise ValueError("Invalid submission structure: " + structure_errors[0]["message"])
     journal_ids = {entry["id"] for entry in phase.iter_journal() if entry.get("id")}
     ids = phase_ids(phase, journal_ids)
     report: dict[str, Any] = {
@@ -55,6 +70,8 @@ def evaluate(phase_dir: Path, submission_dir: Path, evaluator_dir: Path | None =
         golden_dir = evaluator_dir / "golden"
         if not golden_dir.is_dir():
             raise FileNotFoundError(f"No golden in {evaluator_dir}: this phase cannot be scored")
+        if PhaseData(evaluator_dir).month != phase.month:
+            raise ValueError("Evaluator month does not match the solver phase month")
         scorer_file = scorer_path or evaluator_dir.parent / "score.py"
         manifest = evaluator_dir.parent.parent / "manifest.json"
         scorer, scorer_info = load_scorer(scorer_file, manifest)
@@ -77,7 +94,7 @@ def evaluate(phase_dir: Path, submission_dir: Path, evaluator_dir: Path | None =
         report["provenance"]["scorer"] = scorer_info
         report["provenance"]["golden_sha256"] = _hashes(
             golden_dir, files + ["trial_balance_truth.jsonl", "trial_balance_recorded.jsonl"])
-    report["diagnostics"] = check_submission(subs, phase.month, ids, gold)
+    report["diagnostics"] = structure_errors or check_submission(subs, phase.month, ids, gold)
     counts: dict[str, int] = {}
     for item in report["diagnostics"]:
         counts[item["code"]] = counts.get(item["code"], 0) + 1
