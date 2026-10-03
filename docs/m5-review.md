@@ -103,10 +103,15 @@ repairing it or weakening the shared validator. All 56 bank corrections are used
 Fork publication works after installation 167510256 was authorized. The initial
 upstream PR request returned 403 because the effective connector installation
 is limited to the fork. Upstream draft PR #196 was subsequently opened through
-the local GitHub credentials. No approval or backend integration is claimed.
+the local GitHub credentials. At the time of this producer self-review, no
+approval or backend integration was claimed. PR #196 was subsequently reviewed,
+corrected and merged as `4856b18`; see
+[m5-score-resolution.md](m5-score-resolution.md) for current status.
 
-M5 and epics #18/#19 remain open. #159 requires actual AP #55 receipt/export
-outputs, bank #73/#75 corrections, unchanged source/ownership, repeatability and
-full evaluation. #94 additionally retains the three source/reference differences.
-The sign defect in #92 is fixed locally/remotely as recorded by the final commit;
-fixture validation alone does not automatically close that issue or any other.
+The implementation tasks #88–#94 and epics #18/#19 are now closed with evidence
+against their own criteria. M5 remains open: #159 requires actual AP #55
+receipt/export outputs, bank #73/#75 corrections, unchanged source/ownership,
+repeatability and full evaluation. #239 retains the three source/reference
+differences after #94 completed comparison and field validation. The sign defect
+in #92 is fixed as recorded by the final producer commit; the later independent
+review also corrected duplicate projection of externally owned journals.
