@@ -6,12 +6,63 @@ from decimal import Decimal
 from io import BytesIO
 import json
 from pathlib import Path
+import re
+import unicodedata
 import xml.etree.ElementTree as ET
 
 from .contracts import ParsedBlock, ParsedDocument, PageImage, digest, source_path
 
-PARSER_VERSION = "source-router-v1/pypdf-6.19.0"
+PARSER_VERSION = "source-router-v2/pypdf-6.19.0"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
+MAX_PDF_PAGES = 64
+
+
+def _text_layer_reason(text: str) -> str | None:
+    """Routing hints, never repairs or assertions that an extracted layer is true."""
+    if len(text.strip()) < 15:
+        return "sparse_text_layer"
+    if ("\ufffd" in text or re.search(r"\(cid:\d+\)", text)
+            or any(unicodedata.category(char) in {"Cc", "Co", "Cs", "Cn"}
+                   and char not in "\t\n\r\f" for char in text)):
+        return "suspect_text_layer"
+    return None
+
+
+def _has_raster_content(page) -> bool:
+    """Inspect PDF resources/operators without decoding embedded image pixels.
+
+    Even a small raster can carry omitted text. Conservatively render such pages,
+    including logos, rather than declaring a native layer complete by its length.
+    """
+    pending, visited = [page], set()
+    while pending:
+        obj = pending.pop().get_object()
+        if id(obj) in visited:
+            continue
+        visited.add(id(obj))
+        if len(visited) > 1000:
+            raise ValueError("PDF resource traversal limit")
+        # Page resources may be inherited from an ancestor /Pages node.
+        # Form XObjects use their own resource dictionary when present.
+        resources = (obj.get_inherited("/Resources", {}) if obj.get("/Type") == "/Page"
+                     else obj.get("/Resources", {}))
+        resources = resources.get_object() if hasattr(resources, "get_object") else resources
+        xobjects = resources.get("/XObject", {})
+        xobjects = xobjects.get_object() if hasattr(xobjects, "get_object") else xobjects
+        for reference in xobjects.values():
+            child = reference.get_object()
+            if child.get("/Subtype") == "/Image":
+                return True
+            if child.get("/Subtype") == "/Form":
+                pending.append(child)
+                # Inline raster data can also occur inside a Form XObject.
+                from pypdf.generic import ContentStream
+                if any(operator == b"INLINE IMAGE" for _, operator in
+                       ContentStream(child, page.pdf).operations):
+                    return True
+    content = page.get_contents()
+    return bool(content and any(operator == b"INLINE IMAGE"
+                                for _, operator in content.operations))
 
 
 class ParseError(ValueError):
@@ -76,6 +127,8 @@ class DocumentRouter:
         if path.stat().st_size > MAX_SOURCE_BYTES:
             raise ParseError(relative, "source_size_limit")
         data = path.read_bytes()
+        if len(data) > MAX_SOURCE_BYTES:
+            raise ParseError(relative, "source_size_limit")
         suffix = path.suffix.lower()
         blocks, images, warnings = (), (), ()
         try:
@@ -87,20 +140,32 @@ class DocumentRouter:
                 reader = PdfReader(BytesIO(data), strict=True)
                 if reader.is_encrypted:
                     raise ParseError(relative, "encrypted_pdf")
-                block_list, image_list, warning_list = [], [], []
+                if len(reader.pages) > MAX_PDF_PAGES:
+                    raise ParseError(relative, "page_limit")
+                block_list, warning_list = [], []
                 for number, page in enumerate(reader.pages, 1):
-                    text = page.extract_text(extraction_mode="layout") or ""
+                    reasons = []
+                    try:
+                        text = page.extract_text(extraction_mode="layout") or ""
+                    except Exception:
+                        text = ""
+                        reasons.append("text_extraction_failed")
                     block_list.append(ParsedBlock(f"page.{number}", text, number))
-                    if len(text.strip()) < 15:
+                    if reason := _text_layer_reason(text):
+                        reasons.append(reason)
+                    try:
+                        if _has_raster_content(page):
+                            reasons.append("raster_content")
+                    except Exception:
+                        reasons.append("image_inspection_failed")
+                    if reasons:
                         warning_list.append(f"page.{number}:vision_required")
-                        for image in page.images:
-                            mime = "image/jpeg" if image.data.startswith(b"\xff\xd8") else "image/png"
-                            image_list.append(PageImage(number, mime, image.data))
-                        if not any(i.page == number for i in image_list):
-                            raise ParseError(relative, "page_without_text_or_embedded_image")
+                        warning_list.extend(f"page.{number}:{reason}" for reason in reasons)
                 if not block_list:
                     raise ParseError(relative, "empty_pdf")
-                blocks, images, warnings = tuple(block_list), tuple(image_list), tuple(warning_list)
+                # Embedded images are fragments: they can omit vectors, stamps and
+                # other images. PDFVisionProcessor renders the complete page.
+                blocks, warnings = tuple(block_list), tuple(warning_list)
                 media = "application/pdf"
             elif suffix == ".xml":
                 blocks = _xml_blocks(data)
