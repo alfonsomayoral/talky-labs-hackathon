@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import unittest
 from kalmora.bankrec import build_bank_rec, journal_entries
+from kalmora.ar_cash import build_ar_cash
 from kalmora.data import PhaseData
 from kalmora.ledger import Ledger
 from kalmora.validation import validate_entry
@@ -48,6 +49,37 @@ class JournalTests(SyntheticPhase):
 
 @unittest.skipUnless((REAL / "bank").is_dir(), "development source package unavailable")
 class JulyJournalTests(unittest.TestCase):
+    def test_bl0000706_import_and_cash_application_net_555_once(self):
+        data = PhaseData(REAL)
+        bank_entries = journal_entries(build_bank_rec(data))
+        imports = [e for e in bank_entries if e["provenance"]["event_id"] == "BL0000706"]
+        self.assertEqual(len(imports), 1)
+        imported = imports[0]
+        self.assertEqual(imported["provenance"]["stage"], "bank_import")
+        self.assertEqual([(line["account"], line["debit"], line["credit"])
+                          for line in imported["lines"]], [
+            ("57200001", 51496121, 0), ("55500000", 0, 51496121),
+        ])
+
+        normalized_dir = REAL.parent / "normalized_sources"
+        cash_run = build_ar_cash(data, use_preparsed=True, normalized_dir=normalized_dir)
+        cash_row = next(result.row for result in cash_run.results if result.row["bank_line"] == "BL0000706")
+        self.assertEqual(cash_row["applications"], [{"invoice": "OB26-00025", "amount": 51496121}])
+        self.assertEqual(cash_row["adjustment"], [
+            {"company": "1100", "account": "55500000", "debit": 51496121, "credit": 0},
+            {"company": "1100", "account": "43000000", "debit": 0, "credit": 51496121,
+             "partner": "C200007", "assignment": "OB26-00025"},
+        ])
+
+        ledger = Ledger.from_entries([imported])
+        bank_balance = ledger.balances()[("1100", "57200001")]
+        application = {"company": "1100", "lines": cash_row["adjustment"]}
+        ledger.add_entry(application, event_id="BL0000706", stage="cash_application")
+        self.assertEqual(ledger.balances()[("1100", "55500000")], 0)
+        self.assertEqual(ledger.balances()[("1100", "57200001")], bank_balance)
+        with self.assertRaises(ValueError):
+            ledger.add_entry(application, event_id="BL0000706", stage="cash_application")
+
     def test_book_references_preserve_original_entry_and_line_numbers(self):
         data = PhaseData(REAL)
         originals = {f"{e['id']}#{x['line']}" for e in data.iter_journal() for x in e["lines"]}
