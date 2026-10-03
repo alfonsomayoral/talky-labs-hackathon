@@ -181,7 +181,7 @@ def resolve_historical_advances(*, company: str, vendor: str, as_of: str,
         if not advances:
             continue
         parties = {line.get("partner") for line in lines
-                   if line.get("account") in {"40000000", "41000000", "40700000"} and line.get("partner")}
+                   if line.get("account") in {"40000000", "41000000", "40300000", "40700000"} and line.get("partner")}
         parties.update(row.get("vendor") for row in invoices.get((company, entry["id"]), ()) if row.get("vendor"))
         for line in advances:
             binding = _po(line.get("assignment"))
@@ -232,7 +232,7 @@ def resolve_historical_advances(*, company: str, vendor: str, as_of: str,
                          Evidence("erp/purchase_orders.jsonl", f"id={binding[0]}.currency"),
                          Evidence("erp/purchase_orders.jsonl", f"id={binding[0]}.items[item={binding[1]}]")))
         amount = line.get("amount_doc", line["debit"] if currency == local else None)
-        supplier = [other for other in entry["lines"] if other["account"] in {"40000000", "41000000"}]
+        supplier = [other for other in entry["lines"] if other["account"] in {"40000000", "41000000", "40300000"}]
         if (type(amount) is not int or amount <= 0 or not re.fullmatch("[A-Z]{3}", currency)
                 or (currency == local and amount != line["debit"])
                 or any(other.get("partner") != vendor
@@ -257,7 +257,7 @@ def resolve_historical_advances(*, company: str, vendor: str, as_of: str,
                 diagnostics.append(f"{ident}:ADVANCE_APPLICATION_REFERENCE_UNRESOLVED")
                 continue
             balance = candidates[0]
-            supplier = [other for other in entry["lines"] if other["account"] in {"40000000", "41000000"}]
+            supplier = [other for other in entry["lines"] if other["account"] in {"40000000", "41000000", "40300000"}]
             if (line.get("partner") not in (None, vendor)
                     or (line.get("partner") is None and not supplier)
                     or any(other.get("partner") != vendor for other in supplier)
@@ -294,7 +294,7 @@ def resolve_historical_advances(*, company: str, vendor: str, as_of: str,
                 unsupported = False
                 for other in entry["lines"]:
                     account = other["account"]
-                    if account == "40700000" or account in {"40000000", "41000000"}:
+                    if account == "40700000" or account in {"40000000", "41000000", "40300000"}:
                         continue
                     document_amount = other.get("amount_doc")
                     if ((other.get("currency") or entry.get("currency") or local) != balance.currency
