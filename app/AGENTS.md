@@ -113,3 +113,33 @@ Al terminar, `app/status/<rama>.md` queda así y se commitea en tu rama:
 ## Commits
 - `<sha> <asunto>`
 ```
+
+## 10. Relevo de sesión
+
+Si se agota el límite de la cuenta, otra cuenta de Claude continúa en este mismo Mac **sin acceso a la conversación**. Todo el contexto tiene que quedar en ficheros. Cuando el usuario escriba **«RELEVO»**:
+
+**Cada sesión de trabajo:**
+
+1. No empieza nada nuevo.
+2. Commitea en su rama todo lo que tenga, aunque esté a medias, con asunto `wip: <qué>`.
+3. Actualiza `app/status/<rama>.md` con el formato de §9 más una sección «A medias»: fichero, qué falta exactamente y el siguiente paso concreto. Lo commitea.
+4. Hace `git push -u origin <rama>`.
+5. Responde con el último sha y si `typecheck` pasa.
+
+**La coordinadora:**
+
+1. No lanza más subagentes. Si a los que están en marcha les queda poco, los espera. Si no, los detiene y commitea su trabajo parcial como `wip` en la carpeta o rama que le corresponda, anotando de quién era.
+2. Integra en `hackathon/frontend` solo lo verificado.
+3. Actualiza `STATUS.md` con el estado real.
+4. Escribe `app/HANDOFF.md` con:
+   - el estado de las puertas;
+   - cada rama con su último sha y su estado;
+   - el trabajo a medias con su siguiente paso;
+   - el orden de lo que queda;
+   - las comprobaciones pendientes;
+   - los comandos para retomar.
+5. Actualiza `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, que está fuera del repo porque el repo es público, y la memoria del proyecto.
+6. Commitea y hace push de `hackathon/frontend` y de todas las ramas `fe/*`.
+7. Responde con la tabla rama → sha → estado.
+
+La cuenta que retoma empieza por `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, sigue con `app/HANDOFF.md` y luego lee este fichero.
