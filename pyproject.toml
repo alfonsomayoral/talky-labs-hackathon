@@ -10,8 +10,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+documents = ["pypdf[image]==6.19.0", "pillow==12.3.0"]
+llm = ["pydantic-ai-slim[openai]==2.54.0", "openai==3.24.0", "pydantic==2.13.5"]
+landing = ["duckdb==1.5.5"]
+
 [project.scripts]
 kalmora = "kalmora.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+kalmora = ["landing/*.sql"]

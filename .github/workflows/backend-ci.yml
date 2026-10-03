@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -e .
+      - run: python -m pip install -c requirements-m1.lock -e '.[documents,llm,landing]'
       - run: python -m compileall -q src
       - run: python -m unittest discover -s tests -v
       - run: kalmora doctor
