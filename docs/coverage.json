@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "Audit/evaluation only; no solver access to golden",
   "dependencies": {
-    "32": "pending teammate output contracts",
-    "35": "pending teammate evaluator/comparator"
+    "32": "deprecated: delivery format fixed by FORMATO_ENTREGA.md; row types in kalmora.output_models",
+    "35": "implemented: kalmora.evaluation (comparator)"
   },
   "archive_sha256": "c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109",
   "policy_sha256": "ef3a6fbc74794d4e35aeb217557881792cc4b62687fcbe937f483beef6e56e39",

@@ -1,6 +1,6 @@
 # Policy coverage audit
 
-This executable inventory maps every policy bullet/table row in §§1–6 to its responsible issues. #32 output contracts and #35 comparator remain pending teammate integration. M1–M7 solver rules remain planned. Delivered P1 rows cover monetary representation and ledger validation only; supplier-master override behavior remains planned. Golden data is audit/evaluation evidence only.
+This executable inventory maps every policy bullet/table row in §§1–6 to its responsible issues. #32 output contracts is deprecated (the delivery format is fixed by the organizer) and the #35 comparator is implemented in `kalmora.evaluation`. M1–M7 solver rules remain planned. Delivered P1 rows cover monetary representation and ledger validation only; supplier-master override behavior remains planned. Golden data is audit/evaluation evidence only.
 
 Reproduce: `PYTHONPATH=src python3 -m unittest discover -s tests -p test_coverage.py`. Archive SHA-256: `c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109`.
 
