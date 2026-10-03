@@ -63,7 +63,7 @@ export function JournalEntryView({ entry, lines: bare, company, currency, chart,
           <thead>
             <tr>
               {multiCompany && <th className={styles.company}>Soc.</th>}
-              <th>Cuenta</th>
+              <th className={styles.accountCol}>Cuenta</th>
               <th>Socio · objeto</th>
               <th className={styles.num}>Debe</th>
               <th className={styles.num}>Haber</th>
@@ -81,14 +81,14 @@ export function JournalEntryView({ entry, lines: bare, company, currency, chart,
                       <Mono>{String(l.company ?? defaultCompany ?? '—')}</Mono>
                     </td>
                   )}
-                  <td>
+                  <td className={styles.shrink}>
                     <span className={styles.account}>
                       <Mono>{String(l.account)}</Mono>
                       <span className={styles.accountLabel}>{accountLabel(String(l.account), accounts)}</span>
                     </span>
                     {str(l.text) && <span className={styles.lineText}>{String(l.text)}</span>}
                   </td>
-                  <td>
+                  <td className={styles.shrink}>
                     {str(l.partner) || cost || str(l.assignment) ? (
                       <span className={styles.objects}>
                         {str(l.partner) && <Mono>{String(l.partner)}</Mono>}

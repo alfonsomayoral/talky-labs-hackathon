@@ -94,6 +94,15 @@
   white-space: nowrap;
 }
 
+/* Text columns give way (with ellipsis) so Debe and Haber stay visible in a narrow panel. */
+.shrink {
+  max-width: 0;
+}
+
+.accountCol {
+  width: 60%;
+}
+
 .account {
   display: flex;
   align-items: baseline;
@@ -116,13 +125,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 280px;
 }
 
 .objects {
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+.objects > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .assignment {
