@@ -12,9 +12,12 @@ import xml.etree.ElementTree as ET
 
 from .contracts import ParsedBlock, ParsedDocument, PageImage, digest, source_path
 
-PARSER_VERSION = "source-router-v2/pypdf-6.19.0"
+PARSER_VERSION = "source-router-v3/pypdf-6.19.0"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 MAX_PDF_PAGES = 64
+MAX_PDF_FRAGMENTS_PER_PAGE = 10_000
+MAX_PDF_FRAGMENTS_TOTAL = 100_000
+MAX_PDF_FRAGMENT_CHARS = 5_000_000
 
 
 def _text_layer_reason(text: str) -> str | None:
@@ -143,6 +146,7 @@ class DocumentRouter:
                 if len(reader.pages) > MAX_PDF_PAGES:
                     raise ParseError(relative, "page_limit")
                 block_list, warning_list = [], []
+                fragment_chars = fragment_count = 0
                 for number, page in enumerate(reader.pages, 1):
                     reasons = []
                     try:
@@ -151,6 +155,39 @@ class DocumentRouter:
                         text = ""
                         reasons.append("text_extraction_failed")
                     block_list.append(ParsedBlock(f"page.{number}", text, number))
+                    page_fragments = []
+                    page_fragment_count = 0
+                    fragment_limit = False
+
+                    def capture_text_chunk(chunk, *_visitor_args):
+                        nonlocal fragment_chars, fragment_count, page_fragment_count, fragment_limit
+                        if not isinstance(chunk, str):
+                            raise TypeError("visitor_text chunk must be text")
+                        if not chunk:
+                            return
+                        if (page_fragment_count >= MAX_PDF_FRAGMENTS_PER_PAGE
+                                or fragment_count >= MAX_PDF_FRAGMENTS_TOTAL
+                                or fragment_chars + len(chunk) > MAX_PDF_FRAGMENT_CHARS):
+                            fragment_limit = True
+                            return
+                        page_fragment_count += 1
+                        fragment_count += 1
+                        fragment_chars += len(chunk)
+                        fragment_id = f"page.{number}.fragment.{page_fragment_count}"
+                        page_fragments.append(ParsedBlock(
+                            fragment_id, chunk, number, source_field=fragment_id))
+
+                    try:
+                        # This is a second, ordinary visitor extraction. Keep the
+                        # existing layout block byte-for-byte unchanged; callbacks
+                        # preserve pypdf's native text chunks and content order.
+                        page.extract_text(visitor_text=capture_text_chunk)
+                    except Exception:
+                        reasons.append("text_fragment_extraction_failed")
+                    else:
+                        if fragment_limit:
+                            reasons.append("text_fragment_limit")
+                    block_list.extend(page_fragments)
                     if reason := _text_layer_reason(text):
                         reasons.append(reason)
                     try:

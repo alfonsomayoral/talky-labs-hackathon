@@ -121,6 +121,22 @@ class RouterTests(unittest.TestCase):
         path = self.folder / 'synthetic.pdf'; writer.write(path)
         return 'inbox/ap/doc/synthetic.pdf'
 
+    def _pdf_with_native_text(self, content):
+        from pypdf import PdfWriter
+        from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+        writer = PdfWriter()
+        page = writer.add_blank_page(612, 792)
+        font = DictionaryObject({NameObject('/Type'): NameObject('/Font'),
+                                 NameObject('/Subtype'): NameObject('/Type1'),
+                                 NameObject('/BaseFont'): NameObject('/Helvetica'),
+                                 NameObject('/Encoding'): NameObject('/WinAnsiEncoding')})
+        page[NameObject('/Resources')] = DictionaryObject({
+            NameObject('/Font'): DictionaryObject({NameObject('/F1'): writer._add_object(font)})})
+        stream = DecodedStreamObject(); stream.set_data(content)
+        page[NameObject('/Contents')] = writer._add_object(stream)
+        path = self.folder / 'native-text.pdf'; writer.write(path)
+        return 'inbox/ap/doc/native-text.pdf'
+
     def test_textless_vector_page_reaches_full_page_rendering(self):
         relative = self._pdf()
         document = self.router.parse(relative)
@@ -142,6 +158,34 @@ class RouterTests(unittest.TestCase):
         relative = self._pdf(raster=True, inherited=True)
         document = self.router.parse(relative)
         self.assertIn('page.1:raster_content', document.warnings)
+        self.assertIn('page.1:vision_required', document.warnings)
+
+    def test_native_text_fragments_restore_boundaries_without_changing_layout_block(self):
+        # Separate native text objects can be adjacent in the content stream,
+        # causing full-page text extraction to join the stamp and amount.
+        content = (b'BT /F1 12 Tf 72 700 Td (ADUANA DE VALENCIA) Tj ET '
+                   b'BT /F1 12 Tf 193 700 Td (27.910,28 EUR) Tj ET')
+        document = self.router.parse(self._pdf_with_native_text(content))
+        self.assertEqual(document.parser_version, 'source-router-v3/pypdf-6.19.0')
+        self.assertEqual(document.blocks[0].id, 'page.1')
+        self.assertEqual(document.blocks[0].text, 'ADUANA DE VALENCIA27.910,28 EUR')
+        fragments = document.blocks[1:]
+        self.assertEqual([block.id for block in fragments], [
+            'page.1.fragment.1', 'page.1.fragment.2'])
+        self.assertEqual([block.text for block in fragments], [
+            'ADUANA DE VALENCIA', '27.910,28 EUR'])
+        self.assertEqual([block.page for block in fragments], [1, 1])
+        self.assertEqual([block.source_field for block in fragments], [
+            'page.1.fragment.1', 'page.1.fragment.2'])
+
+    def test_partial_fragment_capture_is_bounded_and_routes_for_visual_review(self):
+        content = (b'BT /F1 12 Tf 72 700 Td (Native text one) Tj ET '
+                   b'BT /F1 12 Tf 193 700 Td (Native text two) Tj ET')
+        with patch('kalmora.documents.router.MAX_PDF_FRAGMENTS_PER_PAGE', 1):
+            document = self.router.parse(self._pdf_with_native_text(content))
+        self.assertEqual([block.id for block in document.blocks], [
+            'page.1', 'page.1.fragment.1'])
+        self.assertIn('page.1:text_fragment_limit', document.warnings)
         self.assertIn('page.1:vision_required', document.warnings)
 
     def test_long_corrupted_layer_and_page_extraction_failure_are_recoverable(self):
