@@ -1,7 +1,9 @@
+import hashlib
 import unittest
 
 from kalmora.ap_identity import IdentityCatalog, normalize_tax_identifier
-from kalmora.facts import Evidence, Fact
+from kalmora.ap_rejections import evaluate_rejections
+from kalmora.facts import DocumentFacts, Evidence, Fact
 
 
 def facts(*values):
@@ -37,10 +39,37 @@ class IdentityTests(unittest.TestCase):
 
     def test_unknown_absent_and_nonexistent_are_distinct(self):
         self.assertEqual(self.resolve(None).supplier.status, "UNKNOWN")
-        self.assertEqual(self.resolve([]).supplier.status, "MISSING")
+        self.assertEqual(self.resolve([]).supplier.status, "UNKNOWN")
         self.assertEqual(self.resolve(facts(None)).supplier.status, "MISSING")
         self.assertEqual(self.resolve(facts("NONEXISTENT1")).supplier.status, "NOT_FOUND")
         self.assertIsNone(self.resolve(facts("B12345678"), []).wrong_addressee)
+
+    def test_unobserved_document_field_agrees_across_identity_and_rejections(self):
+        for fields in ({}, {"recipient_tax_id": []}):
+            with self.subTest(fields=fields):
+                document = DocumentFacts(hashlib.sha256(b"unresolved invoice").hexdigest(),
+                                         "synthetic-v1", fields)
+                candidates = document.fields.get("recipient_tax_id", [])
+                identity = self.resolve(facts("B12345678"), candidates).recipient
+                rejection = evaluate_rejections({"recipient_nif": candidates})
+                self.assertEqual(identity.status, "UNKNOWN")
+                self.assertEqual(identity.evidence, ())
+                self.assertEqual((rejection.status, rejection.reason), ("UNKNOWN", None))
+
+    def test_evidenced_absence_agrees_across_identity_and_rejections(self):
+        for value in (None, "", " \t "):
+            with self.subTest(value=value):
+                proof = Evidence("synthetic/invoice.pdf", "recipient_tax_id", page=1,
+                                 quote="Destinatario: sin NIF")
+                document = DocumentFacts(hashlib.sha256(b"invoice explicitly without NIF").hexdigest(),
+                                         "synthetic-v1", {"recipient_tax_id": [Fact(value, proof)]})
+                candidates = document.fields["recipient_tax_id"]
+                identity = self.resolve(facts("B12345678"), candidates).recipient
+                rejection = evaluate_rejections({"recipient_nif": candidates})
+                self.assertEqual(identity.status, "MISSING")
+                self.assertEqual(identity.evidence, (proof,))
+                self.assertEqual((rejection.status, rejection.reason),
+                                 ("REJECT", "MANDATORY_FIELD_MISSING"))
 
     def test_conflicting_document_facts_are_not_overwritten(self):
         result = self.resolve(facts("B12345678", "RFC123456AAA"), facts("A11111111", "U22222222"))
