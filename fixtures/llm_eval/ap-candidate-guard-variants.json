@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "purpose": "Explicitly synthetic candidate-context guard fixtures, not July holdout data",
+  "variants": [
+    {
+      "variant_id": "SYN-CANDIDATE-AMBIGUOUS",
+      "synthetic": true,
+      "base_case_id": "T12",
+      "construction": "Intentionally project the original query down to the delivery reference only, omitting invoice vendor and period. Source documents are unchanged.",
+      "query": {
+        "reference": "AL-057017"
+      },
+      "candidate_records": [
+        {
+          "id": "5000020220",
+          "reference": "AL-057017",
+          "vendor": "V100082",
+          "posting_date": "2024-10-15",
+          "po": "4500010369"
+        },
+        {
+          "id": "5000036630",
+          "reference": "AL-057017",
+          "vendor": "V100054",
+          "posting_date": "2026-07-03",
+          "po": "4500018408"
+        }
+      ],
+      "expected": {
+        "status": "abstain",
+        "candidate_id": null,
+        "reason": "Reference alone has two source-backed candidates; vendor/period context is intentionally unavailable."
+      },
+      "denominator_group": "synthetic_candidate_guards_only; never real holdout metrics"
+    },
+    {
+      "variant_id": "SYN-CANDIDATE-WRONG",
+      "synthetic": true,
+      "base_case_id": "T12",
+      "construction": "Supply the historical collision as a proposed candidate while retaining the observed invoice vendor and June2026 period.",
+      "query": {
+        "reference": "AL-057017",
+        "vendor": "V100054",
+        "period": "2026-06"
+      },
+      "proposed_candidate_id": "5000020220",
+      "candidate_records": [
+        {
+          "id": "5000020220",
+          "reference": "AL-057017",
+          "vendor": "V100082",
+          "posting_date": "2024-10-15",
+          "po": "4500010369"
+        }
+      ],
+      "expected": {
+        "status": "reject_candidate",
+        "candidate_id": null,
+        "reason": "Proposed GR belongs to V100082 and October2024; neither matches the observed invoice."
+      },
+      "denominator_group": "synthetic_candidate_guards_only; never real holdout metrics"
+    }
+  ]
+}
