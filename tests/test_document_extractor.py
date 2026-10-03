@@ -310,6 +310,65 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(DocumentInterpretationError):
                 await LLMDocumentExtractor(client).extract(doc)
 
+    async def test_short_image_choice_binds_actual_bytes_and_replays_exact_prompt(self):
+        from kalmora.documents.prompts import recording_prompt
+        first = PageImage(1, 'image/png', b'first-image')
+        second = PageImage(1, 'image/png', b'second-image-on-same-page')
+        source = replace(document(''), images=(first, second))
+        row = group([('line.1.amount', '100,00')], 'Net 100,00')
+        row['image_id'] = 'image.2'
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': [row]}, directory)
+            client.config = replace(client.config, max_input_tokens=300_000)
+            extractor = LLMDocumentExtractor(client)
+            artifact = await extractor.extract_with_response(source)
+            fact = artifact.facts.fields['line.1.amount'][0]
+            self.assertEqual(fact.evidence.field, 'image:' + second.sha256)
+            self.assertEqual(fact.evidence.page, 1)
+            self.assertEqual(artifact.provenance['image_quote_review'][0]['image_sha256'], second.sha256)
+            prompt = provider.requests[0].prompt
+            self.assertEqual(prompt, recording_prompt('extract', source, extractor.recording_identity()['parameters']))
+            manifest = json.loads(prompt)['image_manifest']
+            self.assertEqual([entry['id'] for entry in manifest], ['image.1', 'image.2'])
+            self.assertEqual(manifest[1]['sha256'], second.sha256)
+            changed = replace(source, images=(first, replace(second, data=b'changed-source-bytes')))
+            self.assertNotEqual(source.transformation_sha256, changed.transformation_sha256)
+            self.assertNotEqual(prompt, recording_prompt('extract', changed, extractor.recording_identity()['parameters']))
+
+    async def test_short_image_choice_rejects_unknown_id_wrong_page_and_conflicting_hash(self):
+        image = PageImage(1, 'image/png', b'image')
+        source = replace(document(''), blocks=(ParsedBlock('page.1', '', 1), ParsedBlock('page.2', '', 2)), images=(image,))
+        base = {**observation('gross', '121,00', 'Gross 121,00'), 'image_id': 'image.1'}
+        for changes in ({'image_id': 'image.0'}, {'image_id': 'image.01'}, {'image_id': 'image.2'},
+                        {'image_id': ''}, {'block_id': 'page.2'}, {'image_page': 2},
+                        {'image_sha256': '0' * 64}, {'image_sha256': image.sha256[:20]},
+                        {'value': '999,00'}):
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({'observations': [{**base, **changes}], 'unknowns': []}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(source)
+
+    async def test_semantic_image_choice_preserves_actual_hash_in_proof(self):
+        image = PageImage(1, 'image/png', b'semantic-image')
+        source = replace(document(''), images=(image,))
+        request = ResolutionRequest(source, (Candidate('A', {'description': 'Steel bolts'}),), {})
+        payload = {'status': 'SELECTED', 'selected_ids': ['A'], 'reason': 'Matching supplied description',
+                   'evidence': [proof(image_id='image.1')]}
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client(payload, directory)
+            artifact = await LLMSemanticResolver(client).resolve_with_response(request)
+            self.assertEqual(artifact.result.evidence[0]['image_sha256'], image.sha256)
+            self.assertEqual(artifact.result.evidence[0]['image_page'], 1)
+            self.assertEqual(artifact.result.evidence[0]['quote_verification'], 'PAGE_HASH_ONLY')
+
+    def test_legacy_recording_prompt_does_not_gain_image_manifest(self):
+        from kalmora.documents.prompts import prompt_text
+        source = replace(document(), images=(PageImage(1, 'image/png', b'legacy-image'),))
+        old_extras = {'canonical_fields': ['gross']}
+        expected = json.dumps({'untrusted_document': source.to_dict(include_images=False), **old_extras},
+                              ensure_ascii=False, sort_keys=True, default=str, allow_nan=False)
+        self.assertEqual(prompt_text(source, old_extras), expected)
+
     async def test_same_field_conflicts_keep_source_and_unknown_state(self):
         doc = document("Gross 121,00\nGross 122,00")
         payload = {"observations":[observation("gross", "121,00", "Gross 121,00"), observation("gross", "122,00", "Gross 122,00")],
