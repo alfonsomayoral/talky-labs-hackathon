@@ -1,0 +1,741 @@
+"""Deterministic AR cash application using JSON/JSONL phase inputs only.
+
+The bank movement is already posted to 572/555 by the input ERP. This engine
+only proposes the application adjustment; it never reposts the bank movement.
+No inbox attachment, PDF, XML, OCR or CSV is read here.
+"""
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import date, timedelta
+import re
+import unicodedata
+from typing import Any, Iterable, cast
+
+from ..data import PhaseData
+from ..model import BankLine, JournalEntry, JournalLine
+from ..output_models import ArCashRow
+
+AR_ACCOUNTS = {"43000000", "43100000"}
+CUSTOMER_WORDS = {"DE", "DEL", "LA", "LAS", "LOS", "EL", "Y", "E", "THE"}
+LEGAL_WORDS = CUSTOMER_WORDS | {"SA", "SL", "S", "A", "L", "LLC", "LTD", "SC"}
+BANK_PREFIXES = {"TRANSFERENCIA", "ABONO", "PAGO", "TESORERIA", "DEVOLUCION"}
+_INVOICE_REF = re.compile(r"\b[A-Z]{2,8}[- ]?\d{2,8}[- ]?\d{0,8}\b", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class ArCashResult:
+    """A delivery row with internal diagnostics that are not part of the JSONL contract."""
+
+    row: ArCashRow
+    diagnostics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ArCashRun:
+    """Results in the deterministic task order and run-level diagnostics."""
+
+    results: tuple[ArCashResult, ...]
+    diagnostics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class _Invoice:
+    id: str
+    company: str
+    customer: str
+    date: str
+    due_date: str
+    currency: str
+    factored: bool
+
+
+@dataclass(frozen=True)
+class _Candidate:
+    invoice: _Invoice
+    account: str
+    balance: int
+
+
+class _ReceivableTimeline:
+    """Recorded AR balances advanced by posting date, with per-run applications projected."""
+
+    def __init__(self, entries: Iterable[JournalEntry]) -> None:
+        events: list[tuple[str, str, str, str | None, str | None, int]] = []
+        for entry in entries:
+            posting_date = entry.get("posting_date")
+            if not posting_date:
+                continue
+            for line in entry.get("lines", []):
+                account = str(line.get("account", ""))
+                if account not in AR_ACCOUNTS:
+                    continue
+                amount = int(line.get("debit") or 0) - int(line.get("credit") or 0)
+                if amount:
+                    events.append((posting_date, str(entry["company"]), account,
+                                   line.get("partner"), line.get("assignment"), amount))
+        events.sort(key=lambda x: x[0])
+        self.events = events
+        self.cursor = 0
+        self.balances: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
+        self.projected: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
+
+    def advance(self, through: str) -> None:
+        while self.cursor < len(self.events) and self.events[self.cursor][0] <= through:
+            _, company, account, partner, assignment, amount = self.events[self.cursor]
+            self.balances[(company, account, partner, assignment)] += amount
+            self.cursor += 1
+
+    def balance(self, company: str, account: str, customer: str | None,
+                assignment: str | None) -> int:
+        key = (company, account, customer, assignment)
+        return self.balances[key] - self.projected[key]
+
+    def apply(self, candidate: _Candidate, amount: int) -> None:
+        key = (candidate.invoice.company, candidate.account, candidate.invoice.customer,
+               candidate.invoice.id)
+        # AR journal assignments may carry an explicit factoring prefix.
+        direct_key = key
+        if self.balances.get(direct_key, 0) == 0:
+            direct_key = (candidate.invoice.company, candidate.account,
+                          candidate.invoice.customer, f"FT {candidate.invoice.id}")
+        self.projected[direct_key] += amount
+
+    def apply_open_item(self, company: str, account: str, partner: str,
+                        assignment: str, amount: int) -> None:
+        self.projected[(company, account, partner, assignment)] += amount
+
+    def candidates(self, invoices: dict[str, _Invoice], company: str, customer: str,
+                   through: str) -> list[_Candidate]:
+        found: list[_Candidate] = []
+        for invoice in invoices.values():
+            if invoice.company != company or invoice.customer != customer or invoice.date > through:
+                continue
+            for account in sorted(AR_ACCOUNTS):
+                assignments = (invoice.id, f"FT {invoice.id}")
+                amounts = [self.balance(company, account, customer, assignment)
+                           for assignment in assignments]
+                positive = [amount for amount in amounts if amount > 0]
+                if positive:
+                    found.append(_Candidate(invoice, account, sum(positive)))
+                    break
+        return found
+
+
+def _normalize(value: object) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode()
+    return " ".join(re.sub(r"[^A-Z0-9]+", " ", decomposed.upper()).split())
+
+
+def _name_score(text: str, name: str) -> tuple[int, int] | None:
+    """Match a customer name as a phrase, allowing bank truncation at the final token.
+
+    The score is (complete meaningful tokens, matched characters). We require two
+    complete name tokens and resolve only a unique best-scoring customer.
+    """
+    bank_words = [w for w in _normalize(text).split()
+                  if w not in BANK_PREFIXES and w not in CUSTOMER_WORDS]
+    name_words = [w for w in _normalize(name).split()
+                  if w not in LEGAL_WORDS]
+    if not bank_words or len(name_words) < 2:
+        return None
+    best: tuple[int, int] | None = None
+    for start in range(len(bank_words)):
+        full = 0
+        matched_chars = 0
+        for offset, name_word in enumerate(name_words):
+            index = start + offset
+            if index >= len(bank_words):
+                break
+            word = bank_words[index]
+            if word == name_word:
+                full += 1
+                matched_chars += len(word)
+                continue
+            if name_word.startswith(word) and len(word) >= 4:
+                matched_chars += len(word)
+            break
+        partial_is_credible = (full >= 1 and matched_chars >= 13
+                               and start + full < len(bank_words)
+                               and len(bank_words[start + full]) >= 4)
+        if full >= 2 or partial_is_credible:
+            score = (full, matched_chars)
+            if best is None or score > best:
+                best = score
+    return best
+
+
+def _identify_customer(text: str, customers: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+    scored = [(score, str(row["id"])) for row in customers
+              if (score := _name_score(text, str(row.get("name", "")))) is not None]
+    if not scored:
+        return None, "customer not identified from structured bank narrative"
+    highest = max(score for score, _ in scored)
+    winners = sorted({customer for score, customer in scored if score == highest})
+    if len(winners) != 1:
+        return None, f"ambiguous payer name: {', '.join(winners)}"
+    return winners[0], None
+
+
+def _remittance_sender(data: PhaseData, line: BankLine, customers: list[dict[str, Any]]
+                      ) -> tuple[str | None, str | None, str | None]:
+    """Use JSON notice metadata only when its sender matches this dated bank narrative.
+
+    Sidecars identify a possible payer; they do not contain invoice allocation evidence.
+    The referenced attachment is deliberately never opened.
+    """
+    directory = data.phase_dir / "inbox" / "ar" / "remittances"
+    if not directory.is_dir():
+        return None, None, None
+    matches: list[tuple[tuple[int, int], str, str]] = []
+    for path in sorted(directory.glob("*.json")):
+        notice = data.table(path.relative_to(data.phase_dir).as_posix())
+        sender = notice.get("from_")
+        received_at = notice.get("received_at")
+        if not isinstance(sender, str) or not isinstance(received_at, str):
+            continue
+        try:
+            date.fromisoformat(received_at)
+        except ValueError:
+            continue
+        if received_at != line["value_date"]:
+            continue
+        score = _name_score(str(line.get("text", "")), sender)
+        if score is None:
+            continue
+        customer, issue = _identify_customer(sender, customers)
+        if customer is not None:
+            matches.append((score, customer, path.name))
+    if not matches:
+        return None, None, None
+    best_score = max(score for score, _, _ in matches)
+    best = [(customer, filename) for score, customer, filename in matches if score == best_score]
+    customer_ids = sorted({customer for customer, _ in best})
+    if len(customer_ids) != 1:
+        return None, None, "remittance sender metadata is ambiguous for this bank line"
+    filenames = ", ".join(sorted({filename for _, filename in best}))
+    return customer_ids[0], filenames, None
+
+
+def _penalty_inputs(data: PhaseData) -> list[dict[str, Any]]:
+    """Combine ERP penalty records with optional structured JSON notice records."""
+    rows = list(data.table("penalty_notices"))
+    directory = data.phase_dir / "inbox" / "ar" / "notices"
+    if not directory.is_dir():
+        return rows
+    known = {(row.get("invoice"), row.get("customer"), row.get("amount"), row.get("notified_on"))
+             for row in rows}
+    for path in sorted(directory.glob("*.json")):
+        notice = data.table(path.relative_to(data.phase_dir).as_posix())
+        if not isinstance(notice, dict):
+            continue
+        identity = (notice.get("invoice"), notice.get("customer"), notice.get("amount"),
+                    notice.get("notified_on"))
+        if all(value is not None for value in identity) and identity not in known:
+            rows.append({key: value for key, value in zip(
+                ("invoice", "customer", "amount", "notified_on"), identity)})
+            known.add(identity)
+    return rows
+
+
+def _task_ids(data: PhaseData) -> list[str]:
+    task = data.table("tasks/ar_receipts")
+    if isinstance(task, dict):
+        task = task.get("bank_lines", task.get("items", []))
+    if not isinstance(task, list) or any(not isinstance(row, str) for row in task):
+        raise ValueError("tasks/ar_receipts.json must be a list of bank_line IDs")
+    if len(task) != len(set(task)):
+        raise ValueError("tasks/ar_receipts.json contains duplicate bank_line IDs")
+    return task
+
+
+def _bank_line_index(data: PhaseData) -> tuple[dict[str, tuple[BankLine, str]], dict[str, dict[str, Any]]]:
+    accounts = {str(row["id"]): row for row in data.table("bank_accounts")}
+    indexed: dict[str, tuple[BankLine, str]] = {}
+    for account in sorted(accounts):
+        for line in data.bank_lines(account, data.month):
+            if line["bank_line"] in indexed:
+                raise ValueError(f"duplicate bank_line across accounts: {line['bank_line']}")
+            indexed[line["bank_line"]] = (line, account)
+    return indexed, accounts
+
+
+def _invoice_index(data: PhaseData) -> dict[str, _Invoice]:
+    result: dict[str, _Invoice] = {}
+    for row in data.table("ar_invoices"):
+        if row.get("kind") not in (None, "invoice"):
+            continue
+        invoice_id = str(row["id"])
+        result[invoice_id] = _Invoice(invoice_id, str(row["company"]), str(row["customer"]),
+                                      str(row["date"]), str(row.get("due_date") or "9999-12-31"),
+                                      str(row.get("currency") or ""), bool(row.get("factored")))
+    return result
+
+
+def _invoice_reference(text: str, invoices: dict[str, _Invoice]) -> str | None:
+    normalized = _normalize(text).replace(" ", "")
+    matches = [invoice_id for invoice_id in invoices
+               if invoice_id.replace("-", "").upper() in normalized]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _matured_note(notes: list[dict[str, Any]], timeline: _ReceivableTimeline,
+                  company: str, customer: str, receipt_date: str, amount: int,
+                  text: str) -> tuple[str, str, int] | None:
+    normalized_text = _normalize(text).replace(" ", "")
+    matches: list[tuple[str, str, int]] = []
+    for note in notes:
+        if (str(note.get("company")) != company or str(note.get("customer")) != customer
+                or str(note.get("maturity", "9999-12-31")) > receipt_date):
+            continue
+        number = str(note.get("number", ""))
+        assignments = (f"PAG{number}", number)
+        item = next(((assignment, timeline.balance(company, "43100000", customer, assignment))
+                     for assignment in assignments
+                     if timeline.balance(company, "43100000", customer, assignment) > 0), None)
+        if item is None:
+            continue
+        assignment, balance = item
+        explicit = bool(number and number in normalized_text)
+        if explicit or balance == amount:
+            matches.append((number, assignment, balance))
+    return matches[0] if len(matches) == 1 else None
+
+
+def _eligible(candidates: list[_Candidate], receipt_date: str, *, include_near_future: bool = False) -> list[_Candidate]:
+    due = [c for c in candidates if c.invoice.due_date <= receipt_date]
+    if not include_near_future:
+        return due
+    limit = date.fromisoformat(receipt_date) + timedelta(days=7)
+    return [c for c in candidates if c.invoice.due_date <= limit.isoformat()]
+
+
+def _entity_key(name: object) -> str:
+    return " ".join(word for word in _normalize(name).split() if word not in LEGAL_WORDS)
+
+
+def _unique_subset(candidates: list[_Candidate], amount: int) -> list[_Candidate] | None:
+    """Return the one exact subset, if it is unique and the search stays bounded."""
+    if len(candidates) > 18:
+        return None
+    states: dict[int, list[tuple[int, ...]]] = {0: [()]}
+    for index, candidate in enumerate(candidates):
+        for subtotal, paths in list(states.items()):
+            new_total = subtotal + candidate.balance
+            if new_total > amount:
+                continue
+            new_paths = [path + (index,) for path in paths]
+            existing = states.setdefault(new_total, [])
+            existing.extend(new_paths)
+            # Keep at most two witnesses: enough to establish ambiguity.
+            if len(existing) > 2:
+                del existing[2:]
+    paths = states.get(amount, [])
+    if len(paths) != 1 or not paths[0]:
+        return None
+    return [candidates[index] for index in paths[0]]
+
+
+def _unique_penalty_subset(candidates: list[_Candidate], penalty_rows: list[dict[str, Any]],
+                           customer: str, receipt_date: str, cash: int
+                           ) -> list[tuple[_Candidate, int]] | None:
+    """Find the unique set of invoices whose full balances net of notices equal cash."""
+    if len(candidates) > 16:
+        return None
+    options: list[list[tuple[int, int]]] = []
+    for candidate in candidates:
+        adjustments = {0}
+        adjustments.update(
+            int(row["amount"]) for row in penalty_rows
+            if row.get("invoice") == candidate.invoice.id
+            and row.get("customer") == customer
+            and str(row.get("notified_on", "9999-12-31")) <= receipt_date
+            and 0 < int(row.get("amount") or 0) < candidate.balance
+        )
+        options.append([(candidate.balance - penalty, penalty) for penalty in sorted(adjustments)])
+
+    # Keep two witnesses per subtotal so ambiguity is detected without exponential
+    # memory growth. Each item can be omitted, applied in full, or reduced by notice.
+    states: dict[int, list[tuple[tuple[int, int], ...]]] = {0: [()]}
+    for index, candidate in enumerate(candidates):
+        previous = list(states.items())
+        for subtotal, paths in previous:
+            for net_amount, penalty in options[index]:
+                total = subtotal + net_amount
+                if total > cash:
+                    continue
+                destination = states.setdefault(total, [])
+                destination.extend(path + ((index, penalty),) for path in paths)
+                if len(destination) > 2:
+                    del destination[2:]
+    witnesses = [path for path in states.get(cash, []) if path]
+    if len(witnesses) != 1 or not any(penalty for _, penalty in witnesses[0]):
+        return None
+    return [(candidates[index], penalty) for index, penalty in witnesses[0]]
+
+
+def _line(company: str, account: str, debit: int, credit: int,
+          partner: str | None = None, assignment: str | None = None) -> JournalLine:
+    line: JournalLine = {"company": company, "account": account,
+                         "debit": debit, "credit": credit}
+    if partner is not None:
+        line["partner"] = partner
+    if assignment is not None:
+        line["assignment"] = assignment
+    return line
+
+
+def _balanced(lines: list[JournalLine]) -> bool:
+    return sum(int(line.get("debit", 0)) for line in lines) == sum(int(line.get("credit", 0)) for line in lines)
+
+
+def _casefold_map(rows: list[dict[str, Any]], field: str = "id") -> dict[str, dict[str, Any]]:
+    return {str(row[field]): row for row in rows if row.get(field) is not None}
+
+
+def _special_non_customer(text: str) -> str | None:
+    normalized = _normalize(text)
+    if "IVA" in normalized and any(word in normalized for word in ("DEVOLUCION", "REEMBOLSO", "REFUND")):
+        return "47000000"
+    if "FIANZA" in normalized or "DEPOSITO" in normalized:
+        return "56500000"
+    if "SEGURO" in normalized or "INDEMNIZACION" in normalized:
+        return "75900000"
+    return None
+
+
+def _as_of_balances(data: PhaseData) -> list[JournalEntry]:
+    """Return recorded entries only; each task's date cursor filters them as needed."""
+    return list(data.iter_journal())
+
+
+def build_ar_cash(data: PhaseData) -> ArCashRun:
+    """Build one application result per receipt task using JSON/JSONL data only.
+
+    Exact unique matches are auto-applied. Ambiguous payer/invoice relationships are
+    left in 555 and described in diagnostics; no approximate or amount-only customer
+    assignment is made.
+    """
+    task_ids = _task_ids(data)
+    bank_index, bank_accounts = _bank_line_index(data)
+    missing = [line_id for line_id in task_ids if line_id not in bank_index]
+    if missing:
+        raise ValueError(f"task bank_line IDs missing from normalized statements: {', '.join(missing)}")
+
+    customers = list(data.table("customers"))
+    invoices = _invoice_index(data)
+    vendors = _casefold_map(list(data.table("vendors")))
+    penalty_rows = _penalty_inputs(data)
+    factoring_rows = list(data.table("factoring_assignments"))
+    entries = _as_of_balances(data)
+    timeline = _ReceivableTimeline(cast(Iterable[JournalEntry], entries))
+
+    # Existing AP/open-item balances are calculated at each receipt date from the
+    # recorded book, not from the end-of-month open-item snapshot.
+    ap_events: list[tuple[str, str, str, str | None, str | None, int]] = []
+    for entry in entries:
+        posting_date = entry.get("posting_date")
+        if not posting_date:
+            continue
+        for line in entry.get("lines", []):
+            account = str(line.get("account", ""))
+            if not (account.startswith("400") or account.startswith("410")):
+                continue
+            amount = int(line.get("debit") or 0) - int(line.get("credit") or 0)
+            if amount:
+                ap_events.append((posting_date, str(entry["company"]), account,
+                                  line.get("partner"), line.get("assignment"), amount))
+    ap_events.sort(key=lambda x: x[0])
+    ap_balance: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
+    ap_cursor = 0
+    customers_by_tax: dict[str, list[str]] = defaultdict(list)
+    customers_by_name: dict[str, list[str]] = defaultdict(list)
+    for row in customers:
+        if row.get("tax_id"):
+            customers_by_tax[str(row["tax_id"])].append(str(row["id"]))
+        if _entity_key(row.get("name", "")):
+            customers_by_name[_entity_key(row["name"])].append(str(row["id"]))
+    vendors_by_customer: dict[str, list[str]] = defaultdict(list)
+    for vendor_id, vendor in vendors.items():
+        customer_ids = customers_by_tax.get(str(vendor.get("tax_id")), [])
+        if not customer_ids and _entity_key(vendor.get("name", "")):
+            customer_ids = customers_by_name.get(_entity_key(vendor["name"]), [])
+        for customer_id in customer_ids:
+            vendors_by_customer[customer_id].append(vendor_id)
+
+    results_by_id: dict[str, ArCashResult] = {}
+    applied_receipts: defaultdict[tuple[str, int], list[str]] = defaultdict(list)
+    run_diagnostics: list[str] = []
+    sort_ids = sorted(task_ids, key=lambda line_id: (bank_index[line_id][0]["value_date"],
+                                                     bank_index[line_id][0]["booking_date"], line_id))
+
+    for line_id in sort_ids:
+        bank_line, bank_account_id = bank_index[line_id]
+        account = bank_accounts[bank_account_id]
+        company = str(account["company"])
+        receipt_date = str(bank_line["value_date"])
+        timeline.advance(receipt_date)
+        while ap_cursor < len(ap_events) and ap_events[ap_cursor][0] <= receipt_date:
+            _, co, ap_account, vendor_id, assignment, amount = ap_events[ap_cursor]
+            ap_balance[(co, ap_account, vendor_id, assignment)] += amount
+            ap_cursor += 1
+
+        amount = int(bank_line["amount"])
+        diagnostics: list[str] = []
+        net_vendor: tuple[str, str, str | None] | None = None
+        if amount <= 0:
+            results_by_id[line_id] = ArCashResult({"bank_line": line_id, "customer": None,
+                                                    "applications": [], "residuals": [], "adjustment": []},
+                                                   ("bank line is not a positive receipt",))
+            continue
+        currency_mismatch = str(bank_line.get("currency")) != str(account.get("currency"))
+        if currency_mismatch:
+            diagnostics.append("bank line currency differs from the bank-account master")
+
+        customer, payer_issue = _identify_customer(str(bank_line.get("text", "")), customers)
+        if payer_issue:
+            diagnostics.append(payer_issue)
+        notice_customer, notice_file, notice_issue = _remittance_sender(data, bank_line, customers)
+        if notice_issue:
+            diagnostics.append(notice_issue)
+        if notice_file:
+            if customer is not None and customer != notice_customer:
+                diagnostics.append(
+                    f"bank payer {customer} conflicts with remittance sender in {notice_file}; left unresolved")
+                customer = None
+            elif customer is None:
+                customer = notice_customer
+                diagnostics.append(f"payer identified from remittance metadata {notice_file}")
+            else:
+                diagnostics.append(f"payer corroborated by remittance metadata {notice_file}")
+
+        apps: list[dict[str, Any]] = []
+        residuals: list[dict[str, Any]] = []
+        adjustments: list[JournalLine] = []
+        chosen: list[_Candidate] | None = None
+        ref = _invoice_reference(str(bank_line.get("text", "")), invoices)
+        matured_note = (_matured_note(list(data.table("promissory_notes")), timeline, company,
+                                     customer, receipt_date, amount, str(bank_line.get("text", "")))
+                        if customer is not None else None)
+
+        # A tax refund/deposit/insurance receipt is classified only when the narrative
+        # names the non-customer concept and no customer was identified.
+        non_customer_account = _special_non_customer(str(bank_line.get("text", ""))) if customer is None else None
+        if currency_mismatch:
+            results_by_id[line_id] = ArCashResult({"bank_line": line_id, "customer": customer,
+                                                    "applications": [], "residuals": [], "adjustment": []},
+                                                   tuple(diagnostics))
+            continue
+        if non_customer_account:
+            residuals.append({"type": "NON_CUSTOMER", "amount": amount})
+            adjustments = [_line(company, "55500000", amount, 0),
+                           _line(company, non_customer_account, 0, amount)]
+            diagnostics.append(f"non-customer receipt mapped from explicit narrative to {non_customer_account}")
+        elif customer is None:
+            results_by_id[line_id] = ArCashResult({"bank_line": line_id, "customer": None,
+                                                    "applications": [], "residuals": [], "adjustment": []},
+                                                   tuple(diagnostics or ["payer not resolved"]))
+            continue
+        elif matured_note:
+            number, assignment, note_balance = matured_note
+            applied = min(amount, note_balance)
+            apps.append({"pagare": number, "amount": applied})
+            timeline.apply_open_item(company, "43100000", customer, assignment, applied)
+            adjustments = [_line(company, "55500000", applied, 0),
+                           _line(company, "43100000", 0, applied, customer, f"PAG{number}")]
+            if applied < amount:
+                diagnostics.append("receipt exceeds matured promissory note; unsupported excess remains unapplied")
+        else:
+            candidates = [c for c in timeline.candidates(invoices, company, customer, receipt_date)
+                          if c.invoice.currency in ("", str(bank_line.get("currency")))]
+            all_candidates = candidates
+            if ref:
+                candidates = [candidate for candidate in candidates if candidate.invoice.id == ref]
+                if not candidates:
+                    diagnostics.append(f"invoice reference {ref} has no positive AR balance at the receipt date")
+
+            # Explicit invoice reference beats amount matching.
+            if candidates and ref:
+                candidate = candidates[0]
+                applied = min(amount, candidate.balance)
+                if applied > 0:
+                    chosen = [candidate]
+                    apps.append({"invoice": candidate.invoice.id, "amount": applied})
+                    timeline.apply(candidate, applied)
+                    if applied == candidate.balance:
+                        applied_receipts[(customer, applied)].append(candidate.invoice.id)
+                    if applied < amount:
+                        diagnostics.append("receipt exceeds referenced invoice; unsupported excess remains unapplied")
+
+            if not apps:
+                due_candidates = _eligible(all_candidates, receipt_date)
+                near_due = _eligible(all_candidates, receipt_date, include_near_future=True)
+                penalty_solution = _unique_penalty_subset(due_candidates, penalty_rows,
+                                                          customer, receipt_date, amount)
+                if penalty_solution:
+                    chosen = [candidate for candidate, _ in penalty_solution]
+                    for candidate, penalty in penalty_solution:
+                        apps.append({"invoice": candidate.invoice.id, "amount": candidate.balance})
+                        if penalty:
+                            residuals.append({"type": "PENALTY", "invoice": candidate.invoice.id,
+                                              "amount": penalty})
+                        timeline.apply(candidate, candidate.balance)
+                    applied_receipts[(customer, amount)].extend(c.invoice.id for c, _ in penalty_solution)
+
+            if not apps:
+                # NETTING_AP requires a same-customer vendor with an open AP item;
+                # cash + AP must exactly clear one receivable item.
+                net_matches: list[tuple[_Candidate, str, str, str | None, int]] = []
+                for candidate in due_candidates:
+                    needed = candidate.balance - amount
+                    if needed <= 0:
+                        continue
+                    for vendor_id in vendors_by_customer.get(customer, []):
+                        vendor_master = vendors.get(vendor_id, {})
+                        if company not in vendor_master.get("companies", []):
+                            continue
+                        ap_items = [(ap_account, assignment, abs(balance))
+                                    for (co, ap_account, partner, assignment), balance in ap_balance.items()
+                                    if co == company and partner == vendor_id and balance < 0]
+                        for ap_account, ap_assignment, ap_amount in ap_items:
+                            if needed == ap_amount:
+                                net_matches.append((candidate, vendor_id, ap_account,
+                                                    ap_assignment, needed))
+                if len(net_matches) == 1:
+                    candidate, vendor_id, ap_account, ap_assignment, net_amount = net_matches[0]
+                    chosen = [candidate]
+                    apps.append({"invoice": candidate.invoice.id, "amount": candidate.balance})
+                    residuals.append({"type": "NETTING_AP", "invoice": candidate.invoice.id,
+                                      "amount": net_amount})
+                    timeline.apply(candidate, candidate.balance)
+                    applied_receipts[(customer, amount)].append(candidate.invoice.id)
+                    # Save the balancing payable debit for the adjustment below.
+                    net_vendor = (vendor_id, ap_account, ap_assignment)
+                else:
+                    if net_matches:
+                        diagnostics.append("multiple netting matches; left unapplied")
+
+            # Exact single-item match, preferring due invoices; then a unique subset
+            # for grouped remittances. Same-total monthly invoices remain ambiguous.
+            if not apps:
+                exact = [c for c in due_candidates if c.balance == amount]
+                if len(exact) == 1:
+                    chosen = exact
+                elif not exact:
+                    near_exact = [c for c in near_due if c.balance == amount]
+                    if len(near_exact) == 1:
+                        chosen = near_exact
+                    elif len(near_exact) > 1:
+                        nearest_delta = min(abs((date.fromisoformat(c.invoice.due_date) - date.fromisoformat(receipt_date)).days)
+                                            for c in near_exact)
+                        nearest = [c for c in near_exact if abs((date.fromisoformat(c.invoice.due_date)
+                                                                 - date.fromisoformat(receipt_date)).days) == nearest_delta]
+                        if len(nearest) == 1:
+                            chosen = nearest
+                if chosen is None:
+                    chosen = _unique_subset(due_candidates, amount)
+                if chosen:
+                    apps.extend({"invoice": c.invoice.id, "amount": c.balance} for c in chosen)
+                    for candidate in chosen:
+                        timeline.apply(candidate, candidate.balance)
+                    applied_receipts[(customer, amount)].extend(c.invoice.id for c in chosen)
+                elif due_candidates and not residuals:
+                    if sum(candidate.balance == amount for candidate in due_candidates) > 1:
+                        diagnostics.append("multiple exact invoice matches; left unapplied")
+                    elif len(due_candidates) > 1:
+                        diagnostics.append("no unique exact/grouped invoice match; left unapplied")
+
+            if not apps:
+                # A repeated transfer matching a prior full application is evidence of
+                # a duplicate only when the customer has no exact open invoice match.
+                prior = applied_receipts.get((customer, amount), [])
+                if prior:
+                    duplicate_invoice = prior[0]
+                    residuals.append({"type": "OVERPAYMENT_DUPLICATE", "invoice": duplicate_invoice,
+                                      "amount": amount})
+                    adjustments = [_line(company, "55500000", amount, 0),
+                                   _line(company, "43800000", 0, amount, customer, duplicate_invoice)]
+                    diagnostics.append(f"same customer paid the same amount again after clearing {duplicate_invoice}")
+
+            # If no exact mapping/cause was established, a partial payment is accepted
+            # only when exactly one due invoice remains possible for this customer.
+            if not apps and not residuals:
+                due_candidates = _eligible(all_candidates, receipt_date)
+                if len(due_candidates) == 1 and 0 < amount < due_candidates[0].balance:
+                    candidate = due_candidates[0]
+                    apps.append({"invoice": candidate.invoice.id, "amount": amount})
+                    timeline.apply(candidate, amount)
+                    diagnostics.append("partial payment applied; unknown shortfall remains open")
+
+            # If no open receivable can explain this receipt, a specific factoring
+            # assignment can establish that the customer paid a ceded invoice to Kalmora.
+            if not apps and not residuals:
+                factored_matches = []
+                for assignment in factoring_rows:
+                    invoice_id = str(assignment.get("invoice", ""))
+                    invoice = invoices.get(invoice_id)
+                    if (invoice is None or invoice.customer != customer or invoice.company != company
+                            or assignment.get("customer") != customer
+                            or str(assignment.get("date", "9999-12-31")) > receipt_date):
+                        continue
+                    ar_record = next((row for row in data.table("ar_invoices") if row.get("id") == invoice_id), None)
+                    if ar_record and int(ar_record.get("payable") or 0) == amount:
+                        factored_matches.append(invoice_id)
+                if len(factored_matches) == 1:
+                    invoice_id = factored_matches[0]
+                    residuals.append({"type": "FACTORED_MISDIRECTED", "invoice": invoice_id,
+                                      "amount": amount})
+                    adjustments = [_line(company, "55500000", amount, 0),
+                                   _line(company, "55300000", 0, amount, "FACTOR-BAE", invoice_id)]
+                    diagnostics.append(f"payment received for factored invoice {invoice_id}")
+                elif len(factored_matches) > 1:
+                    diagnostics.append("multiple factored invoice matches; left unapplied")
+
+            # Build normal application journal lines: debit 555 for cash, debit any
+            # evidenced residual counterpart, and credit each invoice/open item.
+            if apps and not adjustments:
+                cash_applied = (sum(int(app["amount"]) for app in apps)
+                                - sum(int(r["amount"]) for r in residuals
+                                      if r["type"] in ("PENALTY", "NETTING_AP")))
+                debit_lines: list[JournalLine] = [_line(company, "55500000", cash_applied, 0)]
+                credit_lines: list[JournalLine] = []
+                # Invoice application values are the AR credits. Residuals increase
+                # the cleared face amount while explaining why the bank cash is lower.
+                for app in apps:
+                    invoice_id = str(app["invoice"])
+                    app_candidate = next((c for c in (chosen or []) if c.invoice.id == invoice_id), None)
+                    account_code = app_candidate.account if app_candidate else "43000000"
+                    credit_lines.append(_line(company, account_code, 0, int(app["amount"]), customer, invoice_id))
+                for residual in residuals:
+                    if residual["type"] == "PENALTY":
+                        debit_lines.append(_line(company, "70590000", int(residual["amount"]), 0))
+                    elif residual["type"] == "NETTING_AP":
+                        if not net_vendor:
+                            diagnostics.append("netting evidence found but vendor identity unresolved")
+                            continue
+                        vendor_id, ap_account, ap_assignment = net_vendor
+                        debit_lines.append(_line(company, ap_account, int(residual["amount"]), 0,
+                                                 str(vendor_id), ap_assignment))
+                adjustments = debit_lines + credit_lines
+
+        row: ArCashRow = {"bank_line": line_id, "customer": customer,
+                          "applications": cast(Any, apps), "residuals": cast(Any, residuals),
+                          "adjustment": adjustments}
+        if adjustments and not _balanced(adjustments):
+            raise ValueError(f"unbalanced generated AR cash adjustment for {line_id}")
+        results_by_id[line_id] = ArCashResult(row, tuple(diagnostics))
+
+    ordered_results = tuple(results_by_id[line_id] for line_id in task_ids)
+    return ArCashRun(ordered_results, tuple(run_diagnostics))
+
+
+def to_row(result: ArCashResult) -> ArCashRow:
+    """Return a fresh delivery-shaped row without internal diagnostics."""
+    return cast(ArCashRow, {
+        "bank_line": result.row["bank_line"],
+        "customer": result.row["customer"],
+        "applications": [dict(application) for application in result.row["applications"]],
+        "residuals": [dict(residual) for residual in result.row["residuals"]],
+        "adjustment": [dict(line) for line in result.row["adjustment"]],
+    })
