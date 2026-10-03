@@ -43,7 +43,10 @@ real atomic AP transaction. A failed AP header consumes no credit balance; two
 valid partial credits exhaust the original and a third fails. With July ERP
 enabled, direct XML extraction plus exact master identity resolution reproduces
 the three observed Facturae corrective references: two bind to recorded
-originals and one remains `NOT_FOUND`. This is original binding evidence, not a
+originals and one remains `NOT_FOUND` in that initial historical inventory. The
+third reference also identifies an ordinary invoice in the current July task
+phase; the existing v0 path can use that published original. The catalog's
+absence result does not claim a global original absence. This is binding evidence, not a
 claim that those three tasks have complete accounting decisions. No golden or
 provider is used.
 

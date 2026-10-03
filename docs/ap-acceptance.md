@@ -301,3 +301,122 @@ and [summarize_current.py](../outputs/m1-owned-validation/integrated-producer/su
 reproduce the AP-only comparison and current summary without repairing a row.
 Audit reports use exclusive creation: rerun to a new report destination, preserving
 this frozen snapshot. No complete test suite was rerun for this evidence work.
+
+## Independent criteria and the explicit v0 contract view
+
+`audit_ap_delivery(..., project_v0=True,
+ documentary_acceptance_reference="User instruction accepting the documentary base provisionally")`
+opts into the `ap-v0-contract-v1` view. The default audits the raw contract. The
+reference must identify actual user authorization; a caller-supplied string is
+recorded evidence, not a signature or proof of document understanding.
+
+The view removes only the v0 root `action_data`, coded-line `goods_receipts`, and
+null values of optional header fields on known non-posting decisions. Every
+omission has a line number, document ID, JSON pointer, reason and original value
+in `projection.changes`. `output_sha256` and `projection.original_sha256` still
+identify the untouched delivery bytes; `projection.projected_sha256` identifies
+the validation view. Malformed JSON and unknown fields remain failures. Required
+posting values, reasons (including `DUPLICATE`), money, payees, decisions, coding,
+journals and contradictory non-null facts are never filled or changed. A raw
+artifact requiring projection retains `RAW_OUTPUT_REQUIRES_CONTRACT_PROJECTION`;
+the auditor never rewrites it as an accepted export.
+
+Reports now contain one `documents` record for each exact task ID and a
+`criteria_summary` with independent statuses. Duplicate rows are ambiguous and
+missing rows are absent; neither selects an arbitrary output row. Criteria are:
+
+- `documentary`: public source-loader compatibility, attachment classification,
+  packet diagnostics and declared field unknowns. Provisional documentary
+  acceptance preserves `INCOMPLETE`, `MISSING`, `AMBIGUOUS` and `CONTRADICTORY`.
+- `contract`: TypedDict shape and permitted fields, with the documented
+  `action:null` exception; domain invariants are reported separately.
+- `strict_row_validation`: the complete existing accounting/decision validator,
+  with all diagnostics retained.
+- `master_scope`: observed company/vendor/currency, PO/item and coded dimension
+  ownership against the active phase, even when shape or documentary checks fail.
+- `journal_validation`: the independent ledger validator for posted rows, checking
+  integer local cents, debit/credit, balance, dates, partner and cost objects.
+- `nonposting_journal`: no journal field on non-posting rows, including null.
+- `document_currency_conservation`: strict document/local correspondence. Absent
+  optional `amount_doc` on foreign document components is `INCONCLUSIVE`, not a
+  shape contradiction or an inferred conversion. Explicit local-currency FX
+  lines do not require foreign document cents. Observed currency contradictions
+  remain failures; the full strict diagnostics also remain visible.
+- `transaction_replay`: actual typed transaction proof, or `ABSENT`. Posted rows
+  must match in full; non-posting replay covers identity/type/decision only.
+
+`accounting_summary.validated` counts only rows clearing contract, the complete
+strict validator and active-master scope. It is independent of documentary
+accuracy and replay. `monthly_acceptance` is always false: readiness for later
+evaluation, structural checks and partial non-posting replay do not prove monthly
+policy accuracy. `delivery_ready_for_evaluation` names the narrower readiness
+condition. Existing overall blockers remain explicit. A high score, byte repeat,
+provisional documentary acceptance or a count of valid rows cannot turn absent
+transaction replay into a proof.
+
+The CLI exposes `--project-v0` and `--documentary-acceptance-reference`; it prints
+criterion counts and preserves exit status 1 for blocked evidence. Repeated and
+independent-phase comparisons additionally freeze the projection version and
+documentary acceptance reference, along with existing rule/policy/format and
+source configuration checks. July facts are never transported into September.
+
+Focused verification uses `tests/test_ap_acceptance_projection.py` (actual
+transaction factories on explicit synthetic fixtures, not monthly results).
+It covers raw-byte/metadata retention, unknown sources, absent replay, invalid
+posting money, scope and partner/balance failures hidden by an invalid header,
+non-posting journals, duplicate tasks, malformed JSON/rows, optional foreign
+cents, legitimate local FX components, and explicit CLI scope. Real producer
+runs and their audits remain separate evidence; this test suite does not invent
+rows for missing tasks or claim a monthly delivery.
+
+### Preserved v0 outputs: criterion audit before XML normalization v3
+
+The following frozen public CLI audits use backend `fb93a76` with the acceptance
+implementation `a44a75b`, before the integration of #286 and normalization v3:
+[v0-july-audit.json](../outputs/m1-owned-validation/independent-acceptance/v0-july-audit.json)
+and
+[v0-september-audit.json](../outputs/m1-owned-validation/independent-acceptance/v0-september-audit.json).
+They audit the previously preserved real v0 bytes under the explicit documentary
+user authorization recorded in
+[documentary-authorization.json](../outputs/m1-owned-validation/independent-acceptance/documentary-authorization.json).
+They do not claim that those historical producer runs executed the newly installed
+auditor, nor that projection is transaction replay.
+
+| Criterion | July | September |
+| --- | ---: | ---: |
+| Exact task coverage | 305/305 | 297/297 |
+| Contract view and active master scopes | 305 pass | 297 pass |
+| Complete strict row validation | 298 pass; 7 fail | 285 pass; 12 fail |
+| Posted journals independently valid | 242/243 | 232/233 |
+| Non-posting rows without a journal | 62/62 | 64/64 |
+| Document-currency correspondence | 236 pass; 6 inconclusive; 1 fail | 224 pass; 6 inconclusive; 3 fail |
+| Documentary source status | 43 complete; 262 incomplete | 33 complete; 264 incomplete |
+| Actual transaction replay proof | 305 absent | 297 absent |
+
+Both reports retain `COMPLETE_DELIVERY/BLOCKED`, `monthly_acceptance=false` and
+all four blockers: `AP_OUTPUT_INVALID`, `RAW_OUTPUT_REQUIRES_CONTRACT_PROJECTION`,
+`SOURCE_UNDERSTANDING_INCOMPLETE`, `TRANSACTION_REPLAY_ABSENT`. Completeness here
+means task coverage; it does not mean every criterion passed. Full errors remain
+in `output_errors` and each document's criteria. Absent foreign document cents,
+amount correspondence, GR/IR correspondence, the missing foreign-advance partner,
+and September's remaining account/tax/reason diagnostics are not repaired.
+
+That audit snapshot's rule SHA is
+`75fa80f14d30beb3c797566078bd29d09663e38832112a8575cd57107d3dc771` in both phases.
+The source configuration SHA is
+`7b2077e56eea6008e2a3077f46c7c6af4ce2a28be08c09a4e9f4b857a6ef1896`.
+The raw hashes remain the earlier preserved hashes listed above; projection
+hashes are `31035b3dc03800900a91371f81ed2b1e4e5adf1f8a3b7c2cd3f824c561ee280d`
+(July) and `9cc54f1cb7e46923cee0503d6c1e532e660b3908e603cb3d20ca5e116a22ee72`
+(September). Independent review verified self-hashes, raw/projection equality,
+every installed rule-file hash, the same literal authorization and configuration,
+and separate phase inputs/facts. Independent-phase comparison is compatible;
+both acceptance statuses remain blocked.
+
+The new `run_ap_phase` source-based runs are separate artifacts in
+[independent-acceptance](../outputs/m1-owned-validation/independent-acceptance/).
+Their first runs resolved no accounting decisions (305/305 unresolved in July,
+297/297 in September) and exported no complete AP delivery. Unknown source fields,
+flags and unsupported contexts remain in their reports. Those runs neither erase
+the useful preserved v0 validation nor provide the missing monthly transaction
+replay. No new Golden evaluation was used for these audits.
