@@ -86,6 +86,13 @@ class APWithholdingTests(unittest.TestCase):
         self.assertEqual(result.components[0].journal_line["currency"], "USD")
         self.assertEqual(result.components[0].journal_line["amount_doc"], 2)
 
+    def test_notary_disbursements_do_not_increase_professional_irpf_base(self):
+        result = self.calculate(WithholdingBase("honorarios", 204698, ("IRPF15",)),
+                                WithholdingBase("suplidos", 13523, ()))
+        self.assertEqual(result.withholding_doc, 30705)
+        self.assertNotEqual(result.withholding_doc, (218221 * 1500 + 5000) // 10000)
+        self.assertEqual([c.line_id for c in result.components], ["honorarios"])
+
     def test_full_tax_withholding_guarantee_composition_and_reversal(self):
         for company, country, currency, tax_code, codes in [
             ("1100", "ES", "EUR", "S21", ("IRPF15",)),
