@@ -40,6 +40,8 @@ Después, en el mismo Nuevo cierre, se eligen los resultados:
 
 El **Asistente** (`/asistente` o `⌘J`) responde con el motor local. En desarrollo, si `.env.local` define `OPENAI_API_KEY`, el modo Profundo hace que un modelo de OpenAI (`OPENAI_MODEL`, por defecto `gpt-6-luna`) redacte el texto sobre las mismas cifras. La clave se queda en el servidor de Vite.
 
+Para usar el agente del backend (`kalmora chat`) define `VITE_CHAT_URL`; cómo levantar backend, MCP, agente y front, en [docs/local-setup.md](../docs/local-setup.md).
+
 `/dev/data` es una página de depuración para cargar todo con un clic.
 
 ## Recorrido

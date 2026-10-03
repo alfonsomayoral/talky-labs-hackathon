@@ -57,14 +57,24 @@ class CodingTests(unittest.TestCase):
         self.assertTrue(all(f.evidence for f in result.fields))
 
     def test_missing_object_stays_incomplete_and_no_context_does_not_borrow_history(self):
-        catalog = self.catalog((self.history(),))
-        missing = catalog.resolve(replace(self.query, context=None))
+        missing = self.catalog().resolve(replace(self.query, context=None))
         self.assertEqual(missing.status, "INCOMPLETE")
         self.assertEqual(self.field(missing, "cost_object").status, "MISSING")
         self.assertIsNone(missing.record)
+        catalog = self.catalog((self.history(), self.history(cost_center="CC2", context="Other fee")))
+        self.assertEqual(self.field(catalog.resolve(replace(self.query, context=None)), "cost_object").status, "AMBIGUOUS")
         contextual = catalog.resolve(self.query)
         self.assertEqual(contextual.status, "RESOLVED")
         self.assertEqual(contextual.record.cost_center, "CC1")
+
+    def test_unanimous_supplier_history_supplies_a_cost_object_without_context(self):
+        history = (self.history(context="Fee AL-1 (01/06)"), self.history(context="Fee AL-2 (02/06)", recorded_on="2026-07-01"))
+        result = self.catalog(history).resolve(replace(self.query, context="Fee AL-3 (03/07)"))
+        self.assertEqual((result.status, result.record.cost_center), ("RESOLVED", "CC1"))
+        self.assertEqual(self.field(result, "cost_object").source, "supplier_history")
+        self.assertEqual(len(self.field(result, "cost_object").evidence), 2)
+        for changed in (dict(recorded_on="2026-07-31"), dict(company="1910"), dict(vendor="V2"), dict(currency="USD")):
+            self.assertEqual(self.catalog((replace(history[0], **changed),)).resolve(self.query).status, "INCOMPLETE")
 
     def test_known_vendor_company_restriction_cannot_be_relabelled(self):
         self.vendors[0]["companies"] = ["1100"]
@@ -115,9 +125,11 @@ class CodingTests(unittest.TestCase):
 
     def test_strict_history_date_scope_context_and_foreign_sources(self):
         for changed in (dict(recorded_on="2026-07-31"), dict(recorded_on="2026-08-01"),
-                        dict(context="Different service"), dict(company="1910"), dict(vendor="V2"), dict(currency="USD")):
+                        dict(company="1910"), dict(vendor="V2"), dict(currency="USD")):
             historic = replace(self.history(), **changed)
             self.assertEqual(self.catalog((historic,)).resolve(self.query).status, "INCOMPLETE")
+        other = self.catalog((self.history(context="Different service"),)).resolve(self.query)
+        self.assertEqual(self.field(other, "cost_object").source, "supplier_history")
         equal_context = self.history(context="  PROFESSIONAL   FEE ")
         self.assertEqual(self.catalog((equal_context,)).resolve(self.query).status, "RESOLVED")
         for field, value in (("company", "1910"), ("vendor", "V2"), ("currency", "USD")):

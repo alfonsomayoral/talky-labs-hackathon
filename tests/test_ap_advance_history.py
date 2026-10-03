@@ -65,6 +65,63 @@ class AdvanceHistoryTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.resolve(inventory_complete=1)
 
+    def test_posted_header_missing_gl_link_cannot_prove_unused_advance(self):
+        row = {**self.invoice, "decision": "POST", "posted_on": "2026-03-02", "journal_entry": "MISSING"}
+        result = self.resolve(journal_entries=[self.deposit], ap_invoices=[row])
+        self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+        self.assertTrue(any("DOCUMENT_LINK_UNRESOLVED" in item for item in result.diagnostics))
+        for kind in (None, "unknown"):
+            unknown = {**row, "kind": kind}
+            if kind is None:
+                unknown.pop("kind")
+            result = self.resolve(journal_entries=[self.deposit], ap_invoices=[unknown])
+            self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+            self.assertTrue(any("DOCUMENT_KIND_UNRESOLVED" in item for item in result.diagnostics))
+        # A linked ordinary posting without the observed 50 document cents of
+        # advance application is also a contradiction, not proof of zero use.
+        ordinary = deepcopy(self.application)
+        ordinary["lines"] = ordinary["lines"][:2]
+        ordinary["lines"][1]["credit"] = 160
+        result = self.resolve(journal_entries=[self.deposit, ordinary])
+        self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+        self.assertTrue(any("APPLICATION_UNCORROBORATED" in item for item in result.diagnostics))
+        other = {**row, "company": "1200", "vendor": "OTHER"}
+        self.assertEqual(self.resolve(journal_entries=[self.deposit], ap_invoices=[other]).status, "RESOLVED")
+        future = {**row, "posted_on": "2026-08-01"}
+        self.assertEqual(self.resolve(journal_entries=[self.deposit], ap_invoices=[future]).status, "RESOLVED")
+        unposted = {**row, "posted_on": None, "journal_entry": None, "decision": "HOLD"}
+        self.assertEqual(self.resolve(journal_entries=[self.deposit], ap_invoices=[unposted]).status, "RESOLVED")
+
+    def test_407_and_ordinary_application_clocks_require_concordance_before_future_exclusion(self):
+        deposit = {**self.deposit, "posting_date": "2026-08-01"}
+        down = dict(company="1100", doc_id="DOWN", vendor="V-NEW", currency="USD", kind="down_payment_request",
+                    number=deposit["reference"], issue_date=deposit["document_date"], decision="POST",
+                    journal_entry=deposit["id"], posted_on="2026-03-01")
+        for day in ("2026-03-01", "2026-08-02", "invalid"):
+            result = self.resolve(journal_entries=[deposit], ap_invoices=[{**down, "posted_on": day}])
+            self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+            self.assertTrue(any("POSTING_DATE" in item for item in result.diagnostics))
+        self.assertEqual(self.resolve(journal_entries=[deposit], ap_invoices=[{**down, "posted_on": "2026-08-01"}]).status,
+                         "RESOLVED")
+        application = {**self.application, "posting_date": "2026-08-01"}
+        row = {**self.invoice, "posted_on": "2026-03-02"}
+        result = self.resolve(journal_entries=[self.deposit, application], ap_invoices=[row])
+        self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+
+    def test_header_linked_scope_conflicts_and_iterable_snapshots_are_preserved(self):
+        row = {**self.invoice, "currency": "EUR"}
+        result = self.resolve(ap_invoices=[row])
+        self.assertEqual((result.status, result.balances), ("UNKNOWN", ()))
+        ordinary = deepcopy(self.application)
+        ordinary["lines"][1]["partner"] = "OTHER"
+        row = {**self.invoice, "vendor": "OTHER2"}
+        self.assertEqual(self.resolve(journal_entries=[self.deposit, ordinary], ap_invoices=[row]).status, "UNKNOWN")
+        before = deepcopy((self.deposit, self.application, self.invoice))
+        result = self.resolve(journal_entries=(entry for entry in (self.deposit, self.application)),
+                              purchase_orders=iter([self.po]), vendors=iter([self.vendor]), ap_invoices=iter([self.invoice]))
+        self.assertEqual(result.status, "RESOLVED", result.diagnostics)
+        self.assertEqual((self.deposit, self.application, self.invoice), before)
+
     def test_unknown_po_manual_movement_or_missing_affiliation_suppresses_usable_baseline(self):
         for changes in (dict(purchase_orders=[]), dict(vendors=[]),
                         dict(purchase_orders=[{**self.po, "items": [dict(item=10)]}]),

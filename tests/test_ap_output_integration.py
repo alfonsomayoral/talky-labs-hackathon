@@ -10,10 +10,10 @@ from kalmora.ap_allocation import (
 )
 from kalmora.ap_chronology import KINDS, invoice_state
 from kalmora.ap_journal import (
-    AdvanceApplication, ApprovedAdvanceOrder, CreditReference, InvoiceLineOrder,
+    AdvanceApplication, AdvanceBalance, AdvanceState, ApprovedAdvanceOrder, CreditAdvanceRestoration, CreditReference, InvoiceLineOrder,
     build_ap_journal, build_down_payment_request,
 )
-from kalmora.ap_output import APHeader, build_ap_row, write_ap_jsonl
+from kalmora.ap_output import APHeader, build_ap_row, validate_ap_row, write_ap_jsonl
 from kalmora.ap_payment import ACTIONS, apply_notice, resolve_payment
 from kalmora.ap_tax import TaxCatalog, TaxLine, calculate_ap_tax
 from kalmora.ap_valuation import CostAssignment, OrderPrice, ValuationLine, value_ap_lines
@@ -21,7 +21,7 @@ from kalmora.ap_withholding import (
     ContractGuarantee, WithholdingBase, WithholdingCatalog, calculate_ap_withholdings,
 )
 from kalmora.evaluation.structure import check_structure
-from kalmora.facts import Evidence
+from kalmora.facts import Evidence, Fact
 from kalmora.model.ap_event import ApEvent
 from kalmora.model.ap_scope import ApScope
 from kalmora.money import RateTable
@@ -146,6 +146,100 @@ class APOutputIntegrationTests(unittest.TestCase):
         self.assertEqual(result.journal_entry["lines"][0]["credit"], 5000)
         self.assertEqual(source, before)
         self.export([original_row, credit])
+
+    def fully_prepaid(self):
+        state = AdvanceState(balances=(AdvanceBalance(
+            "HIST", "1100", "V1", "EUR", "DEP-NUM", "2026-06-01", "PO1", 10000, 10000),))
+        row, result = self.invoice(
+            "PREPAID", code="SEX", state=state, invoice_orders=("PO1",),
+            order_bindings=(InvoiceLineOrder("L", "PO1", 10000, "INVOICE-LINE-PO"),),
+            advances=(AdvanceApplication("HIST", 10000, "MONETARY", "CONTRACT", line_id="L"),),
+            coded_lines=[dict(amount=10000, account="62300000", cost_center="CC1",
+                             tax_code="SEX", po="PO1", po_item=10)],
+        )
+        return row, result, state
+
+    def test_fully_prepaid_invoice_and_evidenced_credit_export_without_supplier_leg(self):
+        row, original, state = self.fully_prepaid()
+        source = {**deepcopy(original.journal_entry), "id": "ORIGINAL-PREPAID"}
+        before = deepcopy(source)
+        advance_line = next(index for index, line in enumerate(source["lines"], 1)
+                            if line["account"] == "40700000")
+        restoration = CreditAdvanceRestoration(
+            "HIST", source, advance_line, 10000,
+            Fact(10000, Evidence("original.xml", "explicit_application_doc_cents")),
+            "MONETARY", "CONTRACT", "L",
+            classification_advance=Fact("HIST", Evidence("contract", "advance")),
+            classification_treatment=Fact("MONETARY", Evidence("contract", "treatment")),
+        )
+        credit, restored = self.invoice(
+            "PREPAID-CREDIT", code="SEX", document_type="CREDIT_NOTE", state=original.state,
+            credit_references=(CreditReference("L", source, 1),),
+            credit_restorations=(restoration,),
+        )
+        for exported in (row, credit):
+            self.assertEqual(exported["payable"], 0)
+            self.assertFalse(any(line["account"] in {"40000000", "41000000", "40300000"}
+                                 for line in exported["journal_entry"]["lines"]))
+        self.assertEqual((state.balances[0].used_doc, original.state.balances[0].used_doc,
+                          restored.state.balances[0].used_doc), (0, 10000, 0))
+        self.assertEqual(source, before)
+        self.export([row, credit])
+
+    def test_real_post_null_action_preserves_raw_output_and_accounting_validation(self):
+        row, _ = self.invoice("NULL-ACTION")
+        row["action"] = None
+        context = dict(companies={"1100"}, accounts={"62300000", "47200000", "41000000"},
+                       partners={"V1", "OTHER"}, cost_centers={"CC1": {"company": "1100"},
+                       "CC2": {"company": "1910"}}, wbs={})
+        before = deepcopy(row)
+        self.assertEqual(validate_ap_row(row, context, tax_catalog=self.catalog), ())
+        self.assertEqual(row, before)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ap.jsonl"
+            write_ap_jsonl(path, [row], expected_doc_ids=[row["doc_id"]],
+                           context=context, tax_catalog=self.catalog)
+            self.assertEqual(json.loads(path.read_bytes()), row)
+        for mutation, diagnostic in (
+            (lambda changed: changed["lines"][0].update(cost_center="CC2"),
+             "coded-line cost_center belongs to another company"),
+            (lambda changed: next(line for line in changed["journal_entry"]["lines"]
+                if line["account"] == "41000000").update(partner="OTHER"),
+             "AP journal partner differs from header vendor"),
+            (lambda changed: changed["journal_entry"]["lines"][0].update(debit=10001),
+             "entry: unbalanced by 1 cents"),
+        ):
+            changed = deepcopy(row)
+            mutation(changed)
+            raw = deepcopy(changed)
+            self.assertIn(diagnostic, validate_ap_row(changed, context, tax_catalog=self.catalog))
+            self.assertEqual(changed, raw)
+        # The exemption cannot admit an invalid enum or a notice without its action.
+        notice = dict(doc_id="NOTICE", document_type="PROFORMA", decision="NOT_INVOICE", reasons=[], action=None)
+        self.assertIn("non-invoice type/action mismatch", validate_ap_row(notice))
+        self.assertTrue(any("invalid enum" in error for error in validate_ap_row({**row, "action": "INVALID"})))
+
+    def test_zero_payable_does_not_bypass_conservation_or_supplier_scope(self):
+        prepaid, _, _ = self.fully_prepaid()
+        normal, _ = self.invoice("UNPAID", code="SEX")
+        no_supplier = deepcopy(normal)
+        no_supplier["journal_entry"]["lines"] = [line for line in no_supplier["journal_entry"]["lines"]
+                                                  if line["account"] != "41000000"]
+        self.assertIn("exactly one scoped supplier line required", validate_ap_row(no_supplier, tax_catalog=self.catalog))
+        # A forged zero header remains invalid even if the journal is balanced.
+        forged = deepcopy(normal)
+        forged["payable"] = 0
+        self.assertIn("payable does not conserve gross less deductions and applied advances",
+                      validate_ap_row(forged, tax_catalog=self.catalog))
+        contradicted = deepcopy(prepaid)
+        contradicted["journal_entry"]["lines"].append(
+            dict(account="41000000", partner="V1", debit=0, credit=1, currency="EUR", amount_doc=0))
+        self.assertIn("supplier side/document payable differs from header",
+                      validate_ap_row(contradicted, tax_catalog=self.catalog))
+        wrong_currency = deepcopy(prepaid)
+        wrong_currency["journal_entry"]["lines"][0]["currency"] = "USD"
+        self.assertIn("journal line currency is outside invoice/local scope",
+                      validate_ap_row(wrong_currency, tax_catalog=self.catalog))
 
     def test_foreign_request_then_nonmonetary_application_preserves_historical_cost(self):
         rates = RateTable([

@@ -5,7 +5,7 @@ import re
 from kalmora.facts import DocumentFacts, Evidence, Fact
 from .contracts import ParsedDocument
 
-XML_EXTRACTOR_VERSION = "xml-source-extractor-v2"
+XML_EXTRACTOR_VERSION = "xml-source-extractor-v4"
 _INVOICE = "/Facturae/Invoices[1]/Invoice[1]"
 
 
@@ -93,7 +93,10 @@ def _facturae_field(path: str) -> str | None:
         "InvoiceTotals[1]/TotalGrossAmountBeforeTaxes[1]": "net",
         "InvoiceTotals[1]/TotalTaxOutputs[1]": "tax",
         "InvoiceTotals[1]/TotalTaxesWithheld[1]": "withholding",
-        "InvoiceTotals[1]/InvoiceTotal[1]": "payable",
+        # InvoiceTotal is the fiscal total after withholding. Outstanding is
+        # the explicitly stated amount to pay, after subsidies and advances.
+        "InvoiceTotals[1]/InvoiceTotal[1]": "raw.invoice_total",
+        "InvoiceTotals[1]/TotalOutstandingAmount[1]": "payable",
     }
     if relative in header:
         return header[relative]
@@ -102,6 +105,7 @@ def _facturae_field(path: str) -> str | None:
     if line:
         prefix, relative = f"line.{int(line[1])}.", line[2]
         fields = {"ItemDescription[1]": "description", "Quantity[1]": "quantity",
+                  "UnitOfMeasure[1]": "uom_code",
                   "UnitPriceWithoutTax[1]": "unit_price", "GrossAmount[1]": "amount",
                   "IssuerTransactionReference[1]": "issuer_transaction_reference",
                   "ReceiverTransactionReference[1]": "receiver_transaction_reference",
@@ -160,6 +164,7 @@ def _cfdi_field(path: str, leaves: dict[str, Fact]) -> str | None:
     if line:
         prefix, relative = f"line.{int(line[1])}.", line[2]
         fields = {"@Cantidad": "quantity", "@ValorUnitario": "unit_price",
+                  "@Unidad": "uom", "@ClaveUnidad": "uom_code",
                   "@Descripcion": "description", "@Descuento": "discount"}
         if relative in fields:
             return prefix + fields[relative]
@@ -176,6 +181,18 @@ def _cfdi_field(path: str, leaves: dict[str, Fact]) -> str | None:
                  "TipoFactor": "factor", "Importe": "tax" if direction == "charge" else "withholding"}.get(tax[4])
         return f"{prefix}tax.{direction}.{int(tax[3])}.{field}" if field else None
     return None
+
+
+_FISCAL_TOTALS = {
+    # InvoiceTotal = base + charged taxes - withheld taxes. A CFDI Total stays
+    # payable only: its PDF twin, not the XML, is the arithmetic source (§2.2).
+    _INVOICE + "/InvoiceTotals[1]/InvoiceTotal[1]": _INVOICE + "/InvoiceTotals[1]/TotalTaxesWithheld[1]",
+}
+
+
+def _gross(path: str, leaves: dict[str, Fact]) -> bool:
+    """Alias the fiscal total as gross only when no tax was withheld from it."""
+    return path in _FISCAL_TOTALS and _no_discount(leaves, _FISCAL_TOTALS[path])
 
 
 class XMLDocumentExtractor:
@@ -195,4 +212,6 @@ class XMLDocumentExtractor:
             name = _facturae_field(path) if root == "Facturae" else _cfdi_field(path, leaves)
             if name:
                 fields.setdefault(name, []).append(fact)
+            if _gross(path, leaves):
+                fields.setdefault("gross", []).append(fact)
         return DocumentFacts(document.source_sha256, self.version, fields)

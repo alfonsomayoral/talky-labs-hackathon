@@ -31,6 +31,41 @@ def _charged_rate(row: dict | None):
     return Decimal(0) if row["kind"] == "exempt" else None
 
 
+def tax_regime_fields(codes: Sequence[Fact], country: str | None, catalogue: Mapping[str, Any],
+                      sources: Sequence[Mapping[str, Sequence[Fact]]]) -> dict[str, list[Fact]]:
+    """ISP, certification and VAT-rate applicability from the governing tax codes.
+
+    ``codes`` are the PO item codes, else the vendor master default (policy §1:
+    the master governs unless the document or order says otherwise). A mixed
+    works/ordinary set or an unknown company country stays unresolved.
+    """
+    fields = {}
+    names = {f.value for f in codes}
+    if names and (names <= WORKS_REVERSE_CODES or not names & WORKS_REVERSE_CODES):
+        works = names <= WORKS_REVERSE_CODES
+        fields["isp_required"] = [Fact(works, f.evidence) for f in codes]
+        fields["certification_applicable"] = [Fact(works, f.evidence) for f in codes]
+    # A code of another country than the posting company is a cross-border case, not a rate check.
+    expected = {"UNKNOWN_COMPANY" if country is None else
+                _charged_rate(catalogue.get(n)) if catalogue.get(n, {}).get("country") in {None, country}
+                else None for n in names}
+    if names and expected == {None}:
+        fields["vat_check_applicable"] = [Fact(False, f.evidence) for f in codes]
+    elif len(expected) == 1 and isinstance(next(iter(expected)), Decimal):
+        fields["vat_check_applicable"] = [Fact(True, f.evidence) for f in codes]
+        rates = [f for source in sources for name, facts in source.items()
+                 if _RATE_FIELD.fullmatch(name)
+                 for f in facts if type(f.value) is int]
+        applicable = next(iter(expected))
+        applied = {f.value for f in rates}
+        if applied - {0}:
+            applied -= {0}  # a zero-rated component beside charged VAT is a non-subject levy (tasas)
+        lines = [{"applied_rate": Decimal(rate) / 10000, "applicable_rate": applicable}
+                 for rate in sorted(applied)]
+        fields["vat_lines"] = [Fact(lines, f.evidence) for f in rates]
+    return fields
+
+
 def _one(source: DocumentFacts, name: str) -> Fact | None:
     """The source's value when its candidates agree; contradictions stay unresolved."""
     facts = source.fields.get(name, [])
@@ -193,33 +228,10 @@ def rejection_stage(sources: Sequence[DocumentFacts], message: Mapping[str, Any]
         codes = [Fact(vendor["default_tax_code"], Evidence(VENDORS, f"id={vendor['id']}.default_tax_code"))]
     else:
         codes = []
-    names = {f.value for f in codes}
-    if names and (names <= WORKS_REVERSE_CODES or not names & WORKS_REVERSE_CODES):
-        works = names <= WORKS_REVERSE_CODES
-        fields["isp_required"] = [Fact(works, f.evidence) for f in codes]
-        fields["certification_applicable"] = [Fact(works, f.evidence) for f in codes]
     fields["charged_vat_cents"] = agreed(lambda s: _one(s, "tax_cents"))
-
-    catalogue = data.table("tax_codes")["tax_codes"]
     country = next((row["country"] for row in data.companies if row["code"] == company), None)
-    # A code of another country than the posting company is a cross-border case, not a rate check.
-    expected = {"UNKNOWN_COMPANY" if country is None else
-                _charged_rate(catalogue.get(n)) if catalogue.get(n, {}).get("country") in {None, country}
-                else None for n in names}
-    if names and expected == {None}:
-        fields["vat_check_applicable"] = [Fact(False, f.evidence) for f in codes]
-    elif len(expected) == 1 and isinstance(next(iter(expected)), Decimal):
-        fields["vat_check_applicable"] = [Fact(True, f.evidence) for f in codes]
-        rates = [f for s in sources for name, facts in s.fields.items()
-                 if _RATE_FIELD.fullmatch(name)
-                 for f in facts if type(f.value) is int]
-        applicable = next(iter(expected))
-        applied = {f.value for f in rates}
-        if applied - {0}:
-            applied -= {0}  # a zero-rated component beside charged VAT is a non-subject levy (tasas)
-        lines = [{"applied_rate": Decimal(rate) / 10000, "applicable_rate": applicable}
-                 for rate in sorted(applied)]
-        fields["vat_lines"] = [Fact(lines, f.evidence) for f in rates]
+    fields.update(tax_regime_fields(codes, country, data.table("tax_codes")["tax_codes"],
+                                    [s.fields for s in sources]))
 
     if vendor is not None:
         fields["withholding_required"] = [Fact(vendor["withholding"] is not None,

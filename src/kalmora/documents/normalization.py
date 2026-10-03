@@ -7,7 +7,7 @@ import re
 
 from kalmora.facts import DocumentFacts, Fact
 
-NORMALIZATION_VERSION = "document-normalization-v2"
+NORMALIZATION_VERSION = "document-normalization-v3"
 ALIASES = {
     "buyer_tax_id": "recipient_tax_id", "customer_tax_id": "recipient_tax_id",
     "vendor_tax_id": "supplier_tax_id", "seller_tax_id": "supplier_tax_id",
@@ -17,9 +17,14 @@ ALIASES = {
     "cert_previous": "certification_previous", "certified_previous": "certification_previous",
     "cert_cumulative": "certification_cumulative", "certified_cumulative": "certification_cumulative",
     "coverage_start": "period_start", "coverage_end": "period_end",
+    "certificate_issued_on": "certificate_issue_date",
 }
+# A line unit is the literal unit used by APLineFacts and PO queries. It is
+# not a global alias, nor a translation of an XML unit catalogue code.
+LINE_ALIASES = {"unit": "uom"}
+DATE_FIELDS = frozenset({"period_start", "period_end", "issued_on"})
 MONEY = frozenset({"net", "tax", "gross", "payable", "amount", "retention",
-    "withholding", "discount", "advance_amount", "guarantee_amount", "embargo_amount",
+    "withholding", "discount", "taxable_base", "advance_amount", "guarantee_amount", "embargo_amount",
     "certification_current", "certification_previous", "certification_cumulative",
     "certification_amount", "current_amount", "previous_amount", "cumulative_amount"})
 
@@ -86,7 +91,7 @@ def _number(value: object, fact: Fact) -> Decimal:
         if negative:
             if result < 0:
                 raise ValueError("Contradictory negative notation")
-            result = -result
+            result = result.copy_negate()
     else:
         raise ValueError("Expected decimal string or exact number")
     if not result.is_finite():
@@ -115,10 +120,10 @@ def _date(value: object) -> str:
     named = re.fullmatch(r"(\d{1,2}) de ([a-zç]+) de (\d{4})", text.casefold())
     if named and named.group(2) in _MONTHS:
         return date(int(named.group(3)), _MONTHS[named.group(2)], int(named.group(1))).isoformat()
-    match = re.fullmatch(r"(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})", text)
+    match = re.fullmatch(r"(\d{1,2})([/.\-])(\d{1,2})\2(\d{4})", text)
     if not match:
         raise ValueError("Unsupported date format")
-    first, second, year = map(int, match.groups())
+    first, second, year = map(int, (match[1], match[3], match[4]))
     if first <= 12 and second <= 12 and first != second:
         raise ValueError("Ambiguous day/month order")
     day, month = (second, first) if second > 12 else (first, second)
@@ -126,16 +131,23 @@ def _date(value: object) -> str:
 
 
 def _canonical(key: str) -> str:
+    if key.startswith("raw.") or ".raw." in key:
+        return key
     match = re.fullmatch(r"(?:line\.(\d+)|lines\.(\d+)|lines\[(\d+)\])\.(.+)", key)
     if match:
         index = int(next(item for item in match.groups()[:3] if item is not None))
         if index < 1:
             raise ValueError("Flat line indices must be one based")
-        return f"line.{index}.{ALIASES.get(match[4], match[4])}"
+        leaf = LINE_ALIASES.get(match[4], ALIASES.get(match[4], match[4]))
+        return f"line.{index}.{leaf}"
     return ALIASES.get(key, key)
 
 
 def _convert(key: str, fact: Fact) -> tuple[str, object, bool]:
+    if key.startswith("raw.") or ".raw." in key:
+        if _contains_float(fact.value):
+            raise ValueError("Float facts are forbidden")
+        return key, deepcopy(fact.value), False
     leaf = key.rsplit(".", 1)[-1]
     value = fact.value
     suffix = "_cents" if leaf in MONEY else "_milli" if leaf == "quantity" else "_e4" if leaf == "unit_price" or leaf.endswith("_rate") else ""
@@ -153,17 +165,17 @@ def _convert(key: str, fact: Fact) -> tuple[str, object, bool]:
         numeric = _number(value.strip()[:-1] if percent else value, fact)
         if leaf.endswith("_rate"):
             if percent or "TaxRate" in fact.evidence.field:
-                numeric /= 100
-            elif abs(numeric) > 1:
+                numeric = _decimal_shift(numeric, -2)
+            elif numeric.copy_abs() > 1:
                 raise ValueError("Rate unit requires explicit percent notation")
-        scale = 100 if suffix == "_cents" else 1000 if suffix == "_milli" else 10000
-        scaled = numeric * scale
+        exponent = 2 if suffix == "_cents" else 3 if suffix == "_milli" else 4
+        scaled = _decimal_shift(numeric, exponent)
         integral = scaled.to_integral_value(rounding=ROUND_HALF_UP)
         rounded = scaled != integral
         if rounded and suffix != "_cents":
             raise ValueError("Precision exceeds normalized units")
         return target, int(integral), rounded
-    if leaf.endswith(("_date", "valid_from", "valid_until")) or leaf in {"period_start", "period_end"}:
+    if leaf.endswith(("_date", "valid_from", "valid_until")) or leaf in DATE_FIELDS:
         return key, _date(value), False
     if leaf == "currency":
         if not isinstance(value, str):
@@ -182,6 +194,12 @@ def _convert(key: str, fact: Fact) -> tuple[str, object, bool]:
     return key, value.strip() if isinstance(value, str) else deepcopy(value), False
 
 
+def _decimal_shift(value: Decimal, exponent: int) -> Decimal:
+    """Scale exact source units without rounding in the caller's Decimal context."""
+    source = value.as_tuple()
+    return Decimal((source.sign, source.digits, source.exponent + exponent))
+
+
 def _contains_float(value: object) -> bool:
     if isinstance(value, float):
         return True
@@ -195,7 +213,11 @@ def _contains_float(value: object) -> bool:
 def normalize_document_facts(document: DocumentFacts) -> NormalizedDocument:
     """Normalize a single attachment; retain every conflicting candidate and its proof."""
     raw = deepcopy(document)
-    output = DocumentFacts(document.source_sha256, document.extractor_version + "/" + NORMALIZATION_VERSION, {})
+    suffix = "/" + NORMALIZATION_VERSION
+    version = document.extractor_version
+    if not version.endswith(suffix):
+        version += suffix
+    output = DocumentFacts(document.source_sha256, version, {})
     diagnostics = []
     sources = {fact.evidence.document for candidates in document.fields.values() for fact in candidates}
     if len(sources) > 1:
@@ -228,4 +250,6 @@ def normalize_document_facts(document: DocumentFacts) -> NormalizedDocument:
         if len(values) > 1:
             conflicts[key] = tuple(candidates)
             diagnostics.append(NormalizationDiagnostic("CONFLICT", key, "Source candidates disagree; no candidate selected", tuple(candidates)))
+    # Field order changes when facts are saved and reloaded; the diagnostics must not.
+    diagnostics.sort(key=lambda d: (d.field, d.code, d.message))
     return NormalizedDocument(raw, output, tuple(diagnostics), conflicts)

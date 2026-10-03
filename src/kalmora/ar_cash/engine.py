@@ -10,6 +10,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
+from fractions import Fraction
+from itertools import combinations
+import json
 import re
 import unicodedata
 from pathlib import Path
@@ -27,6 +30,10 @@ CUSTOMER_WORDS = {"DE", "DEL", "LA", "LAS", "LOS", "EL", "Y", "E", "THE"}
 LEGAL_WORDS = CUSTOMER_WORDS | {"SA", "SL", "S", "A", "L", "LLC", "LTD", "SC"}
 BANK_PREFIXES = {"TRANSFERENCIA", "ABONO", "PAGO", "TESORERIA", "DEVOLUCION"}
 _INVOICE_REF = re.compile(r"\b[A-Z]{2,8}[- ]?\d{2,8}[- ]?\d{0,8}\b", re.IGNORECASE)
+MAX_GROUP = 6
+# Shares of the payable observed in the partial payments of the collection history (research
+# 04_ar_cash). A data observation, not a policy rule: used only when nothing else explains a receipt.
+PARTIAL_RATIOS = (Fraction(2, 5), Fraction(1, 2), Fraction(3, 5), Fraction(3, 4))
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,7 @@ class _Invoice:
     due_date: str
     currency: str
     factored: bool
+    payable: int = 0
 
 
 @dataclass(frozen=True)
@@ -301,7 +309,8 @@ def _invoice_index(data: PhaseData) -> dict[str, _Invoice]:
         invoice_id = str(row["id"])
         result[invoice_id] = _Invoice(invoice_id, str(row["company"]), str(row["customer"]),
                                       str(row["date"]), str(row.get("due_date") or "9999-12-31"),
-                                      str(row.get("currency") or ""), bool(row.get("factored")))
+                                      str(row.get("currency") or ""), bool(row.get("factored")),
+                                      int(row.get("payable") or 0))
     return result
 
 
@@ -347,26 +356,36 @@ def _entity_key(name: object) -> str:
     return " ".join(word for word in _normalize(name).split() if word not in LEGAL_WORDS)
 
 
-def _unique_subset(candidates: list[_Candidate], amount: int) -> list[_Candidate] | None:
-    """Return the one exact subset, if it is unique and the search stays bounded."""
+def _fully_open(candidate: _Candidate) -> bool:
+    return bool(candidate.invoice.payable) and candidate.balance == candidate.invoice.payable
+
+
+def _best_subset(candidates: list[_Candidate], amount: int) -> tuple[list[_Candidate], str] | None:
+    """The exact group with the fewest invoices; among equal groups, fully open invoices before
+    remnants, then the oldest (date, id). Monthly fees repeat the same amount, so a grouped
+    transfer can match several groups. Bounded at 18 candidates and MAX_GROUP invoices."""
     if len(candidates) > 18:
         return None
-    states: dict[int, list[tuple[int, ...]]] = {0: [()]}
-    for index, candidate in enumerate(candidates):
-        for subtotal, paths in [(total, tuple(paths)) for total, paths in states.items()]:
-            new_total = subtotal + candidate.balance
-            if new_total > amount:
-                continue
-            new_paths = [path + (index,) for path in paths]
-            existing = states.setdefault(new_total, [])
-            existing.extend(new_paths)
-            # Keep at most two witnesses: enough to establish ambiguity.
-            if len(existing) > 2:
-                del existing[2:]
-    paths = states.get(amount, [])
-    if len(paths) != 1 or not paths[0]:
+    for size in range(2, min(MAX_GROUP, len(candidates)) + 1):
+        matches = [list(group) for group in combinations(candidates, size)
+                   if sum(c.balance for c in group) == amount]
+        if matches:
+            matches.sort(key=lambda group: (sum(not _fully_open(c) for c in group),
+                                            sorted((c.invoice.date, c.invoice.id) for c in group)))
+            note = ("" if len(matches) == 1 else
+                    f"tie-break: {len(matches)} groups of {size} invoices match; took the oldest fully open one")
+            return matches[0], note
+    return None
+
+
+def _ratio_partial(candidates: list[_Candidate], amount: int) -> tuple[_Candidate, Fraction] | None:
+    """Oldest fully open invoice whose payable times a usual ratio, truncated to the cent, is the receipt."""
+    hits = [(c.invoice.date, c.invoice.id, c, ratio) for c in candidates if _fully_open(c)
+            for ratio in PARTIAL_RATIOS if amount == c.balance * ratio.numerator // ratio.denominator]
+    if not hits:
         return None
-    return [candidates[index] for index in paths[0]]
+    _, _, candidate, ratio = min(hits, key=lambda hit: (hit[0], hit[1]))
+    return candidate, ratio
 
 
 def _exact_subset_count(candidates: list[_Candidate], amount: int) -> int | None:
@@ -457,6 +476,48 @@ def _as_of_balances(data: PhaseData) -> list[JournalEntry]:
     return list(data.iter_journal())
 
 
+def _billed(billing: Iterable[dict[str, Any]]) -> tuple[dict[str, _Invoice], list[JournalEntry]]:
+    """Invoices issued by this month's AR billing delivery: they are receivables from their posting date."""
+    invoices: dict[str, _Invoice] = {}
+    entries: list[JournalEntry] = []
+    for row in billing:
+        invoice, entry = row.get("invoice") or {}, row.get("journal_entry")
+        if row.get("expected") != "INVOICE" or not invoice.get("number") or not entry:
+            continue
+        receivable = next((line for line in entry["lines"] if line.get("account") == "43000000"), None)
+        if receivable is None:
+            continue
+        invoices[invoice["number"]] = _Invoice(invoice["number"], str(entry["company"]), str(receivable.get("partner")),
+                                               invoice["date"], invoice.get("due_date") or "9999-12-31",
+                                               invoice.get("currency") or "", False, int(invoice.get("payable") or 0))
+        entries.append(cast(JournalEntry, {**entry, "id": f"billing:{row['billing_item']}"}))
+    return invoices, entries
+
+
+def _payables(data: PhaseData, ap: Iterable[dict[str, Any]]) -> list[JournalEntry]:
+    """Payables posted by this month's AP delivery, dated the day their document was received.
+
+    A row without its inbox message has no evidenced date and is left out."""
+    entries: list[JournalEntry] = []
+    for row in ap:
+        entry = row.get("journal_entry")
+        if row.get("decision") not in ("POST", "POST_PAYMENT_BLOCK") or not entry:
+            continue
+        message = data.phase_dir / "inbox" / "ap" / str(row["doc_id"]) / "message.json"
+        if not message.is_file():
+            continue
+        received = str(json.loads(message.read_text(encoding="utf-8")).get("received_at") or "")[:10]
+        if not received:
+            continue
+        lines = [{**line, "assignment": line.get("assignment") or row.get("invoice_number")}
+                 if str(line.get("account", "")).startswith(("400", "410")) else line
+                 for line in entry["lines"]]
+        entries.append(cast(JournalEntry, {**entry, "id": f"ap:{row['doc_id']}", "posting_date": received,
+                                           "currency": entry.get("currency") or row.get("currency"),
+                                           "lines": lines}))
+    return entries
+
+
 def _historical_cash_applications(entries: Iterable[JournalEntry]
                                   ) -> defaultdict[tuple[str, str, str, int], list[tuple[str, str]]]:
     """Index exact historical cash-to-AR postings for duplicate evidence."""
@@ -481,7 +542,8 @@ def _historical_cash_applications(entries: Iterable[JournalEntry]
 
 
 def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
-                  normalized_dir: str | Path | None = None) -> ArCashRun:
+                  normalized_dir: str | Path | None = None,
+                  billing: Iterable[dict[str, Any]] = (), ap: Iterable[dict[str, Any]] = ()) -> ArCashRun:
     """Build one application result per receipt task using ERP/bank evidence.
 
     Exact unique matches are auto-applied. Ambiguous payer/invoice relationships are
@@ -498,10 +560,12 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
 
     customers = list(data.table("customers"))
     invoices = _invoice_index(data)
+    billed_invoices, billed_entries = _billed(billing)
+    invoices.update(billed_invoices)
     vendors = _casefold_map(list(data.table("vendors")))
     penalty_rows = _penalty_inputs(data)
     factoring_rows = list(data.table("factoring_assignments"))
-    entries = _as_of_balances(data)
+    entries = _as_of_balances(data) + billed_entries + _payables(data, ap)
     timeline = _ReceivableTimeline(cast(Iterable[JournalEntry], entries))
     historical_cash = _historical_cash_applications(entries)
 
@@ -541,6 +605,19 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     and _normalize(customer_tax) != _normalize(vendor["tax_id"])):
                 continue
             vendors_by_customer[customer_id].append(vendor_id)
+    # A past cash application that cleared a customer's receivable and a vendor's payable in one entry
+    # shows they net against each other, whatever the master data says about the tax ids.
+    for entry in entries:
+        lines = entry.get("lines", [])
+        if not any(str(line.get("account", "")).startswith("572") and int(line.get("debit") or 0) > 0
+                   for line in lines):
+            continue
+        payers = {str(line["partner"]) for line in lines if line.get("partner")
+                  and str(line.get("account", "")) == "43000000" and int(line.get("credit") or 0) > 0}
+        netted = {str(line["partner"]) for line in lines if line.get("partner")
+                  and str(line.get("account", "")).startswith(("400", "410")) and int(line.get("debit") or 0) > 0}
+        for customer_id in payers:
+            vendors_by_customer[customer_id].extend(sorted(netted - set(vendors_by_customer[customer_id])))
 
     results_by_id: dict[str, ArCashResult] = {}
     applied_receipts: defaultdict[tuple[str, str, str, int], list[str]] = defaultdict(list)
@@ -752,13 +829,32 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                             if needed == ap_amount:
                                 net_matches.append((candidate, vendor_id, ap_account,
                                                     ap_assignment, needed))
+                # Of several open invoices, the one paid is the one falling due on the receipt date.
+                targets = due_candidates if len(due_candidates) == 1 else [
+                    c for c in due_candidates if c.invoice.due_date == receipt_date]
+                if not net_matches and len(targets) == 1:
+                    # Policy §3: a short payment is applied partially. With one target invoice and one
+                    # open payable of the customer's own vendor, cash + payable is applied and the
+                    # rest of the invoice stays open.
+                    payables = [(vendor_id, ap_account, assignment, -balance)
+                                for vendor_id in vendors_by_customer.get(customer, [])
+                                if company in vendors.get(vendor_id, {}).get("companies", [])
+                                for (co, ap_account, partner, assignment), balance in ap_balance.items()
+                                if co == company and partner == vendor_id and balance < 0]
+                    candidate = targets[0]
+                    if len(payables) == 1 and candidate.balance > amount + payables[0][3]:
+                        vendor_id, ap_account, ap_assignment, ap_amount = payables[0]
+                        net_matches.append((candidate, vendor_id, ap_account, ap_assignment, ap_amount))
+                        diagnostics.append(f"short payment netted with payable {ap_assignment} of {vendor_id}; "
+                                           "the rest of the invoice stays open")
                 if len(net_matches) == 1:
                     candidate, vendor_id, ap_account, ap_assignment, net_amount = net_matches[0]
                     chosen = [candidate]
-                    apps.append({"invoice": candidate.invoice.id, "amount": candidate.balance})
+                    cleared = min(candidate.balance, amount + net_amount)
+                    apps.append({"invoice": candidate.invoice.id, "amount": cleared})
                     residuals.append({"type": "NETTING_AP", "invoice": candidate.invoice.id,
                                       "amount": net_amount})
-                    timeline.apply(candidate, candidate.balance)
+                    timeline.apply(candidate, cleared)
                     applied_receipts[(company, str(bank_line.get("currency", "")),
                                       customer, amount)].append(candidate.invoice.id)
                     # Save the balancing payable debit for the adjustment below.
@@ -785,8 +881,12 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                                                                  - date.fromisoformat(receipt_date)).days) == nearest_delta]
                         if len(nearest) == 1:
                             chosen = nearest
-                if chosen is None:
-                    chosen = _unique_subset(due_candidates, amount)
+                if chosen is None and not exact:
+                    grouped = _best_subset(due_candidates, amount)
+                    if grouped:
+                        chosen, note = grouped
+                        if note:
+                            diagnostics.append(note)
                 if chosen:
                     apps.extend({"invoice": c.invoice.id, "amount": c.balance} for c in chosen)
                     for candidate in chosen:
@@ -824,6 +924,16 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     adjustments = [_line(company, "55500000", amount, 0),
                                    _line(company, "43800000", 0, amount, customer, duplicate_invoice)]
                     diagnostics.append(f"same customer paid the same amount again after clearing {duplicate_invoice}")
+
+            # A receipt that is a usual share of one fully open due invoice is a partial
+            # payment (policy: apply it and leave the shortfall open).
+            if not apps and not residuals and customer and ref is None:
+                partial = _ratio_partial(_eligible(all_candidates, receipt_date), amount)
+                if partial:
+                    candidate, ratio = partial
+                    apps.append({"invoice": candidate.invoice.id, "amount": amount})
+                    timeline.apply(candidate, amount)
+                    diagnostics.append(f"partial payment by ratio {float(ratio):g}; the rest stays open")
 
             # If no exact mapping/cause was established, a partial payment is accepted
             # only when exactly one due invoice remains possible for this customer.

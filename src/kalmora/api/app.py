@@ -2,6 +2,8 @@
 import json
 import shutil
 import tempfile
+from contextlib import asynccontextmanager
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,8 @@ STATUS = {
     "phase.not_loaded": 409, "ingestion.busy": 409, "phase.conflict": 409, "run.unavailable": 409,
     "golden.forbidden": 403, "evaluation.unavailable": 404, "evaluation.failed": 500,
     "upload.too_large": 413, "entry.invalid": 422, "submission.invalid": 422, "method.not_allowed": 405,
+    "run.busy": 409, "run.phase_unknown": 409, "bundle.invalid": 422, "item.not_found": 404,
+    "attention.not_found": 404, "landing.unavailable": 501, "landing.failed": 500, "landing.table_not_found": 404,
     "internal": 500,
 }
 ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
@@ -45,6 +49,8 @@ class ApiResponse(JSONResponse):
 def _default(value: object) -> Any:
     if isinstance(value, Decimal):
         return format(value, "f")
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
     raise TypeError(f"{type(value).__name__} is not JSON serializable")
 
 
@@ -59,7 +65,7 @@ def problem(request: Request, code: str, title: str, detail: str, diagnostics: l
 def strict_query(request: Request) -> None:
     """Reject query parameters the route does not declare."""
     route = request.scope.get("route")
-    if route is None:
+    if route is None or (route.openapi_extra or {}).get("x-open-query"):
         return
     allowed = {p.alias for p in get_flat_dependant(route.dependant).query_params}
     unknown = sorted(set(request.query_params) - allowed)
@@ -72,10 +78,26 @@ class Paging:
         self.limit, self.cursor = limit, cursor
 
 
-def create_app(services: Services) -> FastAPI:
+def create_app(services: Services, *, mcp: bool = False) -> FastAPI:
+    """``mcp=True`` also serves the read-only MCP server at ``/mcp/`` (Streamable HTTP) from the same memory."""
+    server = None
+    if mcp:
+        from ..mcp.server import create_server
+        server = create_server(services, stateless=True)
+        server.settings.streamable_http_path = "/"
+        mcp_app = server.streamable_http_app()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> Any:
+        if server is None:
+            yield
+        else:
+            async with server.session_manager.run():
+                yield
+
     api = FastAPI(title="Kalmora close API", version="1", default_response_class=ApiResponse,
                   dependencies=[Depends(strict_query)], docs_url="/v1/docs", openapi_url="/v1/openapi.json",
-                  redoc_url=None)
+                  redoc_url=None, lifespan=lifespan)
     origins = list(services.settings.cors_origins)
     api.add_middleware(CORSMiddleware, allow_origins=origins, allow_origin_regex=None if origins else ORIGIN_REGEX,
                        allow_methods=["GET", "POST"], allow_headers=["*"])
@@ -296,4 +318,84 @@ def create_app(services: Services) -> FastAPI:
     def evaluation_module(phase: str, module: str) -> Any:
         return services.get_evaluation(phase, module)
 
+    # documents, landing ------------------------------------------------------
+    @api.get("/v1/phases/{phase}/documents/{doc_id}/attachments")
+    def attachments(phase: str, doc_id: str) -> Any:
+        return services.list_attachments(phase, doc_id)
+
+    @api.get("/v1/phases/{phase}/policies")
+    def policies(phase: str) -> Any:
+        return services.get_policies(phase)
+
+    @api.post("/v1/calculate")
+    def calculate(body: Any = Body(...)) -> Any:
+        if not isinstance(body, dict) or "op" not in body or "values" not in body:
+            raise DomainError("request.invalid", "Body must be {op, values, rounding?}.")
+        return services.calculate(body["op"], body["values"], body.get("rounding", "half_up"))
+
+    @api.get("/v1/runs/{run_id}/summary")
+    def run_summary(run_id: str) -> Any:
+        return services.summarize_run(run_id)
+
+    @api.get("/v1/phases/{phase}/landing")
+    def landing(phase: str) -> Any:
+        return services.get_landing(phase)
+
+    @api.get("/v1/phases/{phase}/landing/{table}", openapi_extra={"x-open-query": True})
+    def landing_table(phase: str, table: str, request: Request) -> Any:
+        params = dict(request.query_params)
+        limit, cursor = params.pop("limit", None), params.pop("cursor", None)
+        try:
+            limit_value = int(limit) if limit is not None else None
+        except ValueError:
+            raise DomainError("request.invalid", "limit must be an integer.") from None
+        return services.query_landing(phase, table, params, limit_value, cursor)
+
+    # run bundles -------------------------------------------------------------
+    @api.get("/v1/runs/{run_id}/submission")
+    def run_submission(run_id: str) -> Any:
+        return services.get_run_submission(run_id)
+
+    @api.get("/v1/runs/{run_id}/submission:check")
+    def run_submission_check(run_id: str) -> Any:
+        return services.check_run_submission(run_id)
+
+    @api.get("/v1/runs/{run_id}/submission/{module}")
+    def run_submission_rows(run_id: str, module: str, paging: Paging = Depends()) -> Any:
+        return services.list_run_submission_rows(run_id, module, paging.limit, paging.cursor)
+
+    @api.get("/v1/runs/{run_id}/evaluation")
+    def run_evaluation(run_id: str) -> Any:
+        return services.get_run_evaluation(run_id)
+
+    @api.get("/v1/runs/{run_id}/evaluation/{module}")
+    def run_evaluation_module(run_id: str, module: str) -> Any:
+        return services.get_run_evaluation(run_id, module)
+
+    @api.get("/v1/runs/{run_id}/events")
+    def run_events(run_id: str, item: str | None = None, kind: str | None = None, result: str | None = None,
+                   step: str | None = None, paging: Paging = Depends()) -> Any:
+        return services.list_run_events(run_id, item=item, kind=kind, result=result, step=step,
+                                        limit=paging.limit, cursor=paging.cursor)
+
+    @api.get("/v1/runs/{run_id}/attention")
+    def run_attention(run_id: str, item: str | None = None, kind: str | None = None,
+                      priority: str | None = None, paging: Paging = Depends()) -> Any:
+        return services.list_run_attention(run_id, item=item, kind=kind, priority=priority,
+                                           limit=paging.limit, cursor=paging.cursor)
+
+    @api.get("/v1/runs/{run_id}/items/{item:path}")
+    def run_item(run_id: str, item: str) -> Any:
+        return services.get_run_item(run_id, item)
+
+    @api.get("/v1/runs/{run_id}/overrides")
+    def run_overrides(run_id: str, paging: Paging = Depends()) -> Any:
+        return services.list_overrides(run_id, paging.limit, paging.cursor)
+
+    @api.post("/v1/runs/{run_id}/overrides")
+    def add_run_override(run_id: str, body: Any = Body(...)) -> Any:
+        return ApiResponse(services.add_override(run_id, body), status_code=201)
+
+    if server is not None:
+        api.mount("/mcp", mcp_app)
     return api

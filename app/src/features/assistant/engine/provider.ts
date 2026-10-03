@@ -35,6 +35,19 @@ export function devChatStatus(doFetch: typeof fetch = fetch): Promise<DevChatSta
   return devChat
 }
 
+let agent: Promise<DevChatStatus | null> | null = null
+
+/** The model behind the chat backend (`GET /api/chat/status`), or null when it is not configured or unreachable. */
+export function agentStatus(doFetch: typeof fetch = fetch): Promise<DevChatStatus | null> {
+  const baseUrl = apiBaseUrl()
+  if (!baseUrl) return Promise.resolve(null)
+  agent ??= doFetch(`${baseUrl}/api/chat/status`)
+    .then((r) => (r.ok ? (r.json() as Promise<DevChatStatus>) : null))
+    .then((s) => (s?.enabled ? s : null))
+    .catch(() => null)
+  return agent
+}
+
 export async function askAssistant(question: string, ctx: AssistantContext, opts: AskOptions = {}): Promise<AssistantAnswer> {
   const baseUrl = opts.baseUrl === undefined ? apiBaseUrl() : opts.baseUrl
   if (!baseUrl) {

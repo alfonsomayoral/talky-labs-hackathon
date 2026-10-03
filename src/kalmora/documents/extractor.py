@@ -1,7 +1,7 @@
 """Typed source-grounded extraction and bounded semantic selection, not accounting."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 import hashlib
@@ -12,7 +12,8 @@ from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.llm.client import ImageInput, LLMError, sanitize
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint
 from .prompts import (EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION,
-                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION, prompt_text)
+                      FIELD_COVERAGE_INSTRUCTIONS, FIELD_COVERAGE_PROMPT_VERSION,
+                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION, prompt_text, repair_prompt)
 
 HEADER_FIELDS = frozenset("""supplier_tax_id recipient_tax_id customer_tax_id supplier_name
 recipient_name customer_name document_number invoice_number document_date invoice_date
@@ -244,6 +245,8 @@ def _ground(document: ParsedDocument, value: Any, observation: Any, *, explicit_
         locator = "image:" + image.sha256
         review = {"block_id": block.id, "page": image.page, "image_sha256": image.sha256,
                   "quote": observation.quote}
+        if image.region is not None:
+            review["region"] = image.region.to_dict()
     else:
         empty_xml = (explicit_absence and document.media_type == "application/xml"
                      and block.source_field is not None and block.text == "" and observation.quote == "")
@@ -329,11 +332,56 @@ def _provider_name(client: Any) -> str:
 
 
 class LLMDocumentExtractor:
-    def __init__(self, client: Any, *, include_processing_aids: bool = True) -> None:
+    def __init__(self, client: Any, *, include_processing_aids: bool = True,
+                 max_validation_attempts: int = 1, require_page_coverage: bool = False,
+                 require_line_descriptions: bool = False,
+                 require_native_row_coverage: bool = False,
+                 extraction_scope: str = 'complete',
+                 required_header_fields: tuple[str, ...] = (),
+                 preserve_partial_on_failure: bool = False) -> None:
         if type(include_processing_aids) is not bool:
             raise ValueError('include_processing_aids must be a boolean')
         self.client = client
         self.include_processing_aids = include_processing_aids
+        if type(max_validation_attempts) is not int or not 1 <= max_validation_attempts <= 3:
+            raise ValueError('validation attempts must be between one and three')
+        self.max_validation_attempts = max_validation_attempts
+        if type(require_page_coverage) is not bool:
+            raise ValueError('page coverage switch must be boolean')
+        self.require_page_coverage = require_page_coverage
+        if type(require_line_descriptions) is not bool:
+            raise ValueError('line description switch must be boolean')
+        self.require_line_descriptions = require_line_descriptions
+        if type(require_native_row_coverage) is not bool:
+            raise ValueError('native row coverage switch must be boolean')
+        if extraction_scope not in {'complete', 'header_footer_only', 'outside_native_invoice_table', 'tables_only'}:
+            raise ValueError('unsupported extraction scope')
+        if extraction_scope != 'complete' and require_native_row_coverage:
+            raise ValueError('native rows must be checked after header/table composition')
+        self.require_native_row_coverage = require_native_row_coverage
+        self.extraction_scope = extraction_scope
+        if (not isinstance(required_header_fields, tuple)
+                or any(not isinstance(name, str) or not _field_allowed(name)
+                       or name in DERIVED_COUNTS or name.startswith(('line.', 'statement.', 'detail_lines.'))
+                       for name in required_header_fields)
+                or len(set(required_header_fields)) != len(required_header_fields)):
+            raise ValueError('required_header_fields must be a tuple of unique allowed header fields')
+        if extraction_scope == 'tables_only' and required_header_fields:
+            raise ValueError('tables-only scope cannot require headers')
+        if type(preserve_partial_on_failure) is not bool:
+            raise ValueError('partial preservation switch must be boolean')
+        self.required_header_fields = required_header_fields
+        self.preserve_partial_on_failure = preserve_partial_on_failure
+
+    @property
+    def _field_coverage_mode(self) -> bool:
+        return bool(self.required_header_fields or self.preserve_partial_on_failure
+                    or self.extraction_scope == 'tables_only')
+
+    def _instructions(self) -> tuple[str, str]:
+        if self._field_coverage_mode:
+            return FIELD_COVERAGE_INSTRUCTIONS, FIELD_COVERAGE_PROMPT_VERSION
+        return EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
 
     def _prompt_extras(self) -> dict[str, Any]:
         extras = {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
@@ -342,12 +390,33 @@ class LLMDocumentExtractor:
                   "image_locator_version": 1}
         if not self.include_processing_aids:
             extras['include_processing_aids'] = False
+        if self.extraction_scope != 'complete':
+            extras['extraction_scope'] = self.extraction_scope
+        if self._field_coverage_mode:
+            extras['coverage_mode'] = 'source_only_field_coverage_v1'
+            extras['required_header_fields'] = list(self.required_header_fields)
+            if self.extraction_scope == 'tables_only':
+                extras['canonical_fields'] = []
+            elif self.extraction_scope == 'header_footer_only':
+                extras['line_fields'] = extras['statement_fields'] = extras['detail_fields'] = []
         return extras
 
     def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
         schema, _ = output_models()
-        return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
-                                   EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": self._prompt_extras()},
+        parameters = {"prompt_extras": self._prompt_extras()}
+        if self.max_validation_attempts != 1:
+            parameters['max_validation_attempts'] = self.max_validation_attempts
+        if self.require_page_coverage:
+            parameters['require_page_coverage'] = True
+        if self.require_line_descriptions:
+            parameters['require_line_descriptions'] = True
+        if self.require_native_row_coverage:
+            parameters['require_native_row_coverage'] = True
+        if self.preserve_partial_on_failure:
+            parameters['preserve_partial_on_failure'] = True
+        instructions, prompt_version = self._instructions()
+        return _recording_identity(self.client, instructions,
+                                   prompt_version, schema, parameters,
                                    provider or _provider_name(self.client))
 
     @property
@@ -355,52 +424,238 @@ class LLMDocumentExtractor:
         """Configuration identity available before any document/provider call."""
         return self.recording_identity()["extractor_version"]
 
+    def _validate_field(self, document: ParsedDocument, name: str) -> None:
+        if not _field_allowed(name) or name in DERIVED_COUNTS:
+            raise DocumentInterpretationError('field', document, f'unsupported or accounting-owned field: {name}')
+        row = name.startswith(('line.', 'detail_lines.', 'statement.'))
+        if self.extraction_scope == 'header_footer_only' and row:
+            raise DocumentInterpretationError('field', document, f'header-only scope cannot return table field: {name}')
+        if self.extraction_scope == 'outside_native_invoice_table' and name.startswith('line.'):
+            raise DocumentInterpretationError('field', document, f'native invoice field belongs to deterministic parser: {name}')
+        if self.extraction_scope == 'tables_only' and not row:
+            raise DocumentInterpretationError('field', document, f'tables-only scope cannot return header field: {name}')
+
+    @staticmethod
+    def _observations(document: ParsedDocument, output: Any):
+        if hasattr(output, 'iter_observations'):
+            return output.iter_observations()
+        if not getattr(output, 'groups', []):
+            return iter(output.observations)
+        raise DocumentInterpretationError('schema', document, 'grouped output requires the typed DTO')
+
+    def _validate_observation(self, document: ParsedDocument, observation: Any):
+        name = observation.field
+        self._validate_field(document, name)
+        leaf = name.rsplit('.', 1)[-1]
+        if (observation.kind == 'OBSERVED'
+                and (leaf in RAW_STRING_FIELDS or leaf.endswith('_valid_until')
+                     or '.raw.' in name or name.startswith('raw.'))
+                and not isinstance(observation.value, str)):
+            raise DocumentInterpretationError('field', document, f'{name}: amount/quantity/date must preserve original text')
+        try:
+            evidence, review = _ground(document, observation.value, observation,
+                                      explicit_absence=observation.kind == 'EXPLICIT_ABSENCE')
+        except DocumentInterpretationError as error:
+            raise DocumentInterpretationError(error.category, document, f'{name}: {error}') from error
+        return Fact(observation.value, evidence), review
+
+    def _validate_unknown(self, document: ParsedDocument, unknown: dict[str, Any], fields) -> None:
+        self._validate_field(document, unknown['field'])
+        if not unknown['reason'].strip():
+            raise DocumentInterpretationError('unknown', document, f"{unknown['field']}: unknown state requires a reason")
+        if unknown['status'] == 'MISSING' and unknown['field'] in fields:
+            raise DocumentInterpretationError('unknown', document, f"{unknown['field']}: missing field has an observation")
+        if (unknown['status'] == 'CONTRADICTORY'
+                and len({fingerprint(fact.value) for fact in fields.get(unknown['field'], [])}) < 2):
+            raise DocumentInterpretationError('unknown', document, f"{unknown['field']}: contradiction requires distinct observed values")
+
+    def _partial_audit(self, document: ParsedDocument, output: Any, metadata: dict[str, Any], error) -> dict[str, Any]:
+        """Archive proof-checked candidates, never construct a successful artifact."""
+        fields: dict[str, list[Fact]] = {}
+        observations, reviews, unknowns = [], [], []
+        issues = [{'category': error.category, 'detail': str(error)}]
+        try:
+            for observation in self._observations(document, output):
+                try:
+                    fact, review = self._validate_observation(document, observation)
+                except DocumentInterpretationError as failure:
+                    issues.append({'category': failure.category, 'field': observation.field, 'detail': str(failure)})
+                    continue
+                fields.setdefault(observation.field, []).append(fact)
+                observations.append({'field': observation.field, 'value': fact.value,
+                                     'kind': observation.kind, 'evidence': asdict(fact.evidence),
+                                     'quote_verification': 'PAGE_HASH_ONLY' if review else 'TEXT_MATCH'})
+                if review:
+                    reviews.append({'field': observation.field, **review})
+        except DocumentInterpretationError as failure:
+            issues.append({'category': failure.category, 'detail': str(failure)})
+        for unknown in output.unknowns:
+            state = unknown.model_dump()
+            try:
+                self._validate_unknown(document, state, fields)
+            except DocumentInterpretationError as failure:
+                issues.append({'category': failure.category, 'field': state['field'], 'detail': str(failure)})
+                continue
+            unknowns.append(state)
+        explicit_states = {unknown['field'] for unknown in unknowns}
+        missing = [name for name in self.required_header_fields if name not in fields and name not in explicit_states]
+        if missing:
+            issues.append({'category': 'coverage', 'detail': f'header states silently omitted: {missing}'})
+        if self.require_line_descriptions or self._field_coverage_mode:
+            row_ids = {name.split('.')[1] for name in fields if name.startswith('line.')}
+            missing_descriptions = sorted(int(index) for index in row_ids
+                if f'line.{index}.description' not in fields
+                and (self._field_coverage_mode or f'line.{index}.material' not in fields)
+                and f'line.{index}.description' not in explicit_states)
+            if missing_descriptions:
+                issues.append({'category': 'coverage',
+                               'detail': f'row descriptions silently omitted: {missing_descriptions}'})
+        conflicts = {name: [fact.value for fact in facts] for name, facts in fields.items()
+                     if len({fingerprint(fact.value) for fact in facts}) > 1}
+        return {'status': 'PARTIAL', 'usable_as_complete_capture': False,
+                'identity': {name: metadata.get(name) for name in (
+                    'source_sha256', 'parser_version', 'transformation_sha256', 'extractor_version',
+                    'prompt_version', 'prompt_sha256', 'instruction_content_sha256', 'schema_sha256', 'provider', 'model')},
+                'observations': observations, 'unknowns': unknowns, 'validation_issues': issues,
+                'image_quote_review': reviews, 'conflicts': conflicts,
+                'required_header_fields': list(self.required_header_fields)}
+
     async def extract(self, document: ParsedDocument) -> DocumentFacts:
         return (await self.extract_with_response(document)).facts
 
     async def extract_with_response(self, document: ParsedDocument) -> ExtractionArtifact:
+        required_images = {int(match.group(1)) for warning in document.warnings
+                           if (match := re.fullmatch(r'page\.(\d+):vision_required', warning))}
+        if required_images - {image.page for image in document.images if image.region is None}:
+            raise DocumentInterpretationError('vision_image_missing', document,
+                                              'render every flagged original page before extraction')
+        history = []
+        metrics = []
+        partial_attempts = []
+        for attempt in range(1, self.max_validation_attempts + 1):
+            try:
+                artifact = await self._extract_once(document, history)
+                metrics.extend(artifact.request_metadata.get('attempt_metrics', []))
+                metadata = dict(artifact.request_metadata)
+                if history:
+                    if partial_attempts:
+                        metadata['partial_extraction_attempts'] = partial_attempts
+                    metadata['validation_history'] = history
+                    metadata['attempt_metrics'] = metrics
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    metadata['capture_cost_usd'] = str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None
+                    return ExtractionArtifact(artifact.facts, artifact.raw_response, metadata,
+                                              artifact.unknowns, artifact.provenance)
+                return artifact
+            except DocumentInterpretationError as error:
+                metrics.extend(error.request_metadata.get('attempt_metrics', []))
+                partial = error.request_metadata.get('partial_extraction')
+                if partial is not None:
+                    partial['attempt'] = attempt
+                    partial_attempts.append(partial)
+                    error.request_metadata['partial_extraction_attempts'] = list(partial_attempts)
+                if attempt == self.max_validation_attempts:
+                    error.request_metadata['validation_history'] = history
+                    error.request_metadata['attempt_metrics'] = metrics
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    error.request_metadata['capture_cost_usd'] = str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None
+                    raise
+                detail = str(error)
+                if partial is not None:
+                    detail = '\n'.join(issue['detail'] for issue in partial['validation_issues'])
+                history.append({'category': error.category, 'detail': detail,
+                                'raw_response': error.raw_response,
+                                'prompt_sha256': error.request_metadata['prompt_sha256']})
+            except LLMError as error:
+                if partial_attempts:
+                    error.request_metadata = {**getattr(error, 'request_metadata', {}),
+                                              'partial_extraction_attempts': list(partial_attempts)}
+                metrics.extend(getattr(error, 'request_metadata', {}).get('attempt_metrics', []))
+                if error.category == 'schema' and attempt < self.max_validation_attempts:
+                    detail = 'Previous response does not conform to the required typed schema; return the original document using exactly the schema.'
+                    try:
+                        text = ''.join(content['text'] for item in error.raw.get('output', [])
+                                       for content in item.get('content', []) if content.get('type') == 'output_text')
+                        output_models()[0].model_validate_json(text)
+                    except Exception as validation:
+                        if callable(getattr(validation, 'errors', None)):
+                            detail += ' Validation errors: ' + str([
+                                {'location': list(item['loc']), 'type': item['type'], 'message': item['msg']}
+                                for item in validation.errors(include_input=False, include_url=False)][:20])
+                    history.append({'category': error.category, 'detail': detail,
+                                    'raw_response': error.raw,
+                                    'prompt_sha256': error.request_metadata['prompt_sha256']})
+                    continue
+                if history:
+                    costs = [metric.get('estimated_cost_usd') for metric in metrics]
+                    error.request_metadata = {**getattr(error, 'request_metadata', {}),
+                                              'validation_history': history,
+                                              'attempt_metrics': metrics,
+                                              'capture_cost_usd': str(sum((Decimal(c) for c in costs), Decimal(0))) if costs and all(c is not None for c in costs) else None}
+                raise
+        raise AssertionError('validation attempts exhausted')
+
+    async def _extract_once(self, document: ParsedDocument, history) -> ExtractionArtifact:
         schema, _ = output_models()
         identity = self.recording_identity()
-        provenance = _provenance(document, EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION, schema)
+        instructions, prompt_version = self._instructions()
+        provenance = _provenance(document, instructions, prompt_version, schema)
         provenance.update(provider=identity["provider"], model=identity["model"],
                           extractor_version=identity["extractor_version"])
-        completion = await _complete(self.client, schema, EXTRACTION_INSTRUCTIONS,
-                                               _prompt(document, self._prompt_extras()),
+        completion = await _complete(self.client, schema, instructions,
+                                               repair_prompt(_prompt(document, self._prompt_extras()), history),
                                      document, provenance)
         output = completion.output
         fields: dict[str, list[Fact]] = {}
         reviews = []
         try:
-            # Legacy injected flat DTOs remain supported. Groups require the
-            # typed output model so every expanded value passes its strict DTO.
-            if hasattr(output, 'iter_observations'):
-                observations = output.iter_observations()
-            elif not getattr(output, 'groups', []):
-                observations = output.observations
-            else:
-                raise DocumentInterpretationError('schema', document, 'grouped output requires the typed DTO')
-            for observation in observations:
-                name = observation.field
-                if not _field_allowed(name) or name in DERIVED_COUNTS:
-                    raise DocumentInterpretationError("field", document, "unsupported or accounting-owned field")
-                leaf = name.rsplit(".", 1)[-1]
-                if observation.kind == "OBSERVED" and (leaf in RAW_STRING_FIELDS or leaf.endswith("_valid_until") or ".raw." in name or name.startswith("raw.")) and not isinstance(observation.value, str):
-                    raise DocumentInterpretationError("field", document, "amount/quantity/date must preserve original text")
-                evidence, review = _ground(document, observation.value, observation,
-                                          explicit_absence=observation.kind == "EXPLICIT_ABSENCE")
-                fields.setdefault(name, []).append(Fact(observation.value, evidence))
+            # Each candidate retains the original strict field and evidence checks.
+            for observation in self._observations(document, output):
+                fact, review = self._validate_observation(document, observation)
+                fields.setdefault(observation.field, []).append(fact)
                 if review:
-                    reviews.append({"field": name, **review})
-            unknowns = tuple(unknown.model_dump() for unknown in completion.output.unknowns)
+                    reviews.append({"field": observation.field, **review})
+            unknowns = tuple(unknown.model_dump() for unknown in output.unknowns)
+            if self._field_coverage_mode and len({state['field'] for state in unknowns}) != len(unknowns):
+                raise DocumentInterpretationError('unknown', document, 'duplicate unknown field states')
             for unknown in unknowns:
-                if not unknown["reason"].strip():
-                    raise DocumentInterpretationError("unknown", document, "unknown state requires a reason")
-                if not _field_allowed(unknown["field"]) or unknown["field"] in DERIVED_COUNTS:
-                    raise DocumentInterpretationError("field", document, "unsupported unknown field")
-                if unknown["status"] == "MISSING" and unknown["field"] in fields:
-                    raise DocumentInterpretationError("unknown", document, "missing field has an observation")
-                if unknown["status"] == "CONTRADICTORY" and len({fingerprint(fact.value) for fact in fields.get(unknown["field"], [])}) < 2:
-                    raise DocumentInterpretationError("unknown", document, "contradiction requires distinct observed values")
+                self._validate_unknown(document, unknown, fields)
+            explicit_states = {unknown['field'] for unknown in unknowns}
+            missing_headers = [name for name in self.required_header_fields
+                               if name not in fields and name not in explicit_states]
+            if missing_headers:
+                raise DocumentInterpretationError('coverage', document,
+                    f'header states silently omitted: {missing_headers}')
+            if self.require_page_coverage:
+                required = {block.page for block in document.blocks if block.page is not None
+                            and block.text.strip()} | {image.page for image in document.images}
+                cited = {fact.evidence.page for values in fields.values() for fact in values}
+                missing = sorted(required - cited)
+                if missing:
+                    raise DocumentInterpretationError('coverage', document, f'pages without observed facts: {missing}')
+                if not fields:
+                    raise DocumentInterpretationError('coverage', document, 'no observed document fields')
+            if self.extraction_scope != 'complete' and not fields:
+                detail = ('no observed table row facts' if self.extraction_scope == 'tables_only'
+                          else 'no observed facts outside the native invoice table')
+                raise DocumentInterpretationError('coverage', document, detail)
+            if self.require_line_descriptions or self._field_coverage_mode:
+                line_ids = {name.split('.')[1] for name in fields if name.startswith('line.')}
+                explicit_states = {unknown['field'] for unknown in unknowns}
+                missing = sorted(int(index) for index in line_ids
+                    if f'line.{index}.description' not in fields
+                    and (self._field_coverage_mode or f'line.{index}.material' not in fields)
+                    and f'line.{index}.description' not in explicit_states)
+                if missing:
+                    raise DocumentInterpretationError('coverage', document, f'row descriptions silently omitted: {missing}')
+            if self.require_native_row_coverage:
+                from .coverage import native_row_coverage
+                coverage = native_row_coverage(document, fields)
+                provenance['native_row_coverage'] = coverage.to_dict()
+                if coverage.status == 'incomplete':
+                    raise DocumentInterpretationError('coverage', document,
+                        f'native table has {coverage.expected_count} printed rows, response has {coverage.observed_count}; '
+                        f'source rows by page: {dict(coverage.source_row_counts)}')
             for count_name, namespace in DERIVED_COUNTS.items():
                 prefix = namespace + '.'
                 line_ids = sorted({int(name.split('.')[1]) for name in fields if name.startswith(prefix)})
@@ -419,6 +674,9 @@ class LLMDocumentExtractor:
         except DocumentInterpretationError as error:
             error.raw_response = completion.raw_response
             error.request_metadata = {**completion.request_metadata, **provenance}
+            if self.preserve_partial_on_failure:
+                error.request_metadata['partial_extraction'] = self._partial_audit(
+                    document, output, error.request_metadata, error)
             raise
         provenance["image_quote_review"] = reviews
         facts = DocumentFacts(document.source_sha256, identity["extractor_version"], fields)

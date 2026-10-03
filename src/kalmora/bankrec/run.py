@@ -6,6 +6,7 @@ lines paired with one of its statement lines. A book line posted in the month wh
 line is in an earlier month is reported as a prior-period item. Pure after the reads.
 """
 from collections import defaultdict
+import re
 
 from ..data import PhaseData
 from ..model import Month
@@ -41,7 +42,43 @@ def _tag_factoring(state: MatchState, books: dict[str, BookLine], entries: dict,
                                          Difference(Category.FACTORING_CHARGES_NOT_BOOKED, 0))
 
 
-def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
+_INBOX_INVOICE = re.compile(r"(?:factura|facturae|invoice|cfdi)_(.+)\.\w+$", re.IGNORECASE)
+_SUBJECT_INVOICE = re.compile(r"(?:FRA|Factura)\s+(\S+)")
+
+
+def _invoice_number(value: object) -> str:
+    return re.sub(r"[^0-9A-Z]", "", str(value or "").upper()).lstrip("0")
+
+
+def known_invoices(data: PhaseData, ap_rows: list[dict] | None = None):
+    """(vendor, invoice) -> True if the invoice is posted in the AP history, or posted by this month's AP
+    delivery (``ap_rows``) or, without that delivery, named in this month's AP inbox.
+
+    Without an AP history there is no evidence either way, so every direct debit keeps its adjustment."""
+    try:
+        history = data.table("ap_invoices")
+    except KeyError:
+        return lambda vendor, invoice: True
+    posted = {(str(r["vendor"]), _invoice_number(r["number"])) for r in history
+              if r.get("decision") in ("POST", "POST_PAYMENT_BLOCK")}
+    if ap_rows is not None:
+        posted |= {(str(r.get("vendor_id")), _invoice_number(r.get("invoice_number"))) for r in ap_rows
+                   if r.get("decision") in ("POST", "POST_PAYMENT_BLOCK")}
+        return lambda vendor, invoice: (vendor, _invoice_number(invoice)) in posted
+    inbox: set[str] = set()
+    for message in data.table("document_messages"):
+        for attachment in message.get("attachments", []):
+            if found := _INBOX_INVOICE.match(str(attachment)):
+                inbox.add(_invoice_number(found.group(1)))
+        inbox.update(_invoice_number(n) for n in _SUBJECT_INVOICE.findall(str(message.get("subject") or "")))
+
+    def known(vendor: str, invoice: str | None) -> bool:
+        number = _invoice_number(invoice)
+        return bool(number) and ((vendor, number) in posted or number in inbox)
+    return known
+
+
+def build_bank_rec(data: PhaseData, month: Month | None = None, ap_rows: list[dict] | None = None) -> BankRecRun:
     month = month or data.month
     accounts = load_accounts(data)
     by_id = {a.id: a for a in accounts}
@@ -66,7 +103,7 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
         except (KeyError, ValueError):
             return None
 
-    ctx = adj.AdjustContext(rates, entries, factoring, receipt_customer)
+    ctx = adj.AdjustContext(rates, entries, factoring, receipt_customer, known_invoices(data, ap_rows))
     bank_all = {a.id: [l for s in statements[a.id] for l in s.lines] for a in live}
     states = {a.id: match_account(a, bank_all[a.id], book.get(a.id, [])) for a in live}
     book_by_id = {a.id: {r.id: r for r in book.get(a.id, [])} for a in live}
@@ -128,7 +165,8 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
         adj.wrong_bank(builder, [(line, r, by_id[b]) for acc, line, b, r in pairs if acc == a.id])
         diagnostics.extend(builder.diagnostics)
         built[a.id] = dict(current=current, unmatched_bank=unmatched_bank, unmatched_book=unmatched_book,
-                           adjustments=builder.out, diagnostics=diagnostics, books=books, bank_by_id=bank_by_id)
+                           adjustments=builder.out, diagnostics=diagnostics, books=books, bank_by_id=bank_by_id,
+                           deferred=builder.skipped_debits)
 
     results = []
     for a in live:
@@ -143,7 +181,9 @@ def build_bank_rec(data: PhaseData, month: Month | None = None) -> BankRecRun:
         if a.currency == company_local_currency(a.company):
             effect = sum(x.debit - x.credit for r in live if r.company == a.company for ad in built[r.id]["adjustments"]
                          for x in ad.lines if x.account == a.gl_account and x.company == a.company)
-            errors = sum(u.amount for u in b["unmatched_bank"] if u.category is Category.BANK_ERROR)
+            # Bank errors and deferred direct debits stay on the statement without an adjustment.
+            errors = sum(u.amount for u in b["unmatched_bank"]
+                         if u.category is Category.BANK_ERROR or u.line_id in b["deferred"])
             left = validate.after_adjustments(closing, balance, effect, errors, b["unmatched_book"])
             if left:
                 diagnostics.append(f"identity: {left} unexplained after adjustments")

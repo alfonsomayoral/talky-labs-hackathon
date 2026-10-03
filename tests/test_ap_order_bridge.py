@@ -7,12 +7,13 @@ import unittest
 
 from kalmora.ap_allocation import ConsumptionState, OrderKey, OrderLine, Receipt, ReceiptUsage, allocate_receipts
 from kalmora.ap_erp import load_ap_erp_baseline
-from kalmora.ap_history import HistoricalDemand, HistoricalReceipt, reconcile_receipt_history
+from kalmora.ap_history import (HistoricalDemand, HistoricalReceipt, HistoricalReceiptSnapshot,
+                               ReceiptCertainty, reconcile_receipt_history)
 from kalmora.ap_order_bridge import APOrderBridge
-from kalmora.ap_orders import POQuery
+from kalmora.ap_orders import POQuery, POQueryLine
 from kalmora.documents.contracts import ParsedBlock, ParsedDocument, ResolutionResult
 from kalmora.documents.replay import RecordedResolver, RecordingConfig, RecordingStore, ReplayError, ResolutionCapture
-from kalmora.facts import Evidence, Fact
+from kalmora.facts import DocumentFacts, Evidence, Fact
 
 
 class Resolver:
@@ -106,10 +107,16 @@ class APOrderBridgeIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(bridge.history.consumption.usages, ())
         self.assertTrue(any(e.document == self.path and e.page == 1 for e in match.reference.selected.evidence))
 
-    async def test_existing_order_with_different_wording_requires_semantic_confirmation(self):
+    async def test_exact_order_position_with_different_wording_needs_no_semantic_confirmation(self):
         match = await self.resolve(replace(self.query, po_reference="PO-NEW", po_item=10))
-        self.assertEqual((match.reference.status, match.semantic_called), ("RESOLVED", True))
+        self.assertEqual((match.reference.status, match.semantic_called), ("RESOLVED", False))
         self.assertFalse(match.reference.reference_recovered)
+
+    async def test_exact_material_and_delivery_anchor_ignore_nonexact_description_without_model(self):
+        for changes in (dict(material="FORMWORK"), dict(receipt_references=("R-NEW",))):
+            match = await self.resolve(replace(self.query, **changes))
+            self.assertEqual((match.reference.status, match.semantic_called), ("RESOLVED", False))
+        self.assertEqual(self.resolver.requests, [])
 
     async def test_hard_conflicts_unresolved_receipts_and_missing_source_never_reach_model(self):
         for changes in (dict(po_reference="PO-NEW", project="OTHER"),
@@ -271,6 +278,110 @@ class APOrderBridgeIntegrationTests(unittest.IsolatedAsyncioTestCase):
         bridge = self.bridge()
         with self.assertRaisesRegex(ValueError, "different receipt catalogue"):
             APOrderBridge(orders=self.orders, receipts=[dict(self.receipts[0], id="WRONG")], history=bridge.history)
+
+    def exact(self, **changes):
+        return replace(self.query, description=None, po_reference="PO-NEW", po_item=10, **changes)
+
+    async def test_observed_multi_po_portions_become_one_conserved_quantity_line(self):
+        self.orders.append(dict(self.orders[0], id="PO-SECOND"))
+        self.receipts.append(dict(self.receipts[0], id="R-SECOND", po="PO-SECOND"))
+        bridge = self.bridge()
+        queries = (self.exact(quantity_milli=750), replace(self.exact(quantity_milli=1250),
+                   po_reference="PO-SECOND", portion_id="2"))
+        result = await bridge.resolve_lines((POQueryLine("L-NEW", 2000, "hours", queries),),
+            invoice_id="INVOICE-NEW", invoice_date="2031-11-01", receipt_as_of="2031-11-09", resolver=self.resolver)
+        self.assertEqual((result.reference_status, result.quantity_status), ("RESOLVED", "AVAILABLE"))
+        self.assertEqual([(p.order.po, p.quantity_milli, p.receipt_ids) for p in result.quantity_lines[0].portions],
+            [("PO-NEW", 750, ("R-NEW",)), ("PO-SECOND", 1250, ("R-SECOND",))])
+        self.assertEqual((bridge.history.consumption.usages, self.resolver.requests), ((), []))
+
+    async def test_joint_competition_never_publishes_partial_state_or_available_invoice(self):
+        bridge = self.bridge()
+        lines = tuple(POQueryLine(line, 1500, "hours", (self.exact(line_id=line, quantity_milli=1500),))
+                      for line in ("L-A", "L-B"))
+        result = await bridge.resolve_lines(lines, invoice_id="NEW", invoice_date="2031-11-01",
+                                           receipt_as_of="2031-11-09")
+        self.assertTrue(all(m.quantity_status == "AVAILABLE" for m in result.matches))
+        self.assertEqual(result.quantity_status, "INSUFFICIENT")
+        self.assertIn("BATCH:INSUFFICIENT_RECEIPTS", result.diagnostics)
+        self.assertFalse(hasattr(result, "state"))
+        self.assertEqual(bridge.history.consumption.usages, ())
+
+    async def test_batch_preserves_historical_usage_and_missing_portion_blocks_entire_invoice(self):
+        key = OrderKey("1100", "V-NEW", "EUR", "PO-NEW", 10)
+        bridge = self.bridge((HistoricalDemand(key, 1000, (Evidence("history", "OLD"),)),))
+        before = bridge.history.consumption
+        lines = (POQueryLine("L-NEW", 1500, "hours", (self.exact(quantity_milli=1500),)),)
+        result = await bridge.resolve_lines(lines, invoice_id="NEW", invoice_date="2031-11-01", receipt_as_of="2031-11-09")
+        self.assertEqual(result.quantity_status, "INSUFFICIENT")
+        self.assertEqual(bridge.history.consumption, before)
+        unresolved = POQueryLine("L-OTHER", 1000, "hours", (self.exact(line_id="L-OTHER", material="MISSING"),))
+        result = await bridge.resolve_lines((*lines, unresolved), invoice_id="NEW", invoice_date="2031-11-01", receipt_as_of="2031-11-09")
+        self.assertEqual((result.reference_status, result.quantity_status, result.quantity_lines), ("UNKNOWN", "UNKNOWN", ()))
+        self.assertEqual(bridge.history.consumption, before)
+
+    async def test_nonconserving_or_cross_scope_portions_fail_before_semantic_calls(self):
+        for portions in ((self.exact(quantity_milli=500),),
+                         (self.exact(), replace(self.exact(), portion_id="2", vendor="OTHER"))):
+            with self.assertRaises(ValueError):
+                await self.bridge().resolve_lines((POQueryLine("L-NEW", 1000, "hours", portions),),
+                    invoice_id="NEW", invoice_date="2031-11-01", resolver=self.resolver)
+        self.assertEqual(self.resolver.requests, [])
+
+    async def test_fact_bridge_confirms_exact_order_and_keeps_invoice_date_distinct_from_cutoff(self):
+        values = dict(document_date="2031-11-01", currency="EUR", lines=[dict(
+            quantity="1", uom="hours", po_reference="PO-NEW", po_item=10)])
+        facts = DocumentFacts(self.doc.source_sha256, "fixture", {k: [Fact(v, Evidence(self.path, k))]
+                              for k, v in values.items()})
+        before_receipt = await self.bridge().resolve_facts(facts, company="1100", vendor="V-NEW", currency="EUR",
+            invoice_id="NEW", document=self.doc, resolver=self.resolver)
+        later = await self.bridge().resolve_facts(facts, company="1100", vendor="V-NEW", currency="EUR",
+            invoice_id="NEW", receipt_as_of="2031-11-09", document=self.doc, resolver=self.resolver)
+        self.assertEqual((before_receipt.quantity_status, later.quantity_status), ("INSUFFICIENT", "AVAILABLE"))
+        self.assertEqual(self.resolver.requests, [])
+        with self.assertRaisesRegex(ValueError, "fingerprints disagree"):
+            await self.bridge().resolve_facts(replace(facts, source_sha256="b" * 64), company="1100", vendor="V-NEW",
+                currency="EUR", invoice_id="NEW", document=self.doc)
+
+    async def test_known_out_of_scope_order_never_reaches_semantic_replacement(self):
+        self.orders.append(dict(self.orders[0], id="FOREIGN", currency="USD"))
+        match = await self.resolve(replace(self.query, po_reference="FOREIGN"))
+        self.assertEqual((match.reference.status, match.semantic_called, match.quantity_line), ("CONFLICT", False, None))
+        self.assertEqual(self.resolver.requests, [])
+
+    async def test_known_future_order_is_not_found_without_semantic_replacement(self):
+        self.orders.append(dict(self.orders[0], id="FUTURE", created_on="2031-11-02"))
+        match = await self.resolve(replace(self.query, po_reference="FUTURE"))
+        self.assertEqual((match.reference.status, match.semantic_called, match.quantity_line), ("NOT_FOUND", False, None))
+        self.assertEqual(match.reference.diagnostics, ("PO_REFERENCE_AFTER_INVOICE",))
+        self.assertEqual(match.reference.candidates, ())
+        self.assertEqual(self.resolver.requests, [])
+
+    async def test_joint_deficit_with_other_unknown_receipt_capacity_stays_unknown(self):
+        bridge = self.bridge()
+        known = bridge.history.certainties[0]
+        row = dict(self.receipts[0], id="R-UNKNOWN", quantity_milli=1000, amount=1000)
+        uncertain = ReceiptCertainty(replace(known.receipt, receipt_id="R-UNKNOWN", quantity_milli=1000),
+            "UNKNOWN", None, 0, 1000, (Evidence("history", "unresolved carrying quantity"),))
+        history = HistoricalReceiptSnapshot((known, uncertain), bridge.history.consumption)
+        bridge = APOrderBridge(orders=self.orders, receipts=(*self.receipts, row), history=history)
+        lines = tuple(POQueryLine(line, 1500, "hours", (self.exact(line_id=line, quantity_milli=1500),))
+                      for line in ("L-A", "L-B"))
+        result = await bridge.resolve_lines(lines, invoice_id="NEW", invoice_date="2031-11-01", receipt_as_of="2031-11-09")
+        self.assertTrue(all(match.quantity_status == "AVAILABLE" for match in result.matches))
+        self.assertEqual((result.quantity_status, result.quantity_lines), ("UNKNOWN", ()))
+        self.assertIn("HISTORICAL_RECEIPT_CAPACITY_UNKNOWN", result.diagnostics)
+        self.assertEqual(history.consumption.usages, ())
+
+    async def test_batch_already_allocated_identity_does_not_authorize_another_consumption(self):
+        bridge = self.bridge()
+        state = ConsumptionState(invoices=(("1100", "V-NEW", "EUR", "NEW"),))
+        lines = (POQueryLine("L-NEW", 1000, "hours", (self.exact(),)),)
+        result = await bridge.resolve_lines(lines, invoice_id="NEW", invoice_date="2031-11-01",
+                                           receipt_as_of="2031-11-09", state=state)
+        self.assertEqual((result.quantity_status, result.quantity_lines), ("UNKNOWN", ()))
+        self.assertIn("BATCH:ALREADY_ALLOCATED", result.diagnostics)
+        self.assertEqual(state.usages, ())
 
 
 if __name__ == "__main__":

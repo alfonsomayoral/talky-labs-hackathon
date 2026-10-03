@@ -1,7 +1,8 @@
 """Deterministic AP coding from explicit context and validated masters (#45).
 
 Account/treatment precedence: document, confirmed PO, vendor master, contextual
-history when missing. Cost objects use document, PO, contextual history, vendor.
+history when missing. Cost objects use document, PO, contextual history, vendor,
+then the supplier's unanimous prior history in the same company and currency.
 A cost object is one indivisible CC/WBS choice. No voting,
 latest-record preference, fuzzy concepts, amount matching or golden reads.
 """
@@ -238,18 +239,19 @@ class CodingCatalog:
             self._record(record)
             if (record.company, record.vendor, record.currency) != (query.company, query.vendor, query.currency):
                 raise ValueError("coding source scope differs from query")
-        history = []
-        if query.context is not None:
-            for record in self._history:
-                if ((record.company, record.vendor, record.currency) != (query.company, query.vendor, query.currency)
-                        or record.recorded_on >= query.invoice_date or record.context is None
-                        or _context(record.context) != _context(query.context)):
-                    continue
-                # Historical objects outside explicit project/company context
-                # provide no evidence for this invoice's coding.
-                obj = CostObject(record.cost_center, record.wbs)
-                if (record.cost_center is not None or record.wbs is not None) and self._validate("cost_object", obj, query):
-                    continue
+        history, supplier = [], []
+        for record in self._history:
+            if ((record.company, record.vendor, record.currency) != (query.company, query.vendor, query.currency)
+                    or record.recorded_on >= query.invoice_date):
+                continue
+            # Historical objects outside explicit project/company context
+            # provide no evidence for this invoice's coding.
+            obj = CostObject(record.cost_center, record.wbs)
+            if (record.cost_center is not None or record.wbs is not None) and self._validate("cost_object", obj, query):
+                continue
+            supplier.append(record)
+            if (query.context is not None and record.context is not None
+                    and _context(record.context) == _context(query.context)):
                 history.append(record)
         defaults = ()
         vendor = self._vendors.get(query.vendor)
@@ -269,7 +271,10 @@ class CodingCatalog:
                 vendor.get("default_wbs"), proof,
                 withholding_codes=_withholding(vendor)),)
         master_tiers = (("document", document), ("order", order), ("vendor", defaults), ("history", tuple(history)))
-        cost_tiers = (("document", document), ("order", order), ("history", tuple(history)), ("vendor", defaults))
+        # The supplier's whole prior history counts only when it is unanimous (policy:
+        # what is not ruled is deduced from how it has always been done).
+        cost_tiers = (("document", document), ("order", order), ("history", tuple(history)), ("vendor", defaults),
+                      ("supplier_history", tuple(supplier)))
         fields = tuple(self._field(name, cost_tiers if name == "cost_object" else master_tiers, query) for name in
                        ("account", "tax_code", "reconciliation_account", "cost_object", "withholding_codes"))
         statuses = {field.status for field in fields}

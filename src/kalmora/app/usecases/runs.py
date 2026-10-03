@@ -3,7 +3,7 @@ from typing import Any
 
 from ..errors import DomainError
 from ..paging import fingerprint, paginate
-from ..ports import EvaluationGateway, PhaseRepository, RunStore, SubmissionStore
+from ..ports import EvaluationGateway, PhaseRepository, RunStore, SubmissionChecker, SubmissionStore
 from ..types import Envelope
 from . import phase_envelope, plain_envelope
 
@@ -20,11 +20,16 @@ class ListRuns:
 
 
 class GetRun:
-    def __init__(self, runs: RunStore) -> None:
-        self._runs = runs
+    """A run's report or manifest; a bundle adds ``deliverables`` (``{module: {present, rows}}``)."""
+
+    def __init__(self, runs: RunStore, store: SubmissionStore | None = None) -> None:
+        self._runs, self._store = runs, store
 
     def __call__(self, run_id: str) -> Envelope:
-        return plain_envelope(self._runs.get(run_id))
+        run = self._runs.get(run_id)
+        if self._store is not None and (self._runs.files_root(run_id) / "deliverables").is_dir():
+            run = {**run, "deliverables": self._store.files(run_id)}
+        return plain_envelope(run)
 
 
 class StartRun:
@@ -61,13 +66,13 @@ class ListSubmissionRows:
 
 
 class CheckSubmission:
-    def __init__(self, repo: PhaseRepository, submissions: SubmissionStore, gateway: EvaluationGateway) -> None:
-        self._repo, self._submissions, self._gateway = repo, submissions, gateway
+    def __init__(self, repo: PhaseRepository, submissions: SubmissionStore, checker: SubmissionChecker) -> None:
+        self._repo, self._submissions, self._checker = repo, submissions, checker
 
     def __call__(self, phase: str) -> Envelope:
         self._repo.location(phase)
         present = [m for m, info in self._submissions.files(phase).items() if info["present"]]
-        diagnostics = self._gateway.check_structure({m: self._submissions.rows(phase, m) for m in present})
+        diagnostics = self._checker.check({m: self._submissions.rows(phase, m) for m in present})
         problems = [{"module": d["module"], "ref": f"{d['module']}.jsonl:{d['entity']}", "problem": d["message"]}
                     for d in diagnostics]
         return phase_envelope(self._repo, phase, {"ok": not problems, "checked": present, "problems": problems}, [])

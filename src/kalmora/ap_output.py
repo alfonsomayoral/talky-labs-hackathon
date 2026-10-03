@@ -77,7 +77,13 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
         for field in ("min_date", "max_date"):
             if field in context and not isinstance(context[field], str):
                 return (f"master context {field} must be an ISO date",)
-    shape = check_structure({"ap": [row]})
+    # FORMATO_ENTREGA's POST example permits the optional action as null.
+    # The shared Literal checker does not; omit only this absent value from a
+    # checker copy. Keep raw bytes and the NOT_INVOICE action invariant intact.
+    shape_row = dict(row)
+    if shape_row.get("action") is None:
+        shape_row.pop("action", None)
+    shape = check_structure({"ap": [shape_row]})
     if shape:
         return tuple(d["message"] for d in shape)
     errors = []
@@ -91,6 +97,11 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
         codes = REJECTION_CODES if decision == "REJECT" else HOLD_CODES
         if len(reasons) != 1 or reasons[0] not in codes:
             errors.append("exactly one policy reason required for REJECT/HOLD")
+    elif decision == "DUPLICATE":
+        # §2.2.1 names DUPLICATE, and FORMATO_ENTREGA permits its policy
+        # codes in reasons. Keep the supplied code; do not erase v0 evidence.
+        if reasons not in ([], ["DUPLICATE"]):
+            errors.append("duplicate reasons must be empty or the DUPLICATE policy code")
     elif reasons:
         errors.append("this decision does not carry a rejection/HOLD reason")
     if decision == "NOT_INVOICE":
@@ -305,7 +316,11 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
         if field in entry and entry[field] != expected:
             errors.append(f"journal {field} differs from header")
     suppliers = [line for line in entry["lines"] if line["account"] in {"40000000", "41000000", "40300000"}]
-    if len(suppliers) != 1 or suppliers[0].get("partner") != row["vendor_id"]:
+    if not suppliers and row["payable"] == 0:
+        # A fully covered invoice/credit has no supplier balance to publish.
+        # The gross/deductions/407 conservation below still proves payable zero.
+        pass
+    elif len(suppliers) != 1 or suppliers[0].get("partner") != row["vendor_id"]:
         errors.append("exactly one scoped supplier line required")
     else:
         supplier = suppliers[0]
@@ -314,18 +329,17 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
             doc_amount = max(supplier["debit"], supplier["credit"])
         expected_side = "debit" if kind == "CREDIT_NOTE" else "credit"
         other_side = "credit" if expected_side == "debit" else "debit"
-        if supplier[other_side] or doc_amount != row["payable"]:
+        if (supplier[other_side] or doc_amount != row["payable"]
+                or row["payable"] == 0 and (supplier["debit"] or supplier["credit"])):
             errors.append("supplier side/document payable differs from header")
         if supplier.get("currency", row["currency"]) != row["currency"]:
             errors.append("supplier currency differs from header")
-        for line in entry["lines"]:
-            # Factory-generated non-monetary/monetary advance adjustments are
-            # in local currency. Other AP base/tax/supplier legs stay in the
-            # document currency; this exporter does not infer a new FX scope.
-            if line.get("currency", row["currency"]) not in {row["currency"], local}:
-                errors.append("journal line currency is outside invoice/local scope")
         if supplier.get("assignment") not in (None, row["invoice_number"]):
             errors.append("supplier assignment differs from invoice number")
+    for line in entry["lines"]:
+        # These checks also apply when no payable remains after applying 407.
+        if line.get("currency", row["currency"]) not in {row["currency"], local}:
+            errors.append("journal line currency is outside invoice/local scope")
     applied = [line for line in entry["lines"] if line["account"] == "40700000" and line[advance_side]]
     if any(type(line.get("amount_doc")) is not int or line.get("currency", row["currency"]) != row["currency"] for line in applied):
         errors.append("advance applications require scoped document cents")

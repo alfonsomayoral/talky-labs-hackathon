@@ -1,11 +1,46 @@
 import unittest
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from kalmora.documents.normalization import normalize_document_facts
 from kalmora.facts import DocumentFacts, Evidence, Fact
 
 
 class NormalizationTests(unittest.TestCase):
+    def test_literal_raw_values_and_normalized_identity_survive_a_second_pass(self):
+        original = '  Original XML leaf with accents: á  '
+        result = self.normalize({'raw.xml./Invoice/Name': original, 'net': '100,00',
+                                 'line.1.unit': 'kg', 'unit': 'unrelated header'})
+        self.assertEqual(result.facts.fields['raw.xml./Invoice/Name'][0].value, original)
+        self.assertEqual(result.facts.fields['line.1.uom'][0].value, 'kg')
+        self.assertEqual(result.facts.fields['unit'][0].value, 'unrelated header')
+        self.assertEqual(normalize_document_facts(result.facts).facts, result.facts)
+
+    def test_diagnostics_do_not_depend_on_field_order(self):
+        def fact(value):
+            return [Fact(value, Evidence("doc.pdf", "page.1", 1, value))]
+        fields = {"period_start": fact("01/06/2026"), "lines": [Fact([{"quantity": "2.520"}],
+                                                                     Evidence("doc.pdf", "page.1", 1, "2.520"))]}
+        forward = normalize_document_facts(DocumentFacts("a" * 64, "x", dict(fields)))
+        backward = normalize_document_facts(DocumentFacts("a" * 64, "x", dict(reversed(list(fields.items())))))
+        self.assertEqual(len(forward.diagnostics), 2)
+        self.assertEqual(forward.diagnostics, backward.diagnostics)
+
+    def test_scaling_retains_digits_in_a_low_precision_decimal_context(self):
+        with localcontext() as context:
+            context.prec = 2
+            result = self.normalize({'net': '(123456789.12)', 'taxable_base': '123456789.12'})
+        self.assertEqual(result.facts.fields['net_cents'][0].value, -12345678912)
+        self.assertEqual(result.facts.fields['taxable_base_cents'][0].value, 12345678912)
+
+    def test_unit_alias_conflict_keeps_both_original_proofs(self):
+        source = DocumentFacts('a' * 64, 'test', {
+            'line.1.unit': [Fact('kg', Evidence('invoice.pdf', 'p1', quote='kg'))],
+            'line.1.uom': [Fact('t', Evidence('invoice.pdf', 'p2', quote='t'))],
+        })
+        result = normalize_document_facts(source)
+        self.assertEqual({fact.value for fact in result.conflicts['line.1.uom']}, {'kg', 't'})
+        self.assertEqual({fact.evidence.field for fact in result.conflicts['line.1.uom']}, {'p1', 'p2'})
+
     def normalize(self, fields, source="invoice.pdf", locator="block:1"):
         evidence = Evidence(source, locator, quote="source")
         return normalize_document_facts(DocumentFacts("a" * 64, "test", {

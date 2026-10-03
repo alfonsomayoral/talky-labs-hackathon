@@ -67,7 +67,7 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
         normalized = normalize_document_facts(facts)
         self.assertEqual(normalized.diagnostics, ())
         expected = {"net_cents": 10000, "tax_cents": 2100, "withholding_cents": 1500,
-                    "payable_cents": 10600, "line.1.quantity_milli": 2000,
+                    "payable_cents": 5000, "line.1.quantity_milli": 2000,
                     "line.1.unit_price_e4": 500000, "line.2.quantity_milli": 125,
                     "tax.charge.1.tax_rate_e4": 2100, "tax.charge.2.tax_rate_e4": 200,
                     "tax.withheld.1.tax_rate_e4": 1500, "line.1.tax.charge.1.tax_rate_e4": 2100,
@@ -154,6 +154,18 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(facts.fields["raw.xml./Comprobante/@SubTotal"][0].value, "100.00")
         zero = await XMLDocumentExtractor().extract(self.parse(CFDI.replace('SubTotal="100.00"', 'SubTotal="100.00" Descuento="0.00"')))
         self.assertEqual(zero.fields["net"][0].value, "100.00")
+
+    async def test_fiscal_total_is_gross_only_when_nothing_is_withheld(self):
+        unwithheld = FACTURAE.replace("<TotalTaxesWithheld>15.00", "<TotalTaxesWithheld>0.00").replace(
+            "<InvoiceTotal>106.00", "<InvoiceTotal>121.00")
+        facts = await XMLDocumentExtractor().extract(self.parse(unwithheld))
+        gross, = facts.fields["gross"]
+        self.assertEqual(gross.evidence.field, "/Facturae/Invoices[1]/Invoice[1]/InvoiceTotals[1]/InvoiceTotal[1]")
+        self.assertEqual(normalize_document_facts(facts).facts.fields["gross_cents"][0].value, 12100)
+        self.assertEqual(facts.fields["raw.invoice_total"][0].value, "121.00")
+        cfdi = CFDI.replace(' TotalImpuestosRetenidos="10.67"', "").replace('Total="105.33"', 'Total="116.00"')
+        for withheld in (FACTURAE, CFDI, cfdi):
+            self.assertNotIn("gross", (await XMLDocumentExtractor().extract(self.parse(withheld))).fields)
 
     async def test_every_leaf_and_alias_has_exact_original_evidence(self):
         for xml in (FACTURAE, CFDI):

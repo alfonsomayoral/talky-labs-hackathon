@@ -1,0 +1,266 @@
+{
+  "baseline_tuning": {
+    "captured_cases": 9,
+    "cases": 12,
+    "metrics": {
+      "critical_exact": {
+        "denominator": 94,
+        "numerator": 68,
+        "rate": "0.7234042553191489361702127660",
+        "small_n": false,
+        "status": "measured"
+      },
+      "critical_prediction_precision": {
+        "denominator": 68,
+        "numerator": 66,
+        "rate": "0.9705882352941176470588235294",
+        "small_n": false,
+        "status": "measured"
+      },
+      "cross_attachment_conflict_preservation": {
+        "denominator": 1,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "grounded_evidence": {
+        "denominator": 546,
+        "numerator": 481,
+        "rate": "0.8809523809523809523809523810",
+        "small_n": false,
+        "status": "measured"
+      },
+      "required_exact": {
+        "denominator": 114,
+        "numerator": 78,
+        "rate": "0.6842105263157894736842105263",
+        "small_n": false,
+        "status": "measured"
+      },
+      "reviewed_absence_abstention": {
+        "denominator": 2,
+        "numerator": 2,
+        "rate": "1",
+        "small_n": true,
+        "status": "measured"
+      },
+      "reviewed_prediction_precision": {
+        "denominator": 80,
+        "numerator": 76,
+        "rate": "0.95",
+        "small_n": false,
+        "status": "measured"
+      }
+    },
+    "passed": false
+  },
+  "candidate": "gpt-6-luna",
+  "code_commit": "ea3eed6099c0270ac5a12139811e67c7e031b236",
+  "freeze_sha256": "bfddec934efa9a14881fbc71f4ca8b42b6e6ad689703576649cdc54efa9f82ff",
+  "fresh_original_attachments": 22,
+  "fresh_original_source_cases": 20,
+  "independent_image_review": {
+    "H07_unreviewed_structural_count": 1,
+    "H07_verified_observations": 66,
+    "T12_no_accepted_capture": true
+  },
+  "known_estimated_cost_usd": "0.06957800",
+  "limitations": [
+    "Heterogeneous small sample, repeated organizer layout families; not phase-wide accuracy.",
+    "Rates are conservative ceilings, not bills; no direct price comparison with old short-context estimates.",
+    "Canonical field/proof incompatibilities include XML totals/types/counts, unit vs uom and notice/certificate fields.",
+    "Semantic capturer issued purchase-order/receipt operations, not supplier selections; unimplemented checks remain in the denominator.",
+    "Sealed holdout has now been evaluated; another candidate needs a new fixed protocol and fresh reserved cases."
+  ],
+  "new_holdout": {
+    "captured_cases": 7,
+    "cases": 8,
+    "elapsed_p95_seconds": 32.10081708303187,
+    "metrics": {
+      "critical_exact": {
+        "denominator": 189,
+        "numerator": 153,
+        "rate": "0.8095238095238095238095238095",
+        "small_n": false,
+        "status": "measured"
+      },
+      "critical_prediction_precision": {
+        "denominator": 152,
+        "numerator": 152,
+        "rate": "1",
+        "small_n": false,
+        "status": "measured"
+      },
+      "cross_attachment_conflict_preservation": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      },
+      "grounded_evidence": {
+        "denominator": 433,
+        "numerator": 420,
+        "rate": "0.9699769053117782909930715935",
+        "small_n": false,
+        "status": "measured"
+      },
+      "required_exact": {
+        "denominator": 199,
+        "numerator": 160,
+        "rate": "0.8040201005025125628140703518",
+        "small_n": false,
+        "status": "measured"
+      },
+      "reviewed_absence_abstention": {
+        "denominator": 4,
+        "numerator": 1,
+        "rate": "0.25",
+        "small_n": true,
+        "status": "measured"
+      },
+      "reviewed_prediction_precision": {
+        "denominator": 160,
+        "numerator": 159,
+        "rate": "0.99375",
+        "small_n": false,
+        "status": "measured"
+      }
+    },
+    "passed": false,
+    "semantic": {
+      "abstention": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      },
+      "coverage": {
+        "denominator": 8,
+        "numerator": 1,
+        "rate": "0.125",
+        "small_n": true,
+        "status": "measured"
+      },
+      "precision": {
+        "denominator": 1,
+        "numerator": 1,
+        "rate": "1",
+        "small_n": true,
+        "status": "measured"
+      }
+    }
+  },
+  "new_tuning": {
+    "captured_cases": 8,
+    "cases": 12,
+    "elapsed_p95_seconds": 33.10830658301711,
+    "metrics": {
+      "critical_exact": {
+        "denominator": 94,
+        "numerator": 39,
+        "rate": "0.4148936170212765957446808511",
+        "small_n": false,
+        "status": "measured"
+      },
+      "critical_prediction_precision": {
+        "denominator": 40,
+        "numerator": 39,
+        "rate": "0.975",
+        "small_n": false,
+        "status": "measured"
+      },
+      "cross_attachment_conflict_preservation": {
+        "denominator": 1,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "grounded_evidence": {
+        "denominator": 647,
+        "numerator": 599,
+        "rate": "0.9258114374034003091190108192",
+        "small_n": false,
+        "status": "measured"
+      },
+      "required_exact": {
+        "denominator": 114,
+        "numerator": 45,
+        "rate": "0.3947368421052631578947368421",
+        "small_n": false,
+        "status": "measured"
+      },
+      "reviewed_absence_abstention": {
+        "denominator": 2,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "reviewed_prediction_precision": {
+        "denominator": 46,
+        "numerator": 45,
+        "rate": "0.9782608695652173913043478261",
+        "small_n": false,
+        "status": "measured"
+      }
+    },
+    "passed": false,
+    "semantic": {
+      "abstention": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      },
+      "coverage": {
+        "denominator": 4,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "precision": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      }
+    }
+  },
+  "no_retuning": true,
+  "official_accounting_score_computed": false,
+  "operational_failures": {
+    "H08": "outside_table_scope_returned_invoice_row",
+    "T01": "outside_table_scope_returned_invoice_rows",
+    "T06": "source_grounding",
+    "T10": "unsupported_bank_details_field",
+    "T12": "26_rows_without_description_or_explicit_unknown"
+  },
+  "original_phase_inventory": {
+    "pdf_pages": 310,
+    "pdf_parse_failures": 0,
+    "pdfs": 294,
+    "scanned_pdfs": 3,
+    "xml": 58
+  },
+  "phase": "phase_dev",
+  "price_assumption_usd_per_million": {
+    "input": "0.25",
+    "output": "0.75"
+  },
+  "prompt": "document-observations-v17",
+  "replay": {
+    "accepted_original_attachments_verified": 17,
+    "network_allowed": false,
+    "provider_calls": 0
+  },
+  "schema_version": 1,
+  "sealed_holdout_annotations_sha256": "e471a50c39383d96681a891f7fb142696dfb60fb3d41408165720de266f0c866",
+  "unknown_cost_reservations_usd": "0"
+}

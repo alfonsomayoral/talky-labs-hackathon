@@ -20,6 +20,8 @@ class CreditOriginalResolution:
     original_sha256: str | None
     evidence: tuple[Evidence, ...]
     diagnostics: tuple[str, ...] = ()
+    document_currency: str | None = None
+    reference_evidence: Evidence | None = None
 
 
 class CreditOriginalCatalog:
@@ -132,15 +134,24 @@ class CreditOriginalCatalog:
             return stop("UNKNOWN", "ORIGINAL_DATE_UNRESOLVED")
         if issued > invoice_date:
             return stop("CONFLICT", "ORIGINAL_IS_LATER_INVOICE")
-        if any((line.get("currency") or entry.get("currency") or local) != currency
-               or (currency != local and "amount_doc" not in line)
-               or line.get("amount_doc", 0) < 0 for line in entry["lines"]):
-            return stop("UNKNOWN", "ORIGINAL_DOCUMENT_AMOUNTS_UNRESOLVED")
-        supplier = [line for line in entry["lines"] if line["account"] in {"40000000", "41000000"}]
+        applied_advance = any(line["account"] == "40700000" and line["credit"] and not line["debit"] for line in entry["lines"])
+        for line in entry["lines"]:
+            line_currency = line.get("currency") or entry.get("currency") or local
+            local_adjustment = (applied_advance and line_currency == local and line.get("tax_code") is None
+                                and line["account"].startswith(("2", "6", "768")))
+            if line["account"] == "40700000" and line["credit"] and not line["debit"] or local_adjustment:
+                continue  # Original identity only; restoration must resolve these legs.
+            if line_currency != currency or currency != local and "amount_doc" not in line or line.get("amount_doc", 0) < 0:
+                return stop("UNKNOWN", "ORIGINAL_DOCUMENT_AMOUNTS_UNRESOLVED")
+        supplier = [line for line in entry["lines"] if line["account"] in {"40000000", "41000000", "40300000"}]
         accounts = {line["account"] for line in supplier}
-        if (len(accounts) != 1 or any(line.get("partner") != vendor for line in supplier)
+        fully_prepaid = (not supplier and row.get("payable") == 0 and type(row.get("payable")) is int
+                         and applied_advance
+                         and all(line.get("partner") == vendor for line in entry["lines"] if line["account"] == "40700000"))
+        if not fully_prepaid and (len(accounts) != 1 or any(line.get("partner") != vendor for line in supplier)
                 or sum(line["credit"] - line["debit"] for line in supplier) <= 0):
             return stop("CONFLICT", "ORIGINAL_SUPPLIER_IMPUTATION_DIFFERS")
         snapshot = deepcopy(entry)
-        return CreditOriginalResolution("RESOLVED", snapshot, next(iter(accounts)),
-                                        original_credit_sha256(snapshot), tuple(evidence))
+        return CreditOriginalResolution("RESOLVED", snapshot, next(iter(accounts)) if accounts else None,
+                                        original_credit_sha256(snapshot), tuple(evidence), document_currency=currency,
+                                        reference_evidence=original_number.evidence)

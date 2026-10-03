@@ -101,6 +101,19 @@ def reserve_credit(balances: tuple[CreditBalance, ...], reservations: Iterable[C
             raise ValueError("original credit capacity differs from committed state")
         if balance.used_doc + amount > balance.capacity_doc:
             raise ValueError(f"credit exceeds remaining original {request.bucket}")
+        # Aggregated imputation usage cannot safely be reassigned to a specific
+        # observed line later. Reject overlapping granular/grouped ledgers.
+        def members(bucket):
+            if bucket.startswith("line:"):
+                return {int(bucket[5:])}
+            if bucket.startswith("lines:"):
+                return set(json.loads(bucket[6:]))
+            return set()
+        requested_members = members(request.bucket)
+        for existing in records.values():
+            if (existing.company, existing.original_id) == original and existing.bucket != request.bucket:
+                if requested_members & members(existing.bucket) and existing.used_doc:
+                    raise ValueError("overlapping original line and grouped imputation consumption")
         if amount:
             records[key] = replace(balance, used_doc=balance.used_doc + amount)
     result = tuple(records[key] for key in sorted(records))

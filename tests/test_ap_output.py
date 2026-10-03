@@ -31,6 +31,13 @@ class APOutputTests(unittest.TestCase):
         options.update(kw)
         return build_ap_row(**options)
 
+    def test_nonobject_rows_return_diagnostics_before_shape_copy(self):
+        for row in (None, [], "invalid", 1):
+            with self.subTest(row=row):
+                before = deepcopy(row)
+                self.assertEqual(validate_ap_row(row), ("AP row must be an object",))
+                self.assertEqual(row, before)
+
     def test_post_credit_and_payment_block_are_valid_and_snapshot_inputs(self):
         row = self.posted()
         self.assertEqual(validate_ap_row(row, self.context, tax_catalog=self.tax_catalog), ())
@@ -67,6 +74,21 @@ class APOutputTests(unittest.TestCase):
             entry["lines"][-1][field] = value
             with self.assertRaises(ValueError):
                 self.posted(journal_entry=entry)
+
+    def test_duplicate_policy_reason_is_preserved_without_allowing_other_reasons(self):
+        row = {"doc_id": "RECEIVED-AGAIN", "document_type": "INVOICE", "decision": "DUPLICATE",
+               "reasons": ["DUPLICATE"], "duplicate_of": "FIRST-RECEIPT"}
+        before = deepcopy(row)
+        self.assertEqual(validate_ap_row(row), ())
+        self.assertEqual(row, before)
+        built = build_ap_row(doc_id=row["doc_id"], document_type=row["document_type"],
+                             decision=row["decision"], reasons=row["reasons"], duplicate_of=row["duplicate_of"])
+        self.assertEqual(built["reasons"], ["DUPLICATE"])
+        for reasons in (["PRICE_VARIANCE"], ["DUPLICATE", "DUPLICATE"], ["OTHER"]):
+            self.assertTrue(validate_ap_row({**row, "reasons": reasons}))
+        for changes in ({"duplicate_of": row["doc_id"]}, {"journal_entry": self.entry},
+                        {"decision": "POST"}, {"decision": "HOLD"}):
+            self.assertTrue(validate_ap_row({**row, **changes}))
 
     def test_coded_line_ownership_positions_and_cents(self):
         for fields in (dict(wbs="W1"), dict(cost_center="FOREIGN"), dict(po="PO1", po_item=None),

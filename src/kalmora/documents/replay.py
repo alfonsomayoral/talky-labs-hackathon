@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from kalmora.facts import DocumentFacts, atomic_json, _encode_value, _decode_value
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint, valid_hash
-from .prompts import recording_prompt
+from .prompts import recording_prompt, repair_prompt
 
 ABSENCE_MARKER = re.compile(r"\b(?:sin|ausente|ningun[ao]?|no\s+(?:indicado|indicada|consta|disponible|aplica)|not\s+(?:provided|available|applicable)|absent|none)\b", re.I)
 ABSENCE_ALIASES = {
@@ -262,10 +262,21 @@ class ResolutionCapture:
 
 def validate_capture_metadata(stage, source, config, metadata):
     document = source.document if isinstance(source, ResolutionRequest) else source
+    initial_prompt = recording_prompt(stage, source, config.parameters)
+    history = metadata.get('validation_history', [])
+    maximum = config.parameters.get('max_validation_attempts', 1)
+    if not isinstance(history, list) or len(history) >= maximum or (history and stage != 'extract'):
+        raise ValueError('Invalid validation repair history')
+    for index, entry in enumerate(history):
+        if (not isinstance(entry, dict) or set(entry) != {'category', 'detail', 'raw_response', 'prompt_sha256'}
+                or not isinstance(entry['category'], str) or not isinstance(entry['detail'], str)
+                or not isinstance(entry['raw_response'], dict)
+                or entry['prompt_sha256'] != hashlib.sha256(repair_prompt(initial_prompt, history[:index]).encode()).hexdigest()):
+            raise ValueError('Repair history is not bound to the original source prompt')
     expected = {'provider': config.provider, 'model': config.model,
         'prompt_version': config.prompt_version,
         'instructions_sha256': config.prompt_sha256,
-        'prompt_sha256': hashlib.sha256(recording_prompt(stage, source, config.parameters).encode()).hexdigest(),
+        'prompt_sha256': hashlib.sha256(repair_prompt(initial_prompt, history).encode()).hexdigest(),
         'schema_sha256': config.schema_sha256, 'schema_version': config.schema_version,
         'source_sha256': document.source_sha256, 'parser_version': document.parser_version,
         'transformation_sha256': document.transformation_sha256}
@@ -277,6 +288,53 @@ def validate_capture_metadata(stage, source, config, metadata):
         raise ValueError('Instruction provenance differs from fixed configuration')
     if stage == 'resolve' and metadata.get('resolution_request_sha256') != source.sha256:
         raise ValueError('Recorded resolution is not bound to current candidates/context')
+
+
+def validate_state_coverage(config, facts, unknowns):
+    """Recheck the new declared-field contract at save/load, without a provider.
+
+    An explicit unknown is a covered state, never an observed value or accounting
+    approval. Legacy configurations retain their original recording semantics.
+    """
+    extras = config.parameters.get('prompt_extras', {})
+    if extras.get('coverage_mode') != 'source_only_field_coverage_v1':
+        return
+    scope = extras.get('extraction_scope', 'complete')
+    required = extras.get('required_header_fields', [])
+    if not isinstance(required, list) or any(not isinstance(name, str) for name in required):
+        raise ValueError('Required header state contract is invalid')
+    covered = {name for name, values in facts.fields.items() if values}
+    unknown_fields = set()
+    for state in unknowns:
+        if (not isinstance(state, dict) or not isinstance(state.get('field'), str)
+                or state.get('status') not in {'MISSING', 'AMBIGUOUS', 'CONTRADICTORY'}
+                or not isinstance(state.get('reason'), str) or not state['reason'].strip()):
+            raise ValueError('An unknown needs an explicit field, status and reason')
+        name = state['field']
+        row = re.fullmatch(r'(line|detail_lines|statement)\.([1-9]\d*)\.(.+)', name)
+        allowed = set(extras.get('canonical_fields', []))
+        if row:
+            allowed = set(extras.get({'line': 'line_fields', 'detail_lines': 'detail_fields',
+                                     'statement': 'statement_fields'}[row[1]], []))
+        leaf = row[3] if row else name
+        raw = leaf.startswith('raw.') and len(leaf) > 4 and len(leaf) <= 164 and leaf.isprintable()
+        if (leaf not in allowed and not raw) or name in unknown_fields:
+            raise ValueError('An unknown state has an invalid or duplicate field')
+        unknown_fields.add(name)
+        if state['status'] == 'MISSING' and name in facts.fields:
+            raise ValueError('An observed field cannot also be missing')
+        if state['status'] == 'CONTRADICTORY' and len({fingerprint(fact.value) for fact in facts.fields.get(name, [])}) < 2:
+            raise ValueError('Contradictory state requires conflicting literal observations')
+        covered.add(name)
+    if set(required) - covered:
+        raise ValueError('Recorded capture silently omits required header states')
+    for name in covered:
+        is_row = name.startswith(('line.', 'detail_lines.', 'statement.')) or name in {
+            'line_count', 'detail_line_count', 'statement_row_count'}
+        if ((scope == 'header_footer_only' and is_row)
+                or (scope == 'tables_only' and not is_row)
+                or (scope == 'outside_native_invoice_table' and (name.startswith('line.') or name == 'line_count'))):
+            raise ValueError('Recorded capture violates its declared extraction scope')
 
 
 class RecordingStore:
@@ -333,6 +391,7 @@ class RecordingStore:
             raise ValueError('Capture origin must be recorded or synthetic')
         if stage == 'extract' and isinstance(source, ParsedDocument):
             validate_facts(source, artifact.facts, config.extractor_version, getattr(artifact, 'provenance', {}))
+            validate_state_coverage(config, artifact.facts, getattr(artifact, 'unknowns', ()))
             accepted = artifact.facts.to_dict()
         elif stage == 'resolve' and isinstance(source, ResolutionRequest):
             validate_resolution(source, artifact.result)
@@ -413,6 +472,7 @@ class RecordingStore:
             if stage == 'extract':
                 facts = DocumentFacts.from_dict(envelope['accepted'])
                 validate_facts(source, facts, config.extractor_version, envelope['artifact_provenance'])
+                validate_state_coverage(config, facts, envelope['unknowns'])
                 return ExtractionCapture(facts, envelope['raw_response'], envelope['request_metadata'],
                                          provenance, tuple(envelope['unknowns']))
             result = _result_from_dict(envelope['accepted'])

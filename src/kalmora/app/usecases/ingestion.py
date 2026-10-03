@@ -6,6 +6,7 @@ from zipfile import BadZipFile
 
 from ..errors import DomainError
 from ..paging import paginate
+from ..params import valid_phase_name
 from ..ports import JobStore, PackageStore, PhaseRepository
 from ..types import Envelope
 from . import plain_envelope
@@ -68,6 +69,10 @@ class IngestPackage:
                         raise DomainError("package.unsafe_archive" if unsafe else "package.invalid", str(exc)) from None
                 else:
                     manifest = self._packages.manifest(package_id)
+                bad = [p["phase"] for p in manifest["phases"] if not valid_phase_name(p["phase"])]
+                if bad:
+                    raise DomainError("package.invalid", f"Phase folder name(s) not allowed: {', '.join(bad)}. "
+                                      "Use letters, digits, '_', '.' or '-', not starting with '-' or '.'.")
                 self._jobs.update(job["job_id"], status="extracted")
                 phases = [{"phase": p["phase"], "month": p["month"], "status": "pending"} for p in manifest["phases"]]
                 self._jobs.update(job["job_id"], status="inventoried", phases=phases)

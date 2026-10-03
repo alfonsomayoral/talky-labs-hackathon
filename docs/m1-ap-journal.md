@@ -170,6 +170,12 @@ validation leaves the incoming state unchanged. Reconstruction from saved state
 retains consumed advance/credit balances and events. M0 `Ledger.add_entry` supplies the final
 event/stage duplicate protection when persisting journals.
 
+[`resolve_ap_opening_state`](ap-opening-state.md) connects the observed advance
+baseline with proved zero historical credit consumption for an explicit scope
+and cutoff. Use it once before new tasks; unknown history exposes no state.
+The caller preserves receipt consumption, prior events and committed credits
+instead of resetting an evolving transaction state.
+
 This module does not serialize `ap.jsonl`, read extraction facts or run decision
 precedence. #55 owns that orchestration, while #32/#35 keep contracts/scoring.
 PO approval, credit originals/previous credit consumption, historical advance balances/classification and

@@ -19,8 +19,9 @@ def journal_entries(run: BankRecRun) -> tuple[JournalEntry, ...]:
     entries, owners = [], set()
     for result in run.results:
         # Equal candidates paired in stable order and historical groups left open
-        # are matching notes. Accounting/coverage diagnostics block publication.
-        if any(not d.startswith(("ambiguous ", "group ")) for d in result.diagnostics):
+        # are matching notes, and deferred direct debits wait for AP. Accounting/coverage
+        # diagnostics block publication.
+        if any(not d.startswith(("ambiguous ", "group ", "deferred ")) for d in result.diagnostics):
             raise ValueError("cannot expose a reconciliation with diagnostics")
         year, month = (int(x) for x in result.month.split("-"))
         day = f"{result.month}-{monthrange(year, month)[1]:02d}"
