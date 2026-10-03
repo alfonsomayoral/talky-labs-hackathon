@@ -17,6 +17,7 @@ import { blobText } from '../parsers/text'
 import { directoryHandleFiles } from '../sources/fileSystemSource'
 import { isJunk, normalizePath } from '../sources/root'
 import type { PathFile } from '../sources/types'
+import { normalizeManifest } from './manifest'
 
 const isZip = (name: string) => name.toLowerCase().endsWith('.zip')
 const fileName = (p: string) => p.split('/').pop() ?? p
@@ -95,11 +96,11 @@ export async function bundleFromFiles(input: PathFile[], options: BundleOptions)
     present[task] = file !== null
     deliverables[task] = file ? await parseFile(file) : []
   }
-  const manifestFile = at('manifest.json')
+  const manifestFile = at('manifest.json', 'run.json')
   let manifest: RunManifest | null = null
   if (manifestFile) {
     try {
-      manifest = JSON.parse(await blobText(manifestFile.file)) as RunManifest
+      manifest = normalizeManifest(JSON.parse(await blobText(manifestFile.file)))
     } catch (e) {
       throw new Error(`${manifestFile.path}: ${e instanceof Error ? e.message : String(e)}`)
     }
