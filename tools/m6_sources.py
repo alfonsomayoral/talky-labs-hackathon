@@ -58,7 +58,7 @@ def component_groups(journal):
 def build_facts(data, upstream, ledger, sources, diagnostics):
     phase = data.phase_dir
     first, closing = month_bounds(data.month)
-    earliest = shift_month(first, -3)
+    earliest = shift_month(first, -12)
     rates = RateTable(data.table('fx_rates'))
     vendors = {v['id']: v for v in data.table('vendors')}
     history = list(data.iter_journal())
