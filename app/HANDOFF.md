@@ -25,7 +25,7 @@ El detalle de cada comprobación está en `STATUS.md`, en «Puertas».
 
 | Rama | Worktree | Puerto | Estado |
 | --- | --- | --- | --- |
-| `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Integración. Verde: typecheck, lint, test (346) y build |
+| `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Integración. Verde: typecheck, lint, test (354) y build. Ya lleva las PRs #153 (shell y demo) y #154 (tareas, primera ronda) |
 | `fe/qa-core` | `talky-wt/fe-explorer-cost` | 5176 | Fase 5, núcleo |
 | `fe/qa-tasks` | `talky-wt/fe-tasks-ar` | 5175 | Fase 5, tareas y datos |
 | `fe/qa-shell-demo` | `talky-wt/fe-design-shell` | 5174 | Fase 5, transversal; al final, el «Recorrido de demo» en `app/README.md` (sin página `/demo`) |
@@ -35,12 +35,12 @@ El detalle de cada comprobación está en `STATUS.md`, en «Puertas».
 
 Prioridad de la fase 5, en este orden:
 
-1. **Que la app funcione con resultados reales, sin golden:** QA de `fe/qa-core` y `fe/qa-tasks` con la ejecución de septiembre (ver «Datos para la QA»).
-2. Revisar y fusionar las PRs a medida que lleguen.
-3. Comprobar uno por uno los puntos del «terminado» de `PLAN.md` §0 y anotar en `STATUS.md` cuáles se cumplen.
+1. **Que la app funcione con resultados reales, sin golden:** QA de `fe/qa-core` y `fe/qa-tasks` con la ejecución de septiembre (ver «Datos para la QA»). Ya avisadas.
+2. Revisar y fusionar las PRs a medida que lleguen. Falta la primera de `fe/qa-core`.
+3. «Terminado» de `PLAN.md` §0: los 7 puntos se cumplen (tabla en `STATUS.md`). Tras las últimas PRs hay que repetir los puntos 3, 5 y 7 y cerrar las puertas 5 y 6.
 4. Mantener al día este fichero.
 
-Sin prioridad: el «Recorrido de demo» de `app/README.md`, que llega en la PR de `fe/qa-shell-demo`, y la división del chunk principal (`index-*.js`, 471 kB, casi todo `react-dom` y `react-router`).
+Hecho: el «Recorrido de demo» ya está en `app/README.md` (#153). Sin prioridad: la división del chunk principal (`index-*.js`, 471 kB, casi todo `react-dom` y `react-router`).
 
 ## Datos para la QA
 
