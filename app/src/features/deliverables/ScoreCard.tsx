@@ -14,7 +14,7 @@ type Row = TaskKey | 'trial_balance'
 const ROWS: Row[] = [...PIPELINE, 'trial_balance']
 const label = (r: Row) => (r === 'trial_balance' ? 'Balance' : TASK_META[r].label)
 
-type Kind = 'ratio' | 'count' | 'eur' | 'ratios'
+type Kind = 'ratio' | 'count' | 'scorer' | 'ratios'
 const DETAILS: Record<string, { label: string; kind: Kind }> = {
   decision_macro_f1: { label: 'F1 macro de la decisión', kind: 'ratio' },
   header: { label: 'Cabecera', kind: 'ratio' },
@@ -34,8 +34,8 @@ const DETAILS: Record<string, { label: string; kind: Kind }> = {
   detected: { label: 'Detectadas', kind: 'count' },
   recall: { label: 'Exhaustividad', kind: 'ratio' },
   precision: { label: 'Precisión', kind: 'ratio' },
-  abs_difference_eur: { label: 'Diferencia con el balance correcto', kind: 'eur' },
-  recorded_vs_truth_eur: { label: 'Diferencia del registrado con el correcto', kind: 'eur' },
+  abs_difference_eur: { label: 'Diferencia con el balance correcto (score.py, MXN sin convertir)', kind: 'scorer' },
+  recorded_vs_truth_eur: { label: 'Diferencia del registrado con el correcto (score.py, MXN sin convertir)', kind: 'scorer' },
 }
 
 const pct = (v: unknown) => (typeof v === 'number' ? formatPercent(v, { decimals: 2 }) : '—')
@@ -53,7 +53,7 @@ function DetailValue({ value, kind }: { value: unknown; kind: Kind }) {
     )
   if (typeof value !== 'number') return <Mono>{JSON.stringify(value)}</Mono>
   if (kind === 'count') return <span className="tabular">{formatNumber(value)}</span>
-  if (kind === 'eur') return <Amount cents={Math.round(value * 100)} />
+  if (kind === 'scorer') return <Amount cents={Math.round(value * 100)} hideCurrency />
   return <span className={clsx('tabular', value < 1 && s.low)}>{pct(value)}</span>
 }
 
@@ -78,8 +78,10 @@ function Details({ details }: { details: Record<string, unknown> }) {
 export function ScoreCard({ score, trialBalance }: { score: ScoreReport; trialBalance: TrialBalanceComparison | null }) {
   const [open, setOpen] = useState<Row | null>(null)
   const tb = score.tasks.trial_balance.details
-  const gapRecorded = trialBalance?.gapRecorded ?? (typeof tb.recorded_vs_truth_eur === 'number' ? Math.round(tb.recorded_vs_truth_eur * 100) : null)
-  const gapAfter = trialBalance?.gapAfter ?? (typeof tb.abs_difference_eur === 'number' ? Math.round(tb.abs_difference_eur * 100) : null)
+  // In EUR like Resumen and Balance; score.py's own gap adds 3100's MXN unconverted.
+  const gap = trialBalance?.eur ?? trialBalance
+  const gapRecorded = gap?.gapRecorded ?? (typeof tb.recorded_vs_truth_eur === 'number' ? Math.round(tb.recorded_vs_truth_eur * 100) : null)
+  const gapAfter = gap?.gapAfter ?? (typeof tb.abs_difference_eur === 'number' ? Math.round(tb.abs_difference_eur * 100) : null)
 
   return (
     <Card title="Nota frente a golden" description="Mismo cálculo que score.py: nota por tarea ponderada, de 0 a 100.">
