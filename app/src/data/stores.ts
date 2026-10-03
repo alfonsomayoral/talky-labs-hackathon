@@ -72,7 +72,10 @@ export interface RunState {
   startApiRun(datasetId: string): Promise<string>
   subscribeRun(runId: string, onEvent: (e: MessageEvent) => void): () => void
   setActive(id: string | null): void
-  remove(id: string): Promise<void>
+  /** Runs stored for a dataset: the open one from memory, any other from the browser's storage. */
+  runsOf(datasetId: string): Promise<RunBundle[]>
+  /** Removes a run of the open dataset, or of `datasetId` without opening it. */
+  remove(id: string, datasetId?: string): Promise<void>
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -303,7 +306,20 @@ export const useRunStore = create<RunState>()((set, get) => ({
     }
   },
 
-  async remove(id) {
+  async runsOf(datasetId) {
+    await runsReady
+    return datasetId === useDatasetStore.getState().activeId ? get().runs : db.loadRuns(datasetId)
+  },
+
+  async remove(id, datasetId) {
+    if (datasetId && datasetId !== useDatasetStore.getState().activeId) {
+      await db.saveRuns(datasetId, (await db.loadRuns(datasetId)).filter((r) => r.id !== id))
+      if (session.runs[datasetId] === id) {
+        session = { ...session, runs: { ...session.runs, [datasetId]: null } }
+        await persistSession()
+      }
+      return
+    }
     const run = get().runs.find((r) => r.id === id)
     const runs = get().runs.filter((r) => r.id !== id)
     set({ runs, status: runs.length ? 'ready' : 'idle' })

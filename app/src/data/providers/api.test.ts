@@ -81,3 +81,37 @@ describe('apiProvider (/v1) closes and uploads', () => {
     expect(await apiProvider.uploadDataset!(new File(['zip'], 'sept.zip'))).toEqual(['phase_test'])
   })
 })
+
+describe('apiProvider (/v1) follows a running close', () => {
+  const ev = (n: number) => JSON.stringify({ event_id: `e${n}`, item: `ap:D${n}`, kind: 'DECIDE', result: 'PASS', ts: '2026-10-03T10:00:00Z' })
+
+  it('reports the run as running and streams only the new complete lines of trace/events.jsonl', async () => {
+    vi.useFakeTimers()
+    const status = ['running', 'running', 'running', 'running', 'completed']
+    const traces = [null, `${ev(1)}\n${ev(2).slice(0, 10)}`, `${ev(1)}\n${ev(2)}\n${ev(3)}\n${ev(4)}`, `${ev(1)}\n${ev(2)}\n${ev(3)}\n${ev(4)}`, `${ev(1)}\n${ev(2)}\n${ev(3)}\n${ev(4)}`]
+    let poll = -1
+    vi.stubEnv('VITE_API_URL', 'http://backend.test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = url.replace('http://backend.test', '')
+        if (path === '/v1/runs/r7') return Response.json({ data: { status: status[++poll] } })
+        const trace = traces[poll]
+        if (path === '/v1/runs/r7/files/__index.json') return Response.json(trace === null ? [] : [{ path: 'trace/events.jsonl', size: trace.length }])
+        if (path === '/v1/runs/r7/files/trace/events.jsonl' && trace !== null) return new Response(trace)
+        return new Response('', { status: 404 })
+      }),
+    )
+    const got: unknown[] = []
+    const ended = new Promise<void>((resolve) =>
+      apiProvider.subscribeRun!('r7', (e) => {
+        got.push(e.type === 'message' ? (e.data as { event_id: string }[]).map((x) => x.event_id) : e.type)
+        if (e.type === 'done') resolve()
+      }),
+    )
+    await vi.runAllTimersAsync()
+    await ended
+    vi.useRealTimers()
+    expect(got).toEqual([[], ['e1'], ['e2', 'e3'], [], ['e4'], 'done'])
+  })
+})

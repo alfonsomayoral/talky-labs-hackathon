@@ -49,6 +49,7 @@ export const NAV: NavSection[] = [
       { to: '/ejecuciones', label: 'Ejecuciones', icon: 'Play', shortcut: 'x' },
       { to: '/comparar', label: 'Comparar', icon: 'GitCompare', shortcut: 'c' },
       { to: '/coste', label: 'Coste', icon: 'Gauge', shortcut: 'o' },
+      { to: '/administracion', label: 'Administración', icon: 'Settings', shortcut: 'm' },
     ],
   },
 ]
