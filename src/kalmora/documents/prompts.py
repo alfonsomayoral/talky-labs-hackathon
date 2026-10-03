@@ -1,5 +1,5 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v8"
+EXTRACTION_PROMPT_VERSION = "document-observations-v9"
 RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v3"
 SCHEMA_VERSION = "document-interpretation-v3"
 
@@ -22,6 +22,12 @@ for facts needing their own proof; do not emit the same fact in both places.
 Complete every visible row through the final row; groups reduce repetition, never
 reduce field coverage. Each grouped value still requires its own literal support
 within the shared quote. Different source locations require different groups.
+Keep row-group quotes to the shortest contiguous excerpt supporting those values,
+such as a printed row reference followed by quantity, unit, price and amount.
+Descriptions may have a separate short quotation. Do not repeat unrelated text
+in numeric proofs. Preserve glyph distinctions (I/l/1), accents and superscripts;
+when a literal string is uncertain, report AMBIGUOUS with a reason instead of
+guessing its spelling. Short header quotes may contain just the exact value.
 gross is the explicitly printed invoice total including tax before deductions.
 payable is the explicitly printed amount due after retention or advances. Never
 substitute payable for gross, infer gross from arithmetic, or invent either amount.
