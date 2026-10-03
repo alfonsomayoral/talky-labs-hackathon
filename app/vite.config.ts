@@ -15,5 +15,13 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     worker: { format: 'es' },
+    build: {
+      rolldownOptions: {
+        output: {
+          // The framework changes less often than the app: its own chunk stays cached between deploys.
+          codeSplitting: { groups: [{ name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ }] },
+        },
+      },
+    },
   }
 })
