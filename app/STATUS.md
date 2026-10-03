@@ -22,16 +22,25 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 3.A AP + 3.D Bancos | «AP + Bancos tasks frontend» | `fe/tasks-ap-bank` | `talky-wt/fe-tasks-ap-bank` | 5177 | Hecho e integrado | 2.C (kit) | Más `37b4774`: estado de cuenta con la regla del control del Resumen |
 | 3.E Intragrupo + 3.F Cierre y balance | «Explorador de datos y coste» | `fe/tasks-ic-close` | `talky-wt/fe-explorer-cost` | 5176 | Hecho e integrado (PR #132) | 2.C (kit) | |
 | 4.B Comparar con golden | Coordinadora (subagente) | `fe/compare` | `talky-wt/fe-design-shell` | 5174 | Hecho e integrado (`0d5bdda`) | 2.C | Peticiones resueltas: `?pestana=golden`, importes con `Amount`, etiqueta «Pierde por sus partidas» |
-| 5.A–5.C QA, pulido y demo | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | Fases 2–4 | `app/README.md` hecho |
+| 5.A–5.B QA y pulido: núcleo | «QA y pulido: núcleo» | `fe/qa-core` | `talky-wt/fe-explorer-cost` | 5176 | En curso | Fases 2–4 | Resumen, Atención, Actividad, panel y kit, Ejecuciones, Entregables, Comparar, Coste y Asistente |
+| 5.A–5.B QA y pulido: tareas y datos | «QA y pulido: tareas y datos» | `fe/qa-tasks` | `talky-wt/fe-tasks-ar` | 5175 | En curso | Fase 3 | `/tareas/*`, Balance y Datos |
+| 5.B–5.C Pulido transversal y demo | «Pulido transversal y demo Kalmora» | `fe/qa-shell-demo` | `talky-wt/fe-design-shell` | 5174 | En curso | Fases 2–4 | Diseño, componentes, shell, accesibilidad y `/demo` |
+| 5 — División del chunk principal y «terminado» de §0 | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 5.A–5.C | Revisa y fusiona las PRs |
 | 6.A–6.B Asistente | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 2.C, 2.D | `/asistente` y panel ⌘J; proveedor local y SSE |
+
+## Datos para la QA
+
+- Julio: `participant/phase_dev` con su referencia golden.
+- Septiembre: `participant-2/phase_test` y el paquete `/Users/alfonsomayoral/Talky/runs/phase_test-research-qa/`, fuera del repo, en `KALMORA_RUNS=/Users/alfonsomayoral/Talky/runs`. **No es del backend**, que sigue en M0 sin entregas: son las salidas de septiembre de los prototipos del research (`ap_decision` + asientos de `ap_coding`, `ar_billing`, `ar_cash/sub_test`, `bank/out_test`, `ic_diff/test_ic_prior` y `close_tb/sub_test`). Nunca se commitea.
 
 ## Seguimiento de sesiones
 
 | Sesión | Última instrucción | Próximo hito |
 | --- | --- | --- |
-| Explorador de datos y coste | 3.E + 3.F integrados; paquete cerrado | — |
-| Facturación y Cobros (3.B + 3.C) | Integrado; paquete cerrado | — |
-| AP + Bancos (3.A + 3.D) | Integrado; paquete cerrado | — |
+| QA y pulido: núcleo | Fase 5 en `fe/qa-core` | PR contra `hackathon/frontend` |
+| QA y pulido: tareas y datos | Fase 5 en `fe/qa-tasks` | PR contra `hackathon/frontend` |
+| Pulido transversal y demo Kalmora | Fase 5 en `fe/qa-shell-demo` y `/demo` | PR contra `hackathon/frontend` |
+| Explorador, Facturación y Cobros, AP + Bancos | Paquetes cerrados e integrados | — |
 
 ## Puertas
 

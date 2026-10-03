@@ -58,6 +58,9 @@ Una sesión solo escribe en las carpetas de su paquete.
 | compare (4.B) | `src/features/compare/` |
 | observability (4.C) | `src/features/observability/` |
 | assistant (6.A, 6.B) | `src/features/assistant/` |
+| qa-core (5) | `src/features/{overview,attention,activity,item,runs,deliverables,compare,observability,assistant}/` |
+| qa-tasks (5) | `src/features/tasks/`, `src/features/ledger/`, `src/features/data-explorer/` |
+| qa-shell-demo (5) | `src/design/`, `src/components/`, `src/shell/`, `src/lib/`, `public/`, `src/features/demo/` |
 
 Data y engine son de la coordinadora desde que cerró la fase 1.
 
