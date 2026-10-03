@@ -116,6 +116,12 @@ class CreditOriginalTests(unittest.TestCase):
         self.assertEqual(self.resolve(self.catalog(invoices=[foreign], journal_entries=[gl]), currency="USD").diagnostics,
                          ("ORIGINAL_DOCUMENT_AMOUNTS_UNRESOLVED",))
 
+    def test_intercompany_reconciliation_is_an_observed_original_payable_account(self):
+        entry = deepcopy(self.entry)
+        entry["lines"][1]["account"] = "40300000"
+        resolved = self.resolve(self.catalog(journal_entries=[entry]))
+        self.assertEqual((resolved.status, resolved.reconciliation_account), ("RESOLVED", "40300000"))
+
     def test_resolved_original_reaches_atomic_output_without_consuming_a_failed_credit(self):
         original = self.resolve()
         tax = TaxCatalog({"tax_codes": {"SEX": {"country": "ES", "kind": "exempt", "rate": 0}}})

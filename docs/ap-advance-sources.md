@@ -47,3 +47,11 @@ silently dropping the original advance and its historical carrying amount. The
 regression covers monetary and non-monetary advances without changing their state.
 The issue remains open until its outstanding integration/evaluation criteria have
 evidence; this helper does not declare the 305-document M1 delivery complete.
+
+
+[Application and restoration APIs](ap-credit-restoration.md) now accept associated
+classification/application Facts and explicit restored 407/receipt usage.
+The ordinary credit route still abstains for an applied-advance original without
+those proofs. Restored state remains tentative until the real delivery validator
+accepts the header and accounting contract; #140 integration adopts every returned
+snapshot together. No classification is inferred from a zero FX difference.
