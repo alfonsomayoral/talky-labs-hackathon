@@ -28,15 +28,19 @@ El detalle de cada comprobación está en `STATUS.md`, en «Puertas».
 | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Integración. Verde: typecheck, lint, test (346) y build |
 | `fe/qa-core` | `talky-wt/fe-explorer-cost` | 5176 | Fase 5, núcleo |
 | `fe/qa-tasks` | `talky-wt/fe-tasks-ar` | 5175 | Fase 5, tareas y datos |
-| `fe/qa-shell-demo` | `talky-wt/fe-design-shell` | 5174 | Fase 5, transversal y `/demo` |
+| `fe/qa-shell-demo` | `talky-wt/fe-design-shell` | 5174 | Fase 5, transversal; al final, el «Recorrido de demo» en `app/README.md` (sin página `/demo`) |
 | `fe/design-shell`, `fe/explorer-cost`, `fe/tasks-ar`, `fe/tasks-ap-bank`, `fe/tasks-ic-close`, `fe/compare` | — | — | Integradas |
 
 ## Lo que queda
 
-1. Revisar y fusionar las PRs de las 3 sesiones de la fase 5.
-2. **División del chunk principal** (coordinadora): `index-*.js` pesa 471 kB; el aviso de Vite empieza en 500 kB. Candidatos: `cmdk`, recharts fuera de las páginas que lo usan y el worker.
-3. **Comprobar el «terminado» de `PLAN.md` §0**, punto por punto, y cerrar las puertas 5 y 6.
-4. Relevo final: `STATUS.md`, este fichero y `CONTEXTO_PRIVADO.md`.
+Prioridad de la fase 5, en este orden:
+
+1. **Que la app funcione con resultados reales, sin golden:** QA de `fe/qa-core` y `fe/qa-tasks` con la ejecución de septiembre (ver «Datos para la QA»).
+2. Revisar y fusionar las PRs a medida que lleguen.
+3. Comprobar uno por uno los puntos del «terminado» de `PLAN.md` §0 y anotar en `STATUS.md` cuáles se cumplen.
+4. Mantener al día este fichero.
+
+Sin prioridad: el «Recorrido de demo» de `app/README.md`, que llega en la PR de `fe/qa-shell-demo`, y la división del chunk principal (`index-*.js`, 471 kB, casi todo `react-dom` y `react-router`).
 
 ## Datos para la QA
 
@@ -65,11 +69,11 @@ cd app && npm run typecheck && npm run lint && npm run test && npm run build
 ### Nueva coordinadora (en `/Users/alfonsomayoral/Talky/talky-labs-hackathon`)
 
 ```text
-Eres la sesión coordinadora del frontend de Kalmora Close (app/). Lee en este orden: /Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md, app/HANDOFF.md, app/AGENTS.md, app/STATUS.md y app/PLAN.md. Comprueba el estado real: git fetch, gh pr list --base hackathon/frontend, git worktree list, y typecheck/lint/test/build en app/. Resume el estado en una tabla y sigue «Lo que queda» de HANDOFF.md: verificar las PRs de la fase 5, dividir el chunk principal y comprobar el «terminado» de PLAN.md §0. Commits `type: subject` a nombre del usuario, sin Co-Authored-By ni atribución a IA; comprueba la autoría antes de cada push.
+Eres la sesión coordinadora del frontend de Kalmora Close (app/). Lee en este orden: /Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md, app/HANDOFF.md, app/AGENTS.md, app/STATUS.md y app/PLAN.md. Comprueba el estado real: git fetch, gh pr list --base hackathon/frontend, git worktree list, y typecheck/lint/test/build en app/. Resume el estado en una tabla y sigue «Lo que queda» de HANDOFF.md, en su orden. Commits `type: subject` a nombre del usuario, sin Co-Authored-By ni atribución a IA; comprueba la autoría antes de cada push.
 ```
 
 ### `/goal` sugerido
 
 ```text
-/goal Cerrar las puertas 5 y 6 de app/PLAN.md: integrar y verificar las PRs de fe/qa-core, fe/qa-tasks y fe/qa-shell-demo, dividir el chunk principal y dejar cumplido el «terminado» de §0, con push de hackathon/frontend.
+/goal Cerrar las puertas 5 y 6 de app/PLAN.md: que la app funcione con resultados reales sin golden, integrar y verificar las PRs de fe/qa-core, fe/qa-tasks y fe/qa-shell-demo y dejar comprobado en STATUS.md cada punto del «terminado» de §0, con push de hackathon/frontend.
 ```

@@ -60,7 +60,7 @@ Una sesión solo escribe en las carpetas de su paquete.
 | assistant (6.A, 6.B) | `src/features/assistant/` |
 | qa-core (5) | `src/features/{overview,attention,activity,item,runs,deliverables,compare,observability,assistant}/` |
 | qa-tasks (5) | `src/features/tasks/`, `src/features/ledger/`, `src/features/data-explorer/` |
-| qa-shell-demo (5) | `src/design/`, `src/components/`, `src/shell/`, `src/lib/`, `public/`, `src/features/demo/` |
+| qa-shell-demo (5) | `src/design/`, `src/components/`, `src/shell/`, `src/lib/`, `public/`; el «Recorrido de demo» de `app/README.md` |
 
 Data y engine son de la coordinadora desde que cerró la fase 1.
 
