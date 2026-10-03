@@ -1,0 +1,543 @@
+{
+  "accepted_attachments": 12,
+  "annotations_sha256": "8005c2d3e7d7c295da8babc0fd6a2fe52bae191276c893c488f49d65ea036fef",
+  "baseline_v10_tuning": {
+    "captured_cases": 9,
+    "cases": 12,
+    "metrics": {
+      "critical_exact": {
+        "denominator": 94,
+        "numerator": 68,
+        "rate": "0.7234042553191489361702127660",
+        "small_n": false,
+        "status": "measured"
+      },
+      "critical_prediction_precision": {
+        "denominator": 68,
+        "numerator": 66,
+        "rate": "0.9705882352941176470588235294",
+        "small_n": false,
+        "status": "measured"
+      },
+      "cross_attachment_conflict_preservation": {
+        "denominator": 1,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "grounded_evidence": {
+        "denominator": 546,
+        "numerator": 481,
+        "rate": "0.8809523809523809523809523810",
+        "small_n": false,
+        "status": "measured"
+      },
+      "required_exact": {
+        "denominator": 114,
+        "numerator": 78,
+        "rate": "0.6842105263157894736842105263",
+        "small_n": false,
+        "status": "measured"
+      },
+      "reviewed_absence_abstention": {
+        "denominator": 2,
+        "numerator": 2,
+        "rate": "1",
+        "small_n": true,
+        "status": "measured"
+      },
+      "reviewed_prediction_precision": {
+        "denominator": 80,
+        "numerator": 76,
+        "rate": "0.95",
+        "small_n": false,
+        "status": "measured"
+      }
+    },
+    "passed": false
+  },
+  "budget_usd": "5",
+  "candidate": "gpt-6-luna",
+  "capture_correctness_passed": false,
+  "captured_cases": 11,
+  "case_results": {
+    "T01": {
+      "failed_fields": [],
+      "required_exact": {
+        "denominator": 13,
+        "numerator": 13,
+        "rate": "1",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T02": {
+      "failed_fields": [
+        "document_type",
+        "net",
+        "gross",
+        "line_count",
+        "lines[1].amount",
+        "lines[17].amount",
+        "purchase_order_reference"
+      ],
+      "required_exact": {
+        "denominator": 12,
+        "numerator": 8,
+        "rate": "0.6666666666666666666666666667",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T03": {
+      "failed_fields": [
+        "document_type",
+        "invoice_number",
+        "document_date",
+        "supplier_tax_id",
+        "buyer_tax_id",
+        "net",
+        "tax",
+        "gross",
+        "gross"
+      ],
+      "required_exact": {
+        "denominator": 12,
+        "numerator": 3,
+        "rate": "0.25",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T04": {
+      "failed_fields": [
+        "fiscal_validity"
+      ],
+      "required_exact": {
+        "denominator": 7,
+        "numerator": 6,
+        "rate": "0.8571428571428571428571428571",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T05": {
+      "failed_fields": [
+        "statement_outstanding_balance"
+      ],
+      "required_exact": {
+        "denominator": 7,
+        "numerator": 6,
+        "rate": "0.8571428571428571428571428571",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T06": {
+      "failed_fields": [
+        "effective_date",
+        "beneficiary_name",
+        "bank_identifier_present"
+      ],
+      "required_exact": {
+        "denominator": 6,
+        "numerator": 3,
+        "rate": "0.5",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T07": {
+      "failed_fields": [
+        "effective_date",
+        "new_bank_identifier_present",
+        "old_bank_identifier_present",
+        "signed_letter_present",
+        "bank_certificate_panel_present"
+      ],
+      "required_exact": {
+        "denominator": 7,
+        "numerator": 2,
+        "rate": "0.2857142857142857142857142857",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T08": {
+      "failed_fields": [
+        "contractor_tax_id",
+        "valid_until"
+      ],
+      "required_exact": {
+        "denominator": 5,
+        "numerator": 3,
+        "rate": "0.6",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T09": {
+      "failed_fields": [
+        "corrects_invoice"
+      ],
+      "required_exact": {
+        "denominator": 7,
+        "numerator": 6,
+        "rate": "0.8571428571428571428571428571",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T10": {
+      "failed_fields": [
+        "deposit_percent"
+      ],
+      "required_exact": {
+        "denominator": 10,
+        "numerator": 9,
+        "rate": "0.9",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T11": {
+      "failed_fields": [
+        "purchase_order_reference",
+        "retention_displayed"
+      ],
+      "required_exact": {
+        "denominator": 14,
+        "numerator": 12,
+        "rate": "0.8571428571428571428571428571",
+        "small_n": true,
+        "status": "measured"
+      }
+    },
+    "T12": {
+      "failed_fields": [
+        "lines[1].delivery_reference",
+        "lines[26].delivery_reference"
+      ],
+      "required_exact": {
+        "denominator": 14,
+        "numerator": 12,
+        "rate": "0.8571428571428571428571428571",
+        "small_n": true,
+        "status": "measured"
+      }
+    }
+  },
+  "code_commit": "001ef0a77d3fde28f058305f25ad344b97e81fa3",
+  "concurrency": 2,
+  "elapsed_p95_seconds": 50.47886512498371,
+  "evaluation_file_sha256": "5d6d320153eafe34563c3bef2d739dfe1ee29fba2fde38c27c089b42af6afbea",
+  "fabrication_audit": {
+    "fabricated_or_out_of_set_ids": 0,
+    "unreviewed_values": 0,
+    "unsupported_values_or_evidence": 48,
+    "zero_fabrication_established": false
+  },
+  "freeze_sha256": "7173af75b7ff3967194960da73cba850307456ba7f0a3e1c80255ae7b46e1bd3",
+  "fresh_original_attachments": 13,
+  "fresh_original_source_cases": 12,
+  "frozen_module_sha256": {
+    "src/kalmora/data.py": "aab23bd4ae6283e1ea2636b99d86f16ac437b99d91cadea037e63e432fea8a4d",
+    "src/kalmora/documents/__init__.py": "5323c9cb53d461c8931310fd9f59b9f4b87fc0101204351dcb34f80f62445051",
+    "src/kalmora/documents/ap_sources.py": "339b3f6346c55aba2f288485b1c656a58c9ce5c777abb640c99d178223e9c26d",
+    "src/kalmora/documents/classification.py": "58645401540438e9139ab8f117db54994f8ed7d13f7e73d0384f00f1002bb86a",
+    "src/kalmora/documents/composition.py": "08d6e1970ace30b816c7e4be4c432716cd7e88c789e589c9bee21cc81e4c9732",
+    "src/kalmora/documents/contracts.py": "b68e66ba61db9ce16c4e776f73c91bb4c90cd9bdcb4f2311c755b461b75c50ab",
+    "src/kalmora/documents/coverage.py": "44b9c23497d0361d43d538ffce62e9dc5bb6f1e4aebd3970998668f8da79afb2",
+    "src/kalmora/documents/evaluation.py": "4f061cfbc08606423ec43db56283001295cb1bdccf3c7effe470f7a7db63e1d7",
+    "src/kalmora/documents/extractor.py": "ad4c3fba54a83ed9b34718682b20178f1f35d1a3ea7c33e0bdd3f7d3db51f4dc",
+    "src/kalmora/documents/hybrid.py": "c03d532cd968d82035c23d3342d0e1d1b3d7942bf2b0783a77d14258a5bd422a",
+    "src/kalmora/documents/image_reviews.py": "20f9ee3c7400ad5db1916a4caff5602ca2e2d16f6ae80b49288cc7a871065f87",
+    "src/kalmora/documents/native_table.py": "ed9d20fafdbc3d956c08d94273893f6547cb7becd1458ce64cfe68be7bf8f193",
+    "src/kalmora/documents/native_timesheet.py": "dfe0c256b6539e1e438c992ba921b62233a87080371b697f4989e5842116768c",
+    "src/kalmora/documents/normalization.py": "04deddb5d06226c69fb691fcbb319724be6deee32d1370e756630baa02e37873",
+    "src/kalmora/documents/ocr.py": "3343507618d64bc6ca20c5bc243bd9f6f92d4be9a86465e301b405b7332c29b7",
+    "src/kalmora/documents/prompts.py": "db8fa416c82a7d614ce3b6393932cb424f887c49ec43e8b8d49bae07e08a464e",
+    "src/kalmora/documents/replay.py": "2665d66ca024721e8c87893d879961f07c1296ce70ddff564845bc8658c92024",
+    "src/kalmora/documents/router.py": "c971cc503b50f61de4400f64efe47711ce818551761d17a661e0846fd9ffe36d",
+    "src/kalmora/documents/runner.py": "5adbea1cecf0627b4276872f29fa4ecbbaaeb8277fb40cd4fde3e4216da8061e",
+    "src/kalmora/documents/staged.py": "84a3d708f56ed9856ddb7aeddcb4f85365d50a983b5e8e0a2622e8a259386bf1",
+    "src/kalmora/documents/vision.py": "58c5f3f76200b14428138c831b7e5d13a992408835764e07edb62c689d882d38",
+    "src/kalmora/documents/xml_extractor.py": "c90ff7d4e2f44dad5e25cbe0cb64b583139cec99c6159a69b286569543b83473",
+    "src/kalmora/facts.py": "d5e0ffa859f560b4ca3bbe439cca1746abbf8b63181b4a8e16691df88d85d623",
+    "src/kalmora/llm/client.py": "e77c86b46320b39e3f905366473c7de1f84a726ba8f12269d06e66c663344af6",
+    "src/kalmora/runlog.py": "aaa76a96354ae761a6b21f7acdaaaca1fc1558f4c696cc5cfc192df2ba7acb5b",
+    "tools/capture_document_sample.py": "851753f2b3cd7b7165ea6a525a05acd5da8264c29b9bbc262b285b2d0b3e3ed9",
+    "tools/evaluate_document_sample.py": "4d073e739992ccefe09c4622830bb2f99d191d1a2e736b40e7f32abe7f1d6a51"
+  },
+  "holdout_used": false,
+  "independent_image_review": {
+    "case": "T12",
+    "normalized_observation_instances": 147,
+    "printed_priced_rows_verified": 26,
+    "raw_observation_instances": 148,
+    "registry_file_sha256": "d27bef6e3f2888f097ff36e18da49b1c1c32be0299750a5c30bc255a5e7e14ef",
+    "rejected": 0,
+    "reviewed_without_labels_or_golden": true,
+    "unique_verified_observation_identities": 231,
+    "unreviewed": 0
+  },
+  "issue": 222,
+  "known_estimated_cost_usd": "0.06355025",
+  "limitations": [
+    "Same twelve tuning cases, not a fresh blind acceptance set or September benchmark. Previous holdout was not rerun.",
+    "Pipeline, prompt and canonical adapter changed together; this is not a controlled prompt-only comparison.",
+    "One failed PDF remains in the case and field denominators. Its known call costs are included; case-wide live capture is not established.",
+    "Reported 48 unsupported observations remain failures. Numeric XML quote/location validation, date literals and derived counts need explicit source-contract work; zero fabrication is not established.",
+    "Semantic coverage is 2/4 with precision 2/2; small sample, below unchanged 80% coverage gate.",
+    "Model table completeness is not inferred from returned IDs. T12 has independent original-pixel review; it still lacks two required delivery references.",
+    "Estimated cost uses conservative rates, not an invoice. It is not directly comparable to historical short-context cost assumptions.",
+    "Existing prepared AP bundles pin earlier adapters; regenerate from originals and retained recordings while preserving historical versions.",
+    "A new fixed protocol and disjoint reserved originals are required before claiming blind acceptance."
+  ],
+  "live_capture_confirmed": false,
+  "live_confirmed_cases": 11,
+  "metrics": {
+    "critical_exact": {
+      "denominator": 94,
+      "numerator": 74,
+      "rate": "0.7872340425531914893617021277",
+      "small_n": false,
+      "status": "measured"
+    },
+    "critical_prediction_precision": {
+      "denominator": 75,
+      "numerator": 73,
+      "rate": "0.9733333333333333333333333333",
+      "small_n": false,
+      "status": "measured"
+    },
+    "cross_attachment_conflict_preservation": {
+      "denominator": 1,
+      "numerator": 0,
+      "rate": "0",
+      "small_n": true,
+      "status": "measured"
+    },
+    "grounded_evidence": {
+      "denominator": 925,
+      "numerator": 877,
+      "rate": "0.9481081081081081081081081081",
+      "small_n": false,
+      "status": "measured"
+    },
+    "required_exact": {
+      "denominator": 114,
+      "numerator": 83,
+      "rate": "0.7280701754385964912280701754",
+      "small_n": false,
+      "status": "measured"
+    },
+    "reviewed_absence_abstention": {
+      "denominator": 2,
+      "numerator": 1,
+      "rate": "0.5",
+      "small_n": true,
+      "status": "measured"
+    },
+    "reviewed_prediction_precision": {
+      "denominator": 84,
+      "numerator": 82,
+      "rate": "0.9761904761904761904761904762",
+      "small_n": false,
+      "status": "measured"
+    }
+  },
+  "month": "2026-07",
+  "no_retuning_after_run": true,
+  "official_accounting_score_computed": false,
+  "operational_failures": {
+    "T03": "XML accepted; PDF rejected after two recorded attempts: contradictory MISSING states, then unsupported header fields. Partial candidates are diagnostic only."
+  },
+  "passed": false,
+  "phase": "phase_dev",
+  "post_measurement_backend_integration": {
+    "backend_revision": "fb93a76",
+    "changed_frozen_modules": {
+      "src/kalmora/runlog.py": {
+        "frozen_sha256": "aaa76a96354ae761a6b21f7acdaaaca1fc1558f4c696cc5cfc192df2ba7acb5b",
+        "integrated_sha256": "8ab401f994fbf6f1cc550de987916930f0882d55c161f0f288f76bfdc58621d4"
+      }
+    },
+    "reason": "Backend PR #284 adds live run/call observability. Capture, prompt, normalization, replay and evaluator modules remain unchanged; measurements belong to the frozen code_commit."
+  },
+  "price_assumption_usd_per_million": {
+    "input": "0.25",
+    "output": "0.75"
+  },
+  "prior_v17_tuning": {
+    "captured_cases": 8,
+    "cases": 12,
+    "elapsed_p95_seconds": 33.10830658301711,
+    "metrics": {
+      "critical_exact": {
+        "denominator": 94,
+        "numerator": 39,
+        "rate": "0.4148936170212765957446808511",
+        "small_n": false,
+        "status": "measured"
+      },
+      "critical_prediction_precision": {
+        "denominator": 40,
+        "numerator": 39,
+        "rate": "0.975",
+        "small_n": false,
+        "status": "measured"
+      },
+      "cross_attachment_conflict_preservation": {
+        "denominator": 1,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "grounded_evidence": {
+        "denominator": 647,
+        "numerator": 599,
+        "rate": "0.9258114374034003091190108192",
+        "small_n": false,
+        "status": "measured"
+      },
+      "required_exact": {
+        "denominator": 114,
+        "numerator": 45,
+        "rate": "0.3947368421052631578947368421",
+        "small_n": false,
+        "status": "measured"
+      },
+      "reviewed_absence_abstention": {
+        "denominator": 2,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "reviewed_prediction_precision": {
+        "denominator": 46,
+        "numerator": 45,
+        "rate": "0.9782608695652173913043478261",
+        "small_n": false,
+        "status": "measured"
+      }
+    },
+    "passed": false,
+    "semantic": {
+      "abstention": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      },
+      "coverage": {
+        "denominator": 4,
+        "numerator": 0,
+        "rate": "0",
+        "small_n": true,
+        "status": "measured"
+      },
+      "precision": {
+        "denominator": 0,
+        "numerator": 0,
+        "rate": null,
+        "small_n": true,
+        "status": "not_applicable"
+      }
+    }
+  },
+  "prompt": "document-observations-v18-field-coverage",
+  "provider_max_output_tokens": null,
+  "provider_timeout_seconds": null,
+  "reasoning_effort": "low",
+  "replay": {
+    "accepted_original_attachments_verified": 12,
+    "failed_original_attachments_excluded": 1,
+    "network_allowed": false,
+    "provider_calls": 0
+  },
+  "runtime": {
+    "openai": "3.24.0",
+    "pillow": "12.3.0",
+    "pydantic": "2.13.5",
+    "pydantic-ai-slim": "2.54.0",
+    "pypdf": "6.19.0"
+  },
+  "schema_version": 1,
+  "scope": "tuning",
+  "semantic": {
+    "abstention": {
+      "denominator": 0,
+      "numerator": 0,
+      "rate": null,
+      "small_n": true,
+      "status": "not_applicable"
+    },
+    "checks": [
+      {
+        "check_id": "T01",
+        "resolvability": "manually_unique",
+        "selected_count": 1
+      },
+      {
+        "check_id": "T10",
+        "resolvability": "manually_unique",
+        "selected_count": 1
+      },
+      {
+        "check_id": "T11",
+        "resolvability": "manually_unique",
+        "selected_count": 0
+      },
+      {
+        "check_id": "T12",
+        "resolvability": "manually_unique_after_context_filters",
+        "selected_count": 0
+      }
+    ],
+    "coverage": {
+      "denominator": 4,
+      "numerator": 2,
+      "rate": "0.5",
+      "small_n": true,
+      "status": "measured"
+    },
+    "precision": {
+      "denominator": 2,
+      "numerator": 2,
+      "rate": "1",
+      "small_n": true,
+      "status": "measured"
+    }
+  },
+  "source_selection_sha256": "02e51e54b38d39dc044b1afad85f3caf01d8140419aaf4629dacb378d1619d00",
+  "threshold_revision": "user-no-temporal-limit-2026-10-03",
+  "thresholds": {
+    "ambiguous_correct_abstention_min": "1.00",
+    "capture_estimated_cost_usd_per_document_max": "0.10",
+    "case_required_field_completeness_min": "0.95",
+    "critical_header_money_tax_line_amount_exact_min": "0.95",
+    "fabricated_values_or_ids_max": 0,
+    "grounded_evidence_location_min": "1.00",
+    "latency_p95_seconds_max": null,
+    "selected_candidate_precision_min": "1.00",
+    "unique_resolvable_candidate_coverage_min": "0.80",
+    "unknown_cost": "fails cost criterion"
+  },
+  "transport_attempts": 1,
+  "unknown_cost_reservations_usd": "0",
+  "unsupported_observations_by_case": {
+    "T02": 38,
+    "T03": 3,
+    "T04": 1,
+    "T06": 2,
+    "T07": 2,
+    "T09": 1,
+    "T10": 1
+  },
+  "validation_attempts": 2
+}

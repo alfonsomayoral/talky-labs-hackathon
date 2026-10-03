@@ -46,7 +46,7 @@ class HybridDocumentExtractorTests(unittest.IsolatedAsyncioTestCase):
 
         facts = await HybridDocumentExtractor(native, vision).extract(xml)
 
-        self.assertEqual(facts.extractor_version, "xml-source-extractor-v2")
+        self.assertEqual(facts.extractor_version, "xml-source-extractor-v3")
         self.assertEqual(facts.fields["raw.xml./Comprobante/@Version"][0].value, "4.0")
         self.assertEqual(native.calls, [])
         self.assertEqual(vision.calls, [])

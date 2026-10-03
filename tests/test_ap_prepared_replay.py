@@ -190,7 +190,10 @@ class APPreparedReplayTests(unittest.TestCase):
         self.assertIsInstance(task.message, APMessage)
         attachment, = task.attachments
         self.assertIsInstance(attachment, APAttachment)
-        self.assertEqual(attachment.normalized.facts.fields["payable_cents"][0].value, 1210)
+        # InvoiceTotal alone does not establish the amount outstanding after
+        # advances/subsidies. Keep the literal and leave payable unresolved.
+        self.assertEqual(attachment.facts.fields["raw.invoice_total"][0].value, "12.10")
+        self.assertNotIn("payable_cents", attachment.normalized.facts.fields)
         self.assertEqual(attachment.classification.document_type, "INVOICE")
         self.assertEqual(APDocumentBridge.from_task_sources(task).classification.document_type, "INVOICE")
         original_message = json.loads((self.phase / task.message.path).read_text())
@@ -281,7 +284,7 @@ class APPreparedReplayTests(unittest.TestCase):
     def test_rehashed_normalized_mutation_is_refused_by_current_conversion(self):
         run = self.prepare()
         def mutate(artifact):
-            artifact["normalized"]["fields"]["payable_cents"][0]["value"] = 9999
+            artifact["normalized"]["fields"]["net_cents"][0]["value"] = 9999
         self.alter_artifact(run, mutate)
         with self.assertRaisesRegex(ValueError, "current conversion"):
             self.load(run)
