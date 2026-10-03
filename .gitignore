@@ -1,14 +1,18 @@
+# Challenge data (never committed)
+participant/
+.DS_Store
+
+# Frontend (app/)
 node_modules
 dist
 dist-ssr
 coverage
 *.local
 .env.local
-.DS_Store
 .vscode/*
 !.vscode/extensions.json
 .idea
 *.log
+.claude/
 # Run bundles (backend outputs) never go to this public repo
 /runs/
-.claude/

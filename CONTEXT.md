@@ -1,0 +1,97 @@
+# Kalmora Accounting Domain
+
+Canonical vocabulary for the challenge domain, kept consistent across design, implementation, and deliverables. This file defines terms; detailed rules live in the participant policies.
+
+## Entities and documents
+
+**Company**:
+A legal entity in the group that records its own transactions, local currency, balances, and journal entries.
+_Avoid_: group, when referring to one legal entity.
+
+**Business partner**:
+The counterparty associated with an open item: vendor, customer, group company, or factor, depending on the account.
+_Avoid_: partner without saying which kind of counterparty it is.
+
+**AP document**:
+A document received in the accounts payable workflow; it may be an invoice, credit note, down payment request, or a non-invoice notice.
+_Avoid_: invoice for every file in the inbox.
+
+**Invoice**:
+A document requesting payment for a transaction; in AP it must be validated, and in AR it supports a receivable subject to performance, contract, and challenge rules.
+_Avoid_: receipt, payment, or journal entry as synonyms for invoice.
+
+**Purchase order**:
+Prior purchase authorization with items, quantities, prices, and terms; by itself it is not receipt or a posted invoice.
+_Avoid_: recorded liability.
+
+**Receipt**:
+Evidence that goods or services were received. It is matched against the purchase order and invoice to confirm quantity and acceptance.
+_Avoid_: invoice or purchase order.
+
+**Open item**:
+An individual amount awaiting clearing in a customer, vendor, or other auxiliary account.
+_Avoid_: aggregate balance when the invoice, due date, or assignment is needed.
+
+**Assignment**:
+A reference linking an item to its source document or to the receipt/payment that clears it.
+_Avoid_: bank reconciliation; these are different relationships.
+
+## Accounting and close
+
+**Journal entry**:
+An atomic record of a transaction made up of debit and credit lines whose totals must be equal.
+_Avoid_: bank movement when it does not itself imply a journal entry.
+
+**Accrual basis**:
+Recognition of income or expense when the service is performed or consumed, regardless of collection or payment.
+_Avoid_: cash basis.
+
+**Monetary item**:
+A right or obligation to receive or pay a fixed or determinable amount of currency; a foreign-currency item may require closing-date remeasurement.
+_Avoid_: non-monetary asset carried at historical cost.
+
+**Period adjustment**:
+An adjustment that assigns income or expense to the correct period when performance/consumption and billing, collection, or payment occur at different times.
+_Avoid_: maturity reclassification.
+
+**Prepaid expense**:
+A payment already made for a service not yet consumed; the future portion remains an asset.
+_Avoid_: accrued unbilled expense.
+
+**Accrued unbilled expense**:
+A service already consumed by close for which the invoice has not yet arrived; recognize the expense and estimated liability.
+_Avoid_: prepaid expense.
+
+**WBS element**:
+A construction-project work breakdown element used to allocate costs/revenue when required by policy.
+_Avoid_: cost center when the allocation must use a WBS element.
+
+**Cost center**:
+An organizational allocation object for overhead or service costs/revenue when a WBS element does not apply.
+_Avoid_: assigning both a cost center and WBS element to one line.
+
+## Operations
+
+**Three-way match**:
+A control comparing the purchase order, receipt, and invoice before releasing an invoice for payment.
+_Avoid_: matching a payment to a bank statement.
+
+**GR/IR**:
+A clearing account between goods/services received and invoices received; the challenge manual uses account `40090000`.
+_Avoid_: final expense or bank.
+
+**Bank reconciliation**:
+Matching statement lines to accounting lines in account 572 and classifying differences by cause.
+_Avoid_: forcing equality with unsupported journal entries.
+
+**Receipt residual**:
+The difference between a bank credit and the applications to documents, classified only when supported by evidence.
+_Avoid_: an arbitrary adjustment to clear the account.
+
+**Impairment allowance**:
+A valuation correction for a recoverability risk; it does not automatically extinguish the receivable.
+_Avoid_: write-off or debt forgiveness.
+
+**Work performed pending certification (WIP revenue)**:
+Construction work executed by close but not yet approved/certified, handled under the challenge's specific close rule.
+_Avoid_: an approved AR invoice.
