@@ -142,7 +142,7 @@
 
 .groupName {
   display: block;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--text-11);
   font-weight: var(--weight-regular);
 }
@@ -175,7 +175,7 @@
 }
 
 .heatCell[aria-pressed='true'] {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   box-shadow: 0 0 0 2px var(--brand-soft);
 }
 
@@ -187,5 +187,5 @@
 .heatEmpty {
   display: block;
   padding: 0 var(--space-2);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }

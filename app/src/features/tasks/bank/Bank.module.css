@@ -213,7 +213,7 @@
 }
 
 .chipSelected {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   background: var(--brand-soft);
   color: var(--ink);
 }

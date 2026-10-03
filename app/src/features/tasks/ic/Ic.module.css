@@ -85,7 +85,7 @@
 }
 
 .pairCell[aria-pressed='true'] {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   box-shadow: 0 0 0 2px var(--brand-soft);
 }
 
