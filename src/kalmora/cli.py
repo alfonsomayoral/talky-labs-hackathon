@@ -41,6 +41,8 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--max-upload-mb", type=int, default=256)
     serve.add_argument("--cors-origin", action="append", help="Allowed browser origin (default: localhost only)")
     serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
+    serve.add_argument("--serve-golden", action="store_true",
+                       help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
@@ -112,7 +114,7 @@ def _execute(args: argparse.Namespace) -> int:
         from .evaluation.gateway import EvaluatorGateway
         settings = Settings(data_dir=args.data_dir, run_dir=args.run_dir, submissions_dir=args.submissions_dir,
                             max_upload_bytes=args.max_upload_mb * 1024 * 1024,
-                            cors_origins=tuple(args.cors_origin or ()))
+                            cors_origins=tuple(args.cors_origin or ()), serve_golden=args.serve_golden)
         services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
         if not args.no_restore:
             print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)

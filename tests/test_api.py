@@ -344,10 +344,11 @@ class ApiTests(unittest.TestCase):
         bundle = self.settings.run_dir / run_id
         (bundle / "deliverables").mkdir(parents=True)
         (bundle / "deliverables" / "ap.jsonl").write_text('{"doc_id": "API1"}\n')
-        (bundle / "manifest.json").write_text(json.dumps({"run_id": run_id, "status": "completed",
-                                                          "started_at": "2026-06-30T00:00:00+00:00"}))
+        (bundle / "manifest.json").write_text(json.dumps({"run_id": run_id, "status": "completed", "dataset": "phase_dev",
+                                                          "month": "2026-07", "started_at": "2026-06-30T00:00:00+00:00"}))
         listed = {r["run_id"]: r for r in self.data("/v1/runs")["items"]}
         self.assertTrue(listed[run_id]["has_files"])
+        self.assertEqual((listed[run_id]["dataset"], listed[run_id]["month"]), ("phase_dev", "2026-07"))
         self.assertEqual(self.data(f"/v1/runs/{run_id}")["status"], "completed")
         index = self.client.get(f"/v1/runs/{run_id}/files/__index.json").json()
         self.assertEqual([f["path"] for f in index], ["deliverables/ap.jsonl", "manifest.json"])
@@ -366,6 +367,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(json.loads(self.client.get(f"{self.phase}/files/tasks/close.json").text)["month"], "2026-07")
         self.assertProblem(self.client.get(f"{self.phase}/files/golden/ap.jsonl"), 404, "file.not_found")
         self.assertProblem(self.client.get(f"{self.phase}/files/..%2Fphase_dev%2Fgolden%2Fap.jsonl"), 404, "file.not_found")
+
+    def test_phase_files_serve_the_golden_when_asked(self):
+        golden = self.services.repo.location("phase_dev") / "golden"
+        golden.mkdir(exist_ok=True)
+        (golden / "ap.jsonl").write_text("{}\n")
+        settings = Settings(data_dir=self.root / "data", run_dir=self.root / "runs", serve_golden=True)
+        services = Services(settings)
+        services.ingest.restore()
+        client = TestClient(create_app(services), raise_server_exceptions=False)
+        paths = [f["path"] for f in client.get(f"{self.phase}/files/__index.json").json()]
+        self.assertIn("golden/ap.jsonl", paths)
+        self.assertEqual(client.get(f"{self.phase}/files/golden/ap.jsonl").text, "{}\n")
 
     def test_submission_structure_check(self):
         folder = self.settings.submissions_dir / "phase_dev"

@@ -15,6 +15,7 @@ class Settings:
     submissions_dir: Path = Path("outputs/submissions")
     max_upload_bytes: int = 256 * 1024 * 1024
     cors_origins: tuple[str, ...] = ()
+    serve_golden: bool = False
 
 
 class NoEvaluator:
@@ -68,7 +69,7 @@ class Services:
         self.list_runs = runs.ListRuns(run_store)
         self.get_run = runs.GetRun(run_store)
         self.get_run_file = files.GetRunFile(run_store)
-        self.get_phase_file = files.GetPhaseFile(repo)
+        self.get_phase_file = files.GetPhaseFile(repo, settings.serve_golden)
         self.get_submission = runs.GetSubmission(repo, submissions)
         self.list_submission_rows = runs.ListSubmissionRows(repo, submissions)
         self.check_submission = runs.CheckSubmission(repo, submissions, gateway)

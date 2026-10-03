@@ -1,7 +1,8 @@
 """Raw files of a phase or of a run bundle, for clients that parse them themselves (the web app's worker).
 
 ``__index.json`` lists ``[{path, size}]`` relative to the root; any other path returns that file. The
-phase's ``golden/`` folder is never listed nor served: it belongs to the evaluator.
+phase's ``golden/`` folder belongs to the evaluator: it is listed and served only when the process is
+started with ``serve_golden`` (``kalmora serve --serve-golden``), so the web app can score a run.
 """
 from pathlib import Path
 from typing import Any
@@ -29,11 +30,11 @@ def serve_tree(root: Path, path: str, hidden: tuple[str, ...] = ()) -> list[dict
 
 
 class GetPhaseFile:
-    def __init__(self, repo: PhaseRepository) -> None:
-        self._repo = repo
+    def __init__(self, repo: PhaseRepository, serve_golden: bool = False) -> None:
+        self._repo, self._hidden = repo, () if serve_golden else ("golden",)
 
     def __call__(self, phase: str, path: str) -> list[dict[str, Any]] | Path:
-        return serve_tree(self._repo.location(phase), path, hidden=("golden",))
+        return serve_tree(self._repo.location(phase), path, hidden=self._hidden)
 
 
 class GetRunFile:
