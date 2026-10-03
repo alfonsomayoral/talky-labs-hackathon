@@ -178,9 +178,10 @@ def _bound_bank_event(event, fields, invoice_date):
 
 
 def _unknown(document_type, state, proof, notes) -> NoticeResolution:
-    result = apply_notice(document_type, state=state)
-    return replace(result, evidence=proof,
-                   diagnostics=tuple(dict.fromkeys((*result.diagnostics, *notes))))
+    # Incomplete integration facts cannot authorize an operative action, even
+    # when the policy engine assigns an action to the document's known type.
+    return NoticeResolution("UNKNOWN", None, state, evidence=proof,
+        diagnostics=tuple(dict.fromkeys(("NOTICE_FACTS_UNKNOWN", *notes))))
 
 
 def resolve_ap_notice(

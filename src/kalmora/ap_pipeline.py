@@ -46,6 +46,31 @@ def source_rejection_stage(
     check net + charged tax = gross separately using the existing arithmetic
     rule. Missing amounts remain unknown; no candidate is selected or filled.
     """
+    amount_sources = tuple(amount_sources)
+    if any(not isinstance(source, DocumentFacts) for source in amount_sources):
+        raise TypeError("arithmetic sources require normalized DocumentFacts")
+    fields = dict(fields)
+    # Context supplies applicability and master identities, not alternative
+    # observations of printed deductions, addressee IDs or charged tax.
+    # Retain both sides of any disagreement so an adapter cannot clear a gate
+    # with a quota that contradicts the independently normalized attachments.
+    for policy_name, source_name in (("withholding_cents", "withholding_cents"),
+                                     ("recipient_nif", "recipient_tax_id"),
+                                     ("charged_vat_cents", "tax_cents")):
+        observed = tuple(f for source in amount_sources for f in source.fields.get(source_name, ()))
+        if observed:
+            context_facts = tuple(fields.get(policy_name, ()))
+            if policy_name == "recipient_nif":
+                # This gate checks presence; exact recipient identity is checked
+                # separately. Existing source adapters use the PRESENT marker.
+                # Preserve None/blank/invalid candidates rather than comparing
+                # a presence marker to a literal tax identifier.
+                def presence(fact):
+                    value = "PRESENT" if isinstance(fact.value, str) and fact.value.strip() else fact.value
+                    return Fact(value, fact.evidence)
+                context_facts = tuple(map(presence, context_facts))
+                observed = tuple(map(presence, observed))
+            fields[policy_name] = (*context_facts, *observed)
     checks = list(rejection_checks(fields))
     arithmetic = []
     diagnostics = []
@@ -154,15 +179,45 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
                            duplicate_of=original, context=context, tax_catalog=tax_catalog)
         return finish("DECIDED", row)
 
+    if current.currency is None or current.amount_cents is None:
+        stages.append(("duplicate", "UNKNOWN"))
+        return finish("UNKNOWN", diagnostics=("CURRENT_IDENTITY_OR_AMOUNT_UNKNOWN",))
+
     complete = request.duplicate_inventory_complete
     if complete is not None:
         if not isinstance(complete, Fact) or type(complete.value) is not bool:
             raise TypeError("duplicate inventory completeness requires an explicit boolean Fact")
         evidence.append(complete.evidence)
     duplicates = (*baseline.duplicate_records, *state.observations, *(history or ()))
-    covered = {record.doc_id for record in duplicates}
-    if any(row["doc_id"] not in covered for row in state.rows):
+    covered = {(record.company, record.vendor, record.currency, record.doc_id,
+                record.number, record.amount_cents, record.status, record.document_type)
+               for record in duplicates if receipt_key(record.received_at).strftime("%Y-%m") == baseline.month
+               and receipt_key(record.received_at) <= receipt_key(current.received_at)}
+    if any((row["company"], row["vendor_id"], row["currency"], row["doc_id"],
+            row["invoice_number"], row["gross"], row["decision"], row["document_type"]) not in covered
+           for row in state.rows):
         return finish("UNKNOWN", diagnostics=("POSTED_DUPLICATE_OBSERVATIONS_INCOMPLETE",))
+    # One observation must be backed by a complete independent header, never
+    # by mixing fields across views. Conflicting other financial headers remain
+    # available to the ordered CFDI rejection instead of disappearing in a
+    # premature aggregate amount-consensus gate.
+    header_supported, header_unknown = False, []
+    for source in request.amount_sources:
+        matches = True
+        for name, value in (("document_number", current.number), ("currency", current.currency),
+                            ("gross_cents", current.amount_cents)):
+            source_value, proof, diagnostics = resolve_field(source.fields, name)
+            evidence.extend(proof)
+            if source_value is UNKNOWN or source_value is None:
+                header_unknown.extend(diagnostics or (f"DUPLICATE_SOURCE_UNKNOWN:{name}",))
+                matches = False
+            elif type(source_value) is not type(value) or source_value != value:
+                matches = False
+        header_supported = header_supported or matches
+    if not header_supported:
+        if header_unknown or not request.amount_sources:
+            return finish("UNKNOWN", diagnostics=tuple(header_unknown) or ("DUPLICATE_SOURCE_HEADER_UNKNOWN",))
+        raise ValueError("duplicate observation differs from independent financial attachments")
     duplicate = duplicate_result(current, duplicates, inventory_complete=complete is not None and complete.value)
     evidence.extend(duplicate.evidence)
     stages.append(("duplicate", duplicate.status))
@@ -189,6 +244,14 @@ def evaluate_ap_invoice(request: APInvoiceRequest, state: APTransactionState, *,
 
     if request.invoice_date is None:
         return finish("UNKNOWN", diagnostics=("CHRONOLOGY_INVOICE_DATE_UNKNOWN",))
+    source_dates = {"document_date": tuple(f for source in request.amount_sources
+                                           for f in source.fields.get("document_date", ()))}
+    source_date, proof, diagnostics = resolve_field(source_dates, "document_date")
+    evidence.extend(proof)
+    if source_date is UNKNOWN or source_date is None:
+        return finish("UNKNOWN", diagnostics=diagnostics or ("CHRONOLOGY_SOURCE_DATE_UNKNOWN",))
+    if type(source_date) is not str or source_date != request.invoice_date.value:
+        raise ValueError("chronology date differs from independent financial attachments")
     inventories = request.event_inventory_evidence or {}
     bank_value, _, _ = resolve_field(request.hold_fields, "invoice_bank_iban")
     chronology = strict_invoice_events(request.timeline, ApScope(current.company, current.vendor, current.currency),

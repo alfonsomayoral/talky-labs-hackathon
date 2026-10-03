@@ -57,6 +57,23 @@ known net contradicted by caller inputs raises `ValueError` in every phase.
 Direct expense lines without receipt quantities or price checks do not need
 source quantity, unit or unit price.
 
+Observed `po_reference` and `po_item` must agree exactly with every active
+quantity/price portion's `OrderKey` for the bound posting line. The bridge checks
+all financial views and both header and row candidates; an explicit row does
+not erase a contradictory header. A header-only reference applies to each bound
+row. Unobserved references remain unobserved, while explicit `None`, conflicts,
+invalid types, literal mismatches or observed references without any order
+portions produce `UNKNOWN` with `SOURCE_ORDER_REFERENCE_BINDING_REQUIRED`.
+This check also runs before allocation with `amounts_required=False`.
+
+A mismatched printed reference does not establish that the eventual PO is
+wrong. Recovering a corrupted reference, matching a semantic description or
+interpreting a document reference that lists several POs requires a separate
+evidenced resolver/planner. This API has no such proof input yet: it does not
+split reference text, generate PO identities or authorize bypassing the
+observations. A direct expense classification cannot silently erase an
+observed PO reference.
+
 When observed, source row/document currencies must agree with the supplied
 posting currency. Missing currency is preserved and never defaulted. The
 coordinator remains responsible for the invoice header's identity, fiscal

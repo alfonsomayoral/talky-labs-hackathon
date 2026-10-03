@@ -49,6 +49,7 @@ class APInvoicePipelineTests(unittest.TestCase):
             k: [Fact(v, Evidence(path, k))] for k, v in (
                 ("net_cents", header.net), ("tax_cents", header.tax), ("gross_cents", header.gross),
                 ("document_number", header.invoice_number), ("document_date", header.invoice_date),
+                ("recipient_tax_id", "A-SOURCE"),
                 ("currency", header.currency), ("line.1.quantity_milli", 1000),
                 ("line.1.unit_price_e4", 1000000), ("line.1.uom", "ud"), ("line.1.net_cents", 10000))})
         fields = {k: [self.fact(v, k)] for k, v in {
@@ -148,7 +149,7 @@ class APInvoicePipelineTests(unittest.TestCase):
         request = self.direct(self.request())
         for name, value in (("document_date", "2031-11-01"), ("document_number", "ANOTHER-INVOICE"),
                             ("currency", "USD")):
-            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "identity/date/currency|posting currency"):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "independent financial attachments|posting currency"):
                 self.run_invoice(self.source_fields(request, **{name: value}))
 
     def test_invoice_price_and_quantity_checks_are_bound_to_original_source_rows(self):
@@ -164,6 +165,77 @@ class APInvoicePipelineTests(unittest.TestCase):
         self.assertIsNone(unknown.row)
         self.assertIs(unknown.state, self.state)
         self.assertEqual(self.state.consumption.usages[0].quantity_milli, 1000)
+
+    def test_withholding_gate_cannot_clear_using_quota_that_contradicts_source(self):
+        request = self.source_fields(self.direct(self.request()), withholding_cents=0)
+        fields = dict(request.rejection_fields, withholding_required=[self.fact(True, "professional master")],
+                      withholding_cents=[self.fact(1500, "contradicting adapter quota")])
+        result = self.run_invoice(replace(request, rejection_fields=fields))
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertIs(result.state, self.state)
+        self.assertIsNone(result.row)
+        corrected = self.run_invoice(replace(request, rejection_fields=dict(fields,
+            withholding_cents=[Fact(0, Evidence("synthetic/invoice.xml", "withholding_cents"))])))
+        self.assertEqual(corrected.row["decision"], "REJECT")
+        self.assertEqual(corrected.row["reasons"], ["WITHHOLDING_MISSING"])
+
+    def test_cfdi_header_disagreement_reaches_rejection_before_line_consensus(self):
+        request = self.request()
+        source = request.amount_sources[0]
+        alternate_fields = {name: [replace(f, evidence=replace(f.evidence, document="synthetic/invoice.pdf"))
+                                  for f in facts] for name, facts in source.fields.items()}
+        for name in ("net_cents", "gross_cents", "line.1.net_cents"):
+            alternate_fields[name] = [replace(f, value=20000) for f in alternate_fields[name]]
+        alternate = DocumentFacts("b" * 64, "synthetic-normalized", alternate_fields)
+        xml = dict(number=request.observation.number, date=request.invoice_date.value,
+            issuer_tax_id="SUPPLIER", recipient_tax_id="A-SOURCE", currency="EUR",
+            net_cents=10000, tax_cents=0, gross_cents=10000)
+        pdf = dict(xml, net_cents=20000, gross_cents=20000)
+        fields = dict(request.rejection_fields, cfdi_applicable=[self.fact(True, "CFDI structural marker")],
+            cfdi_pdf=[Fact(pdf, Evidence("synthetic/invoice.pdf", "independent header"))],
+            cfdi_xml=[Fact(xml, Evidence("synthetic/invoice.xml", "independent header"))])
+        with patch("kalmora.ap_pipeline.allocate_receipts", side_effect=AssertionError("rejection before quantity")):
+            result = self.run_invoice(replace(request, amount_sources=(source, alternate), rejection_fields=fields))
+        self.assertEqual(result.row["decision"], "REJECT")
+        self.assertEqual(result.row["reasons"], ["CFDI_MISMATCH"])
+        self.assertIs(result.state, self.state)
+
+    def test_unknown_duplicate_amount_does_not_become_an_adapter_exception_or_post(self):
+        request = self.request()
+        result = self.run_invoice(replace(request, observation=replace(request.observation, amount_cents=None)))
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertEqual(result.diagnostics, ("CURRENT_IDENTITY_OR_AMOUNT_UNKNOWN",))
+        self.assertIs(result.state, self.state)
+
+    def test_printed_order_must_be_bound_before_quantity_allocation(self):
+        request = self.source_fields(self.request(), **{"line.1.po_reference": "UNCONFIRMED-PRINTED-PO"})
+        with patch("kalmora.ap_pipeline.allocate_receipts", side_effect=AssertionError("no unsupported allocation")):
+            result = self.run_invoice(request)
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertTrue(any("SOURCE_ORDER_REFERENCE_BINDING_REQUIRED" in note for note in result.diagnostics))
+        self.assertIs(result.state, self.state)
+
+    def test_foreign_or_future_history_cannot_cover_publication_without_observation(self):
+        request = self.direct(self.request())
+        legacy = self.fixture.request(request.observation.doc_id)
+        legacy = replace(legacy, posting=request.posting)
+        state = self.fixture.commit(legacy).state
+        observation = replace(request.observation, status="POST")
+        for prior in (replace(observation, company="1910"), replace(observation, vendor="OTHER"),
+                      replace(observation, received_at="2026-09-18T10:00:00"),
+                      replace(observation, received_at="2034-01-01T10:00:00")):
+            with self.subTest(prior=prior):
+                copied = replace(request, observation=replace(request.observation, doc_id="SECOND-CHANNEL"))
+                result = self.run_invoice(copied, state, history=(prior,))
+                self.assertEqual(result.diagnostics, ("POSTED_DUPLICATE_OBSERVATIONS_INCOMPLETE",))
+                self.assertEqual(len(result.state.rows), 1)
+
+    def test_duplicate_observation_cannot_use_another_source_number_to_skip_invoice(self):
+        request = self.request()
+        forged = replace(request, observation=replace(request.observation, number="UNRELATED-NUMBER"))
+        prior = replace(forged.observation, doc_id="OTHER", received_at="2026-09-10T10:00:00")
+        with self.assertRaisesRegex(ValueError, "duplicate observation differs"):
+            self.run_invoice(forged, history=(prior,))
 
     def test_real_post_commits_once_after_all_gates_and_replay_has_no_provider(self):
         request = self.request()
@@ -195,9 +267,15 @@ class APInvoicePipelineTests(unittest.TestCase):
         request = self.request()
         holds = dict(request.hold_fields, bank_differs=[self.fact(True, "observed changed bank")])
         fields = dict(request.rejection_fields, recipient_nif=[self.fact(None, "observed missing NIF")])
+        rejected_request = self.source_fields(replace(request, hold_fields=holds, rejection_fields=fields), recipient_tax_id=None)
+        source = rejected_request.amount_sources[0]
+        unknown_fields = dict(source.fields)
+        del unknown_fields["recipient_tax_id"]
+        unknown_request = replace(request, rejection_fields=dict(fields, recipient_nif=[]),
+            amount_sources=(replace(source, fields=unknown_fields),))
         with patch("kalmora.ap_pipeline.allocate_receipts", side_effect=AssertionError("no allocation")):
-            rejected = self.run_invoice(replace(request, hold_fields=holds, rejection_fields=fields))
-            unknown = self.run_invoice(replace(request, rejection_fields=dict(fields, recipient_nif=[])))
+            rejected = self.run_invoice(rejected_request)
+            unknown = self.run_invoice(unknown_request)
         self.assertEqual(rejected.row["reasons"], ["MANDATORY_FIELD_MISSING"])
         self.assertEqual(unknown.status, "UNKNOWN")
         self.assertIsNone(unknown.row)
@@ -311,7 +389,7 @@ class APInvoicePipelineTests(unittest.TestCase):
                                                                            amount=20000)),))
         request = replace(request, rejection_fields=fields, header=header, posting=posting,
                           observation=replace(request.observation, amount_cents=20000))
-        with self.assertRaisesRegex(ValueError, "observed financial source line net"):
+        with self.assertRaisesRegex(ValueError, "duplicate observation differs"):
             self.run_invoice(request)
         self.assertEqual(self.state.rows, ())
 

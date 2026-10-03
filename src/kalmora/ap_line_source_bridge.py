@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import DecimalException
 import re
 
-from .ap_allocation import InvoiceQuantityLine
+from .ap_allocation import InvoiceQuantityLine, OrderKey
 from .ap_document_bridge import APFactSet, APField, APLineFacts
 from .ap_holds import PriceLine
 from .ap_valuation import ValuationLine
@@ -20,7 +20,7 @@ from .documents.contracts import fingerprint, source_path as validate_source_pat
 from .facts import DocumentFacts, Evidence, Fact
 from .money import decimal
 
-LINE_SOURCE_BRIDGE_VERSION = "ap-line-source-bridge-v1"
+LINE_SOURCE_BRIDGE_VERSION = "ap-line-source-bridge-v2"
 _ROW = re.compile(r"line\.([1-9]\d*)\.(.+)")
 
 
@@ -101,6 +101,9 @@ def validate_ap_line_sources(
 
     ``amounts_required=False`` permits ordered quantity/price gates to run before
     line amounts are resolved. It still rejects a contradiction with known net.
+    Observed PO references require exact agreement with active quantity/price
+    order keys. A discrepancy requires a separate evidenced reference resolver,
+    so this bridge reports UNKNOWN rather than asserting the literal is wrong.
     Optional ``views`` are checked against the full accepted source row fields
     and Evidence, never treated as another factual authority.
     """
@@ -204,6 +207,24 @@ def validate_ap_line_sources(
         linked = by_line[line_id]
         if not linked:
             continue
+        quantity_line, price_line = quantified.get(line_id), priced.get(line_id)
+        orders = tuple(portion.order for input_line in (quantity_line, price_line)
+                       if input_line is not None for portion in input_line.portions)
+        if any(not isinstance(order, OrderKey) for order in orders):
+            raise ValueError("quantity and price portions require typed order keys")
+        for name, kind, attribute in (("po_reference", "text", "po"),
+                                      ("po_item", "integer", "item")):
+            fields = tuple(field for view in linked for field in (
+                headers[view.source_path].field(name, kind=kind),
+                view.field(name, kind=kind)))
+            reference = _consensus(name, fields, kind)
+            if not reference.candidates:
+                continue  # Unobserved references are not invented or defaulted.
+            proof.extend(reference.evidence)
+            if (not reference.known or not orders
+                    or any(getattr(order, attribute) != reference.value for order in orders)):
+                notes.append(f"SOURCE_ORDER_REFERENCE_BINDING_REQUIRED:{line_id}:{name}")
+                notes.extend(reference.diagnostics)
         observed_currency = []
         for view in linked:
             row_currency = view.facts.field("currency", kind="currency")
@@ -228,7 +249,6 @@ def validate_ap_line_sources(
             if amount.value != line.amount_doc:
                 raise ValueError("valued amount contradicts the observed financial source line net")
 
-        quantity_line, price_line = quantified.get(line_id), priced.get(line_id)
         needs_quantity = quantity_line is not None or price_line is not None or line.quantity_milli is not None
         if needs_quantity:
             quantity = _consensus("quantity_milli", (view.quantity_milli for view in linked), "integer")

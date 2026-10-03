@@ -92,6 +92,61 @@ class APLineSourceBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valued amount contradicts"):
             validate_ap_line_sources(**args, amounts_required=False)
 
+    def test_printed_po_cannot_be_ignored_before_quantity_allocation(self):
+        args = self.inputs()
+        args["price_lines"] = ()
+        cases = (("PO-OTHER", 30, "CLEAR"),
+                 ("PO-PRINTED-DIFFERENT", 30, "UNKNOWN"),
+                 ("PO-OTHER", 31, "UNKNOWN"),
+                 ("PO-OTHER, PO-SECOND", 30, "UNKNOWN"),
+                 (None, 30, "UNKNOWN"))
+        for reference, item, expected in cases:
+            with self.subTest(reference=reference, item=item):
+                args["amount_sources"] = (self.source([dict(quantity_milli=1000, uom="hours",
+                    po_reference=reference, po_item=item)]),)
+                result = validate_ap_line_sources(**args, amounts_required=False)
+                self.assertEqual(result.status, expected)
+                self.assertTrue(any(e.field == "line.1.po_reference" for e in result.evidence))
+                if expected == "UNKNOWN":
+                    self.assertTrue(any(note.startswith("SOURCE_ORDER_REFERENCE_BINDING_REQUIRED:")
+                                        for note in result.diagnostics))
+
+    def test_header_reference_applies_to_rows_and_cannot_be_erased_by_a_conflicting_row(self):
+        args = self.inputs()
+        row = dict(net_cents=12000, quantity_milli=1000, uom="hours", unit_price_e4=1200000)
+        args["amount_sources"] = (self.source([row], po_reference="PO-OTHER", po_item=30),)
+        matched = validate_ap_line_sources(**args)
+        self.assertEqual(matched.status, "CLEAR")
+        self.assertTrue(any(e.field == "po_reference" for e in matched.evidence))
+        for changed in (dict(po_reference="PO-DIFFERENT"), dict(po_item=31),
+                        dict(po_reference=None), dict(po_item=True)):
+            with self.subTest(changed=changed):
+                args["amount_sources"] = (self.source([{**row, **changed}],
+                    po_reference="PO-OTHER", po_item=30),)
+                result = validate_ap_line_sources(**args)
+                self.assertEqual(result.status, "UNKNOWN")
+                self.assertTrue(any(note.startswith("SOURCE_ORDER_REFERENCE_BINDING_REQUIRED:")
+                                    for note in result.diagnostics))
+        args["amount_sources"] = (self.source([row], po_reference="PO-OTHER", po_item=30),)
+        wrong_price_order = replace(args["price_lines"][0].portions[0],
+                                    order=replace(self.order, po="PO-PRICE-DIFFERENT"))
+        args["price_lines"] = (replace(args["price_lines"][0], portions=(wrong_price_order,)),)
+        self.assertEqual(validate_ap_line_sources(**args).status, "UNKNOWN")
+
+    def test_direct_expense_cannot_silently_discard_an_observed_po_reference(self):
+        args = self.inputs()
+        args["valuation_lines"] = (replace(args["valuation_lines"][0], quantity_milli=None),)
+        args["quantity_lines"], args["price_lines"] = (), ()
+        for references in (dict(po_reference="PO-OTHER"), dict(po_item=30),
+                           dict(po_reference=None), {}):
+            with self.subTest(references=references):
+                args["amount_sources"] = (self.source([dict(net_cents=12000, **references)]),)
+                result = validate_ap_line_sources(**args)
+                self.assertEqual(result.status, "UNKNOWN" if references else "CLEAR")
+                if references:
+                    self.assertTrue(any(note.startswith("SOURCE_ORDER_REFERENCE_BINDING_REQUIRED:")
+                                        for note in result.diagnostics))
+
     def test_net_and_gross_line_amount_are_not_aliased_or_divided_into_unit_price(self):
         args = self.inputs(amount=18000, price=20000)
         args["amount_sources"] = (self.source([dict(net_cents=18000, amount_cents=20000,
