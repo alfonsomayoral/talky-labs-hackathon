@@ -131,15 +131,25 @@ Si se agota el límite de la cuenta, otra cuenta de Claude continúa en este mis
 1. No lanza más subagentes. Si a los que están en marcha les queda poco, los espera. Si no, los detiene y commitea su trabajo parcial como `wip` en la carpeta o rama que le corresponda, anotando de quién era.
 2. Integra en `hackathon/frontend` solo lo verificado.
 3. Actualiza `STATUS.md` con el estado real.
-4. Escribe `app/HANDOFF.md` con:
+4. Antes de escribir `HANDOFF.md`, comprueba el checkout principal y cada worktree de `/Users/alfonsomayoral/Talky/talky-wt/`:
+   - `git -C <ruta> status --porcelain` debe salir vacío;
+   - `git -C <ruta> log origin/<rama>..<rama>` debe salir vacío: nada sin subir.
+
+   Si alguno tiene cambios sin commitear o commits sin subir, no los toca: le da al usuario la lista para que haga «RELEVO» en esa sesión y espera a que le diga que siga.
+5. Escribe `app/HANDOFF.md` con:
    - el estado de las puertas;
    - cada rama con su último sha y su estado;
    - el trabajo a medias con su siguiente paso;
    - el orden de lo que queda;
    - las comprobaciones pendientes;
-   - los comandos para retomar.
-5. Actualiza `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, que está fuera del repo porque el repo es público, y la memoria del proyecto.
-6. Commitea y hace push de `hackathon/frontend` y de todas las ramas `fe/*`.
-7. Responde con la tabla rama → sha → estado.
+   - los comandos para retomar;
+   - al final, una sección **«Prompts de arranque»** lista para copiar:
+     - uno para la nueva coordinadora: qué leer en orden, comprobar el estado real, resumir y seguir el plan;
+     - uno por cada sesión de trabajo con trabajo pendiente, ya rellenado con su worktree, rama, puerto, paquete, lo que dejó a medias y el siguiente paso;
+     - uno por cada paquete pendiente de abrir en la siguiente oleada;
+     - el `/goal` sugerido para la nueva coordinadora.
+6. Actualiza `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, que está fuera del repo porque el repo es público, y la memoria del proyecto.
+7. Commitea y hace push de `hackathon/frontend` y de todas las ramas `fe/*`.
+8. Responde con la tabla rama → sha → estado y repite en el chat los «Prompts de arranque», para que el usuario los copie.
 
 La cuenta que retoma empieza por `/Users/alfonsomayoral/Talky/handoff/CONTEXTO_PRIVADO.md`, sigue con `app/HANDOFF.md` y luego lee este fichero.
