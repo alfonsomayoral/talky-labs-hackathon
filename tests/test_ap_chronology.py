@@ -48,9 +48,12 @@ class ChronologyTests(unittest.TestCase):
         state = observe([factor], bank_iban="ESFACTOR")
         self.assertTrue(state.factoring_active)
         self.assertTrue(event_support_facts(state)["factoring_supported"][0].value)
-        wrong = observe([factor], bank_iban="ESSUSPICIOUS")
+        wrong = observe([factor], bank_iban="ESSUSPICIOUS", complete_kinds=KINDS)
         self.assertTrue(wrong.factoring_active)
-        self.assertFalse(event_support_facts(wrong)["factoring_supported"][0].value)
+        with self.assertRaises(ValueError):
+            event_support_facts(wrong)
+        self.assertFalse(event_support_facts(wrong, {kind:PROOF for kind in KINDS})["factoring_supported"][0].value)
+        self.assertIsNone(observe([factor], bank_iban="ESSUSPICIOUS").factoring_bank_supported)
         self.assertEqual(event_support_facts(observe([factor]))["factoring_supported"], ())
 
     def test_active_factor_conflicts_are_not_resolved_by_document_id(self):
@@ -92,6 +95,9 @@ class ChronologyTests(unittest.TestCase):
         bank = event("bank", KINDS[3], received_at="2026-07-31T23:59:59", verified=True, value="ESNEW")
         self.assertTrue(observe([bank], bank_iban="ESNEW").bank_change_supported)
         self.assertFalse(observe([bank], bank_iban="ESOTHER", complete_kinds=KINDS).bank_change_supported)
+        self.assertIsNone(observe([bank], bank_iban="ESOTHER").bank_change_supported)
+        unknown_letter = replace(bank, event_id="unverified", verified=None, value="ESOTHER")
+        self.assertIsNone(observe([bank, unknown_letter], bank_iban="ESOTHER", complete_kinds=KINDS).bank_change_supported)
         self.assertFalse(observe([replace(bank, received_at="2026-08-01T00:00:00")], bank_iban="ESNEW", complete_kinds=KINDS).bank_change_supported)
         self.assertFalse(observe([replace(bank, verified=False)], bank_iban="ESNEW", complete_kinds=KINDS).bank_change_supported)
         self.assertIsNone(observe([replace(bank, verified=None)], bank_iban="ESNEW", complete_kinds=KINDS).bank_change_supported)

@@ -189,6 +189,8 @@ def invoice_state(
                     observations[kind] = None
             elif kind == "BANK_DETAILS_CHANGE":
                 observations[kind] = None if bank_iban is None or selected[kind].value is None else selected[kind].value == bank_iban
+                if observations[kind] is False and (unknown or kind not in complete):
+                    observations[kind] = None
                 if observations[kind] is None:
                     diagnostics.append(f"{kind}:BANK_DETAILS_UNKNOWN")
         if observations[kind] is None and not unknown:
@@ -197,6 +199,8 @@ def invoice_state(
     factor_bank = False if observations[KINDS[1]] is False else None
     if factor is not None:
         factor_bank = None if factor.value is None or bank_iban is None else factor.value == bank_iban
+        if factor_bank is False and KINDS[1] not in complete:
+            factor_bank = None
     return InvoiceEventState(*(observations[k] for k in KINDS),
                              *(selected[k] for k in KINDS), tuple(sorted(set(diagnostics))), factor_bank)
 
@@ -252,7 +256,13 @@ def event_support_facts(
         if value is None:
             result[field] = ()
             continue
-        evidence = event.evidence if event is not None else (inventory_evidence or {}).get(kind, ())
+        if value is False:
+            inventory = (inventory_evidence or {}).get(kind, ())
+            if not inventory:
+                raise ValueError("negative event support requires complete-inventory Evidence")
+            evidence = (*(event.evidence if event is not None else ()), *inventory)
+        else:
+            evidence = event.evidence if event is not None else ()
         if not evidence:
             raise ValueError("negative event support requires complete-inventory Evidence")
         result[field] = tuple(Fact(value, item) for item in evidence)
