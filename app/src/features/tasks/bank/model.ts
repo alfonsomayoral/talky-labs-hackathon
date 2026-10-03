@@ -1,6 +1,6 @@
 // Bank reconciliation view model: pure functions over bank_rec.jsonl, the statements and the 572 journal lines.
 
-import type { BankAccount, BankCategory, BankLine, BankRecRow, BankStatement, JournalEntry, JournalLine, WorkItem } from '@/domain/types'
+import type { ApRow, BankAccount, BankCategory, BankLine, BankRecRow, BankStatement, JournalEntry, JournalLine, WorkItem } from '@/domain/types'
 import { BANK_CATEGORY_CATALOG } from '@/domain/catalog/policy'
 import type { Tone } from '@/components'
 
@@ -184,6 +184,38 @@ export function unmatchedByCategory(view: RecView, adjustments: readonly Adjustm
       amount: sum(lines.map((l) => l.amount)),
     }
   })
+}
+
+export interface OpenDirectDebit {
+  line: RecLine
+  /** AP document of the same amount in the company, if any. */
+  invoice: ApRow | null
+  /** AP posted the invoice, so the debit should have been adjusted against the vendor. */
+  missing: boolean
+}
+
+const POSTED = new Set(['POST', 'POST_PAYMENT_BLOCK'])
+
+/**
+ * Direct debits of the statement that no adjustment covers, each with the AP invoice of the same amount. An adjustment
+ * is only due when AP posted that invoice; a rejected or absent invoice leaves the debit open on purpose.
+ */
+export function openDirectDebits(lines: readonly RecLine[], adjustments: readonly AdjustmentView[], apRows: readonly ApRow[], company: string, currency: string): OpenDirectDebit[] {
+  const pending = adjustments.filter((a) => a.category === 'DIRECT_DEBIT_NOT_BOOKED').map((a) => a.glMovement)
+  const out: OpenDirectDebit[] = []
+  for (const line of lines) {
+    const amount = line.amount
+    if (line.side !== 'bank' || line.category !== 'DIRECT_DEBIT_NOT_BOOKED' || amount === null) continue
+    const covered = pending.indexOf(amount)
+    if (covered >= 0) {
+      pending.splice(covered, 1)
+      continue
+    }
+    const same = apRows.filter((r) => r.company === company && r.gross === -amount && (r.currency ?? currency) === currency)
+    const invoice = same.find((r) => POSTED.has(r.decision)) ?? same[0] ?? null
+    out.push({ line, invoice, missing: !!invoice && POSTED.has(invoice.decision) })
+  }
+  return out
 }
 
 export interface AdjustmentView {

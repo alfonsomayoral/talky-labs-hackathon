@@ -5,13 +5,14 @@ import { Link, useParams } from 'react-router'
 import { ArrowUpRight, Landmark } from 'lucide-react'
 import clsx from 'clsx'
 import { Amount, Badge, Button, EmptyState, Mono, Page, PageHeader, QueryState, Section, SegmentedControl, Skeleton } from '@/components'
-import type { BankAccount, BankRecRow, DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
+import type { ApRow, BankAccount, BankRecRow, DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
+import { AP_DECISION_CATALOG } from '@/domain/catalog/policy'
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
 import { JournalEntryView, RawBankRecord } from '@/features/item/kit'
 import { formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
-import { ACCOUNT_STATUS, accountSummary, adjustmentsOf, balanceBridge, glAdjustments, itemByLine, recView, unmatchedByCategory, type RecLine } from './model'
+import { ACCOUNT_STATUS, accountSummary, adjustmentsOf, balanceBridge, glAdjustments, itemByLine, openDirectDebits, recView, unmatchedByCategory, type RecLine } from './model'
 import { RecFaceView } from './RecFaceView'
 import { useAccountData } from './useAccountData'
 import styles from './Bank.module.css'
@@ -64,6 +65,12 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
   const adjustments = useMemo(() => (row ? adjustmentsOf(row, account.gl_account) : []), [row, account.gl_account])
   const onGl = useMemo(() => glAdjustments(run.deliverables.bank_rec as BankRecRow[], account.company, account.gl_account), [run, account])
   const categories = useMemo(() => (view ? unmatchedByCategory(view, onGl, adjCurrency === cur) : []), [view, onGl, adjCurrency, cur])
+  /** Direct debits left open on purpose: their invoice was not posted in AP. */
+  const openDebits = useMemo(() => {
+    if (!view || adjCurrency !== cur) return []
+    const bankOnly = view.blocks.flatMap((b) => (b.kind === 'bank' ? [b.line] : []))
+    return openDirectDebits(bankOnly, onGl, run.deliverables.ap as ApRow[], account.company, cur).filter((o) => !o.missing)
+  }, [view, onGl, run, account.company, adjCurrency, cur])
   const fromOthers = onGl.filter((a) => a.account !== account.id)
   const bridge = useMemo(
     () =>
@@ -141,39 +148,58 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
                 <p className={styles.muted}>Todas las líneas del mes están casadas.</p>
               ) : (
                 <ul className={styles.categories}>
-                  {categories.map((c) => (
-                    <li key={c.category} className={styles.category}>
-                      <span className={styles.categoryHead}>
-                        <span className={styles.categoryLabel}>{c.label}</span>
-                        {c.section && <Mono muted>{c.section}</Mono>}
-                        <Badge tone={c.adjusted ? (c.uncovered ? 'danger' : 'ok') : c.expectsAdjustment ? 'danger' : 'neutral'} variant="outline" dot>
-                          {c.adjusted ? (
-                            c.uncovered ? (
+                  {categories.map((c) => {
+                    const open = openDebits.filter((o) => o.line.category === c.category)
+                    const missing = c.uncovered === null ? null : c.uncovered - open.reduce((s, o) => s + (o.line.amount ?? 0), 0)
+                    // Red only when an adjustment is due and something is left without one (unknown in another currency).
+                    const short = (c.adjusted || c.expectsAdjustment) && (missing === null ? !c.adjusted : missing !== 0)
+                    return (
+                      <li key={c.category} className={styles.category}>
+                        <span className={styles.categoryHead}>
+                          <span className={styles.categoryLabel}>{c.label}</span>
+                          {c.section && <Mono muted>{c.section}</Mono>}
+                          <Badge tone={short ? 'danger' : c.adjusted && !open.length ? 'ok' : 'neutral'} variant="outline" dot>
+                            {short ? (
+                              missing !== null && (c.adjusted || open.length > 0) ? (
+                                <>
+                                  Falta ajuste por <Amount cents={missing} currency={cur} />
+                                </>
+                              ) : (
+                                'Falta el ajuste'
+                              )
+                            ) : c.adjusted ? (
+                              open.length ? `Con ajuste; ${open.length} ${open.length === 1 ? 'queda abierta' : 'quedan abiertas'}` : 'Con ajuste'
+                            ) : (
+                              'Sin ajuste: queda abierta'
+                            )}
+                          </Badge>
+                          <span className={styles.categoryAmount}>
+                            <Amount cents={c.amount} currency={cur} />
+                          </span>
+                        </span>
+                        <span className={styles.categoryLines}>
+                          {c.lines.map((l) => (
+                            <button key={l.id} type="button" className={clsx(styles.chipLine, selected?.id === l.id && styles.chipSelected)} onClick={() => setSelected(l)}>
+                              {l.id}
+                            </button>
+                          ))}
+                        </span>
+                        {open.map((o) => (
+                          <p key={o.line.id} className={styles.muted}>
+                            <Mono>{o.line.id}</Mono> queda abierta:{' '}
+                            {o.invoice ? (
                               <>
-                                Falta ajuste por <Amount cents={c.uncovered} currency={cur} />
+                                su factura <Link to={`/tareas/ap?doc=${encodeURIComponent(o.invoice.doc_id)}`}>{o.invoice.doc_id}</Link> tiene la decisión «
+                                {AP_DECISION_CATALOG[o.invoice.decision]?.label ?? o.invoice.decision}» en AP.
                               </>
                             ) : (
-                              'Con ajuste'
-                            )
-                          ) : c.expectsAdjustment ? (
-                            'Falta el ajuste'
-                          ) : (
-                            'Sin ajuste: queda abierta'
-                          )}
-                        </Badge>
-                        <span className={styles.categoryAmount}>
-                          <Amount cents={c.amount} currency={cur} />
-                        </span>
-                      </span>
-                      <span className={styles.categoryLines}>
-                        {c.lines.map((l) => (
-                          <button key={l.id} type="button" className={clsx(styles.chipLine, selected?.id === l.id && styles.chipSelected)} onClick={() => setSelected(l)}>
-                            {l.id}
-                          </button>
+                              'no hay factura de ese importe en la bandeja de AP.'
+                            )}
+                          </p>
                         ))}
-                      </span>
-                    </li>
-                  ))}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </Section>
