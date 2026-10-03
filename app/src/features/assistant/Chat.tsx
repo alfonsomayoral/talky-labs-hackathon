@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowRight, ArrowUp, CalendarCheck, Inbox, ListChecks, Scale, ScanSearch, TriangleAlert, Zap, type LucideIcon } from 'lucide-react'
 import { Button, ButtonLink, SegmentedControl, Skeleton } from '@/components'
 import { AnswerCards, Citations } from './AnswerCards'
-import { assistantProvider, devChatStatus, PRESET_QUESTIONS, type ChatMode } from './engine'
+import { agentStatus, assistantProvider, devChatStatus, PRESET_QUESTIONS, type ChatMode } from './engine'
 import type { Turn } from './store'
 import styles from './Assistant.module.css'
 
@@ -46,7 +46,7 @@ export function Composer({ onAsk, mode, onModeChange, disabled, busy, autoFocus 
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    void devChatStatus().then((s) => setDevModel(s?.model ?? null))
+    void (assistantProvider() === 'api' ? agentStatus() : devChatStatus()).then((s) => setDevModel(s?.model ?? null))
   }, [])
 
   useEffect(() => {
@@ -93,7 +93,9 @@ export function Composer({ onAsk, mode, onModeChange, disabled, busy, autoFocus 
         <SegmentedControl aria-label="Modo de respuesta" size="sm" options={MODES} value={mode} onChange={onModeChange} />
         <span className={styles.composerHint}>
           {assistantProvider() === 'api'
-            ? 'Responde el backend'
+            ? devModel
+              ? `Responde el agente del backend (${devModel})`
+              : 'Responde el backend'
             : mode === 'deep' && devModel
               ? `Redacta ${devModel} sobre las cifras de la app`
               : 'Respuestas locales sobre la ejecución activa'}{' '}
