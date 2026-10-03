@@ -1,13 +1,10 @@
 import { NAV } from '@/app/nav'
 import { Dialog, Kbd } from '@/components'
-import { MOD_KEY } from '@/lib/keyboard'
+import { MOD_KEY, usePageShortcutGroups, type ShortcutHelp } from '@/lib/keyboard'
 import { useShellUi } from './uiStore'
 import styles from './AppShell.module.css'
 
-interface Shortcut {
-  label: string
-  keys: string[]
-}
+type Shortcut = ShortcutHelp
 
 const GENERAL: Shortcut[] = [
   { label: 'Paleta de comandos', keys: [MOD_KEY, 'K'] },
@@ -45,6 +42,7 @@ function Group({ title, items }: { title: string; items: Shortcut[] }) {
 export function ShortcutsDialog() {
   const open = useShellUi((s) => s.helpOpen)
   const setOpen = useShellUi((s) => s.setHelpOpen)
+  const pageGroups = usePageShortcutGroups()
   const goTo: Shortcut[] = NAV.flatMap((s) => s.entries)
     .filter((e) => e.shortcut)
     .map((e) => ({ label: e.label, keys: ['G', (e.shortcut ?? '').toUpperCase()] }))
@@ -55,6 +53,9 @@ export function ShortcutsDialog() {
         <div className={styles.shortcutColumn}>
           <Group title="General" items={GENERAL} />
           <Group title="Listas" items={LISTS} />
+          {pageGroups.map((g) => (
+            <Group key={g.title} title={g.title} items={g.shortcuts} />
+          ))}
         </div>
         <Group title="Ir a" items={goTo} />
       </div>

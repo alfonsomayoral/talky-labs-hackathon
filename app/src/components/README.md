@@ -64,7 +64,7 @@ Import everything from `@/components`. Live examples: `/dev/ui` (dev only). Toke
 
 **Layers** (Esc closes only the topmost one; `lib/keyboard` `useLayer`)
 - `SidePanel` — non-modal right panel: `open`, `onClose`, `title`, `actions`, `footer`, `defaultWidth` 560, `minWidth`, `storageKey` (remember dragged width). Tab cycles inside; list j/k keep working behind it. For item details use the shell's peek (`useOpenItem`), not your own panel.
-- `Dialog` — modal: `open`, `onClose`, `title`, `description`, `footer` (primary last), `size` sm|md|lg, `placement` center|top, `bare`.
+- `Dialog` — modal: `open`, `onClose`, `title`, `description`, `footer` (primary last), `size` sm|md|lg, `placement` center|top, `bare`. On open, focus goes to an `autoFocus` child, else the first field, else the first control after the header.
 - `Menu` — `trigger` (a Button/IconButton element), `items` (`{id, label, icon?, hint?, description?, checked?, disabled?, danger?, onSelect}` | `{type:'separator'}` | `{type:'label'}`), `side`, `align`.
 - `Popover` — low-level anchored surface (`open`, `onClose`, `anchor`, `side`, `align`, `initialFocus`). Prefer Menu/FilterChip/ViewOptions.
 - `Tooltip` — `content`, `shortcut`, `side`, `delay`; child must accept pointer/focus handlers. Supplementary only.
@@ -100,3 +100,4 @@ const columns = useMemo<Column<WorkItem>[]>(() => [
 - `<PageActions>…</PageActions>` (from `@/shell/PageActions`) portals buttons into the topbar's right slot.
 - `registerCommandProvider((query) => Command[] | Promise<Command[]>)` (from `@/shell/commands`) adds ⌘K results; returns an unregister function. `Command = {id, label, group?, hint?, icon?, keywords?, shortcut?, run(ctx)}`, `ctx = {navigate, openItem}`.
 - Global keys (`lib/keyboard.ts`): ⌘K/Ctrl+K palette, `?` shortcuts help, `g` + NAV letter navigates, Esc closes the top layer. Single-key hotkeys are ignored while typing or with a modal open; use `shouldIgnoreHotkey(e)` for your own. ⌘J is reserved for the assistant panel.
+- `usePageShortcuts(title, [{label, keys}])` (from `@/lib/keyboard`) lists a page's own keys in the `?` help while the page is mounted, e.g. `usePageShortcuts('Atención', [{ label: 'Aceptar', keys: ['A'] }])`. Display only: the page still handles the keys.
