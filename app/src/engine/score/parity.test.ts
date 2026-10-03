@@ -39,7 +39,7 @@ function expectClose(actual: unknown, expected: unknown, path: string) {
 describe.skipIf(!ready)('score.py parity', () => {
   const f = fixture!
   const golden = ready ? loadGolden(f) : null!
-  const gold = golden.deliverables as unknown as Record<TaskKey, Row[]>
+  const gold = (golden?.deliverables ?? {}) as unknown as Record<TaskKey, Row[]>
   const results: { name: string; py: number; ts: number }[] = []
   let tmp = ''
 
