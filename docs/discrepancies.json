@@ -115,7 +115,7 @@
         "POLITICAS_CONTABLES.md §1 requires supplier partner in 407",
         "phase_dev/golden/ap.jsonl API004469, journal 1100-2026-5100000822: first 40700000 line partner=null; creditor V100121"
       ],
-      "convention": "Preserve source golden; keep strict supplier-partner validation for account 40700000. Report this golden inconsistency explicitly rather than weakening policy or repairing source.",
+      "convention": "Preserve source golden; keep strict supplier-partner validation for account 40700000. The comparator discovers reference violations with general validate_entry rules and reports REFERENCE_ENTRY_RULE; submission violations remain ENTRY_RULE. No runtime exception list, document ID or month controls classification.",
       "issues": [
         32,
         35,

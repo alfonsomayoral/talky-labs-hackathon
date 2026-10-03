@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kalmora-close"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reproducible accounting close for the Kalmora hackathon"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -15,4 +15,3 @@ kalmora = "kalmora.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
