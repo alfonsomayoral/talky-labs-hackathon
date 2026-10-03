@@ -69,11 +69,29 @@ describe('recView', () => {
   })
 
   it('groups unmatched lines by category and says whether an adjustment exists', () => {
-    const cats = unmatchedByCategory(row, view)
-    expect(cats.map((c) => [c.category, c.adjusted, c.expectsAdjustment, c.amount])).toEqual([
-      ['OUTSTANDING_PAYMENT', false, false, -250],
-      ['BANK_FEE_NOT_BOOKED', true, true, -12],
+    const cats = unmatchedByCategory(view, adjustmentsOf(row, '57200001'), true)
+    expect(cats.map((c) => [c.category, c.adjusted, c.uncovered, c.expectsAdjustment, c.amount])).toEqual([
+      ['OUTSTANDING_PAYMENT', false, 250, false, -250],
+      ['BANK_FEE_NOT_BOOKED', true, 0, true, -12],
     ])
+  })
+
+  it('measures by amount what the adjustments leave uncovered, also those filed under another account', () => {
+    const fee2 = bank('FEE2', -7, '2026-07-31')
+    const twoFees = recView(
+      { ...row, unmatched_bank: [...row.unmatched_bank, { bank_line: 'FEE2', category: 'BANK_FEE_NOT_BOOKED' }], unmatched_book: [{ book_line: 'OUT#2', category: 'WRONG_BANK_ACCOUNT' }] },
+      [...bankLines, fee2],
+      monthBook,
+      [],
+    )
+    const fromOther = { account: 'BIN-1100', index: 0, category: 'WRONG_BANK_ACCOUNT', label: '', glMovement: 250, lines: [] }
+    const cats = unmatchedByCategory(twoFees, [...adjustmentsOf(row, '57200001'), fromOther], true)
+    expect(cats.map((c) => [c.category, c.adjusted, c.uncovered])).toEqual([
+      ['WRONG_BANK_ACCOUNT', true, 0],
+      ['BANK_FEE_NOT_BOOKED', true, -7],
+    ])
+    // Adjustments in another currency (USD account, entries in MXN) cannot be compared by amount.
+    expect(unmatchedByCategory(twoFees, adjustmentsOf(row, '57200001'), false).map((c) => c.uncovered)).toEqual([null, null])
   })
 })
 

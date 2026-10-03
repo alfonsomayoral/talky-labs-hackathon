@@ -146,14 +146,22 @@ export interface CategoryGroup {
   side: 'bank' | 'book' | 'both' | 'difference' | null
   /** The policy expects an adjusting entry for this category. */
   expectsAdjustment: boolean
-  /** The deliverable carries an adjustment of this category. */
+  /** An adjustment of this category moves this 572. */
   adjusted: boolean
+  /**
+   * Effect on the 572 of these lines that no adjustment covers (adjustments do not name their lines, and one can
+   * cover several, e.g. a returned direct debit and its fee). Null when the adjustments are in another currency.
+   */
+  uncovered: number | null
   lines: RecLine[]
   amount: number
 }
 
-export function unmatchedByCategory(row: BankRecRow, view: RecView): CategoryGroup[] {
-  const adjusted = new Set((row.adjustments ?? []).map((a) => String(a.category)))
+/**
+ * `adjustments`: those that move this account's 572, from any row (see `glAdjustments`).
+ * `sameCurrency`: the adjustments are in the account's currency (not so for the 3100 USD account).
+ */
+export function unmatchedByCategory(view: RecView, adjustments: readonly AdjustmentView[], sameCurrency: boolean): CategoryGroup[] {
   const byCat = new Map<string, RecLine[]>()
   for (const b of view.blocks) {
     if (b.kind === 'match') continue
@@ -162,13 +170,16 @@ export function unmatchedByCategory(row: BankRecRow, view: RecView): CategoryGro
   }
   return [...byCat].map(([category, lines]) => {
     const entry = BANK_CATEGORY_CATALOG[category as BankCategory]
+    const own = adjustments.filter((a) => a.category === category)
+    const effect = sum(lines.map((l) => (l.side === 'bank' ? l.amount : l.amount === null ? null : -l.amount)))
     return {
       category,
       label: entry?.label ?? category,
       section: entry?.section ?? null,
       side: entry?.side ?? null,
       expectsAdjustment: entry?.adjustment ?? false,
-      adjusted: adjusted.has(category),
+      adjusted: own.length > 0,
+      uncovered: sameCurrency ? effect - sum(own.map((a) => a.glMovement)) : null,
       lines,
       amount: sum(lines.map((l) => l.amount)),
     }

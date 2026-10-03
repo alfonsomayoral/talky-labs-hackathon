@@ -60,9 +60,9 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
   const [show, setShow] = useState<Show>('all')
 
   const view = useMemo(() => (row && acc.status === 'ready' ? recView(row, statement?.lines ?? [], acc.monthBook, acc.referencedBook) : null), [row, acc, statement])
-  const categories = useMemo(() => (row && view ? unmatchedByCategory(row, view) : []), [row, view])
   const adjustments = useMemo(() => (row ? adjustmentsOf(row, account.gl_account) : []), [row, account.gl_account])
   const onGl = useMemo(() => glAdjustments(run.deliverables.bank_rec as BankRecRow[], account.company, account.gl_account), [run, account])
+  const categories = useMemo(() => (view ? unmatchedByCategory(view, onGl, adjCurrency === cur) : []), [view, onGl, adjCurrency, cur])
   const fromOthers = onGl.filter((a) => a.account !== account.id)
   const bridge = useMemo(
     () =>
@@ -146,8 +146,20 @@ function AccountRec({ data, api, run, account }: { data: DerivedRun; api: Datase
                       <span className={styles.categoryHead}>
                         <span className={styles.categoryLabel}>{c.label}</span>
                         {c.section && <Mono muted>{c.section}</Mono>}
-                        <Badge tone={c.adjusted ? 'ok' : c.expectsAdjustment ? 'danger' : 'neutral'} variant="outline" dot>
-                          {c.adjusted ? 'Con ajuste' : c.expectsAdjustment ? 'Falta el ajuste' : 'Sin ajuste: queda abierta'}
+                        <Badge tone={c.adjusted ? (c.uncovered ? 'danger' : 'ok') : c.expectsAdjustment ? 'danger' : 'neutral'} variant="outline" dot>
+                          {c.adjusted ? (
+                            c.uncovered ? (
+                              <>
+                                Falta ajuste por <Amount cents={c.uncovered} currency={cur} />
+                              </>
+                            ) : (
+                              'Con ajuste'
+                            )
+                          ) : c.expectsAdjustment ? (
+                            'Falta el ajuste'
+                          ) : (
+                            'Sin ajuste: queda abierta'
+                          )}
                         </Badge>
                         <span className={styles.categoryAmount}>
                           <Amount cents={c.amount} currency={cur} />
