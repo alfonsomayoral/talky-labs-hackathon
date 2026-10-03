@@ -21,6 +21,8 @@ def main(argv: list[str] | None = None) -> int:
     ingest.add_argument("--destination", type=Path, required=True, help="New package directory")
     inspect = commands.add_parser("inspect", help="Inspect a phase's solver inputs")
     inspect.add_argument("phase", type=Path)
+    ledger = commands.add_parser("ledger-summary", help="Reconstruct the recorded book and summarize its dimensions")
+    ledger.add_argument("phase", type=Path)
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
@@ -61,6 +63,22 @@ def _execute(args) -> int:
                        "document_messages": len(data.table("document_messages")),
                        "bank_lines": len(data.table("bank_lines"))}
         except (OSError, ValueError, KeyError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps(summary))
+        return 0
+    if args.command == "ledger-summary":
+        from .data import PhaseData
+        from .ledger import Ledger
+        try:
+            data = PhaseData(args.phase)
+            book = Ledger.from_entries(data.iter_journal())
+            balances = book.balances()
+            summary = {"phase": data.phase_dir.name, "month": data.month,
+                       "journal_entries": sum(1 for _ in book.iter_entries()),
+                       "balance_accounts": len(balances), "open_item_keys": len(book.open_items()),
+                       "companies": sorted({company for company, _ in balances})}
+        except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 1
         print(json.dumps(summary))

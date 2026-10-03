@@ -33,6 +33,7 @@ El destino debe ser nuevo: cada importación conserva los originales y escribe
 
 ```bash
 .venv/bin/kalmora inspect data/julio/participant/phase_dev
+.venv/bin/kalmora ledger-summary data/julio/participant/phase_dev
 ```
 
 `PhaseData` ofrece tablas e índices ERP, tareas, mensajes y extractos. El diario
