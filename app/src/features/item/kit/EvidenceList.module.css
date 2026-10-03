@@ -24,7 +24,7 @@
 
 .count {
   font-variant-numeric: tabular-nums;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .entries {

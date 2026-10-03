@@ -60,7 +60,7 @@
 }
 
 .size {
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: var(--text-11);
 }
@@ -72,7 +72,7 @@
 }
 
 .null {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .bool {

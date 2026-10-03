@@ -402,7 +402,7 @@ button.cell[data-active] {
 
 .controlRule {
   display: inline-flex;
-  color: var(--ink-4);
+  color: var(--ink-3);
   border-radius: var(--radius-pill);
   cursor: help;
 }

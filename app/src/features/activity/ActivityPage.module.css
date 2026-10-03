@@ -164,7 +164,7 @@
 .result {
   width: 14px;
   height: 14px;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .result[data-result='PASS'] {

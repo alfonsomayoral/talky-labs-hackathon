@@ -144,7 +144,7 @@
 .ganttAxis > span {
   position: absolute;
   top: 4px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--text-11);
   font-variant-numeric: tabular-nums;
   transform: translateX(-50%);
