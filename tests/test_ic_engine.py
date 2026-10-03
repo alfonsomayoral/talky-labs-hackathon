@@ -278,6 +278,118 @@ class CorrectionTests(SyntheticFixture):
         self.assertTrue(all(not row["adjustment"] for row in again.records))
         self.assertEqual(again.projection.entries, r.projection.entries)
 
+    def test_external_duplicate_reversal_is_consumed_and_replayed_once(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP")]
+        reversal = copy.deepcopy(entries[1])
+        reversal["id"] = "AP-REVERSAL"
+        for l in reversal["lines"]:
+            l["debit"], l["credit"] = l["credit"], l["debit"]
+        owned = OwnedEntry("ap:reverse-duplicate", "ap_reversal", reversal, E)
+        upstream = replace(self.upstream, ap_entries=(owned,))
+        result = self.solve(entries, upstream)
+        self.assertTrue(result.complete)
+        self.assertEqual(result.records[0]["adjustment"], [])
+        self.assertEqual(result.findings[0].status, "already_corrected_externally")
+        self.assertEqual(len(result.projection.entries), 3)
+        # A restored external correction remains authoritative even if the new
+        # AP delivery no longer repeats it.
+        replay = self.solve(entries, replace(self.upstream, prior_projection=result.projection))
+        self.assertEqual(replay.records, result.records)
+        self.assertEqual(replay.projection.entries, result.projection.entries)
+
+    def test_one_external_reversal_cannot_cover_two_duplicates(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP-1", "DUP-2")]
+        reversal = copy.deepcopy(entries[1])
+        reversal["id"] = "AP-REVERSAL"
+        for l in reversal["lines"]:
+            l["debit"], l["credit"] = l["credit"], l["debit"]
+        upstream = replace(self.upstream, ap_entries=(OwnedEntry("ap:reverse", "ap_reversal", reversal, E),))
+        result = self.solve(entries, upstream)
+        self.assertTrue(result.complete)
+        self.assertEqual(sum(bool(r["adjustment"]) for r in result.records), 1)
+        self.assertEqual(len(result.projection.entries), 5)
+        replay = self.solve(entries, replace(upstream, prior_projection=result.projection))
+        self.assertTrue(replay.complete)
+        self.assertTrue(all(not r["adjustment"] for r in replay.records))
+        self.assertEqual(replay.projection.entries, result.projection.entries)
+
+    def test_excess_external_reversals_are_blocked(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP")]
+        reversals = []
+        for identity in ("AP-REVERSAL-1", "AP-REVERSAL-2"):
+            reversal = copy.deepcopy(entries[1])
+            reversal["id"] = identity
+            for l in reversal["lines"]:
+                l["debit"], l["credit"] = l["credit"], l["debit"]
+            reversals.append(OwnedEntry(identity, "ap_reversal", reversal, E))
+        result = self.solve(entries, replace(self.upstream, ap_entries=tuple(reversals)))
+        self.assertFalse(result.complete)
+        self.assertEqual(result.records[0]["adjustment"], [])
+        self.assertIn("EXISTING_IC_CORRECTION_CONFLICT", [d.code for d in result.diagnostics])
+
+    def test_reversal_of_a_different_invoice_does_not_cover_duplicate(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP")]
+        reversal = received("OTHER", id="AP-OTHER-REVERSAL")
+        for l in reversal["lines"]:
+            l["debit"], l["credit"] = l["credit"], l["debit"]
+        result = self.solve(entries, replace(self.upstream, ap_entries=(OwnedEntry("ap:other", "ap_reversal", reversal, E),)))
+        self.assertTrue(result.records[0]["adjustment"])
+
+    def test_partial_external_reversal_blocks_a_full_second_reversal(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP")]
+        reversal = copy.deepcopy(entries[1])
+        reversal["id"] = "AP-PARTIAL-REVERSAL"
+        for l in reversal["lines"]:
+            l["debit"], l["credit"] = l["credit"], l["debit"]
+            l["debit"] //= 2
+            l["credit"] //= 2
+        result = self.solve(entries, replace(self.upstream, ap_entries=(OwnedEntry("ap:partial", "ap_reversal", reversal, E),)))
+        self.assertFalse(result.complete)
+        self.assertEqual(result.records[0]["adjustment"], [])
+        self.assertIn("EXISTING_IC_CORRECTION_CONFLICT", [d.code for d in result.diagnostics])
+
+    def test_bank_owned_partner_reclassification_is_not_posted_again(self):
+        entries, upstream = self.setup_pool(include_wrong=True)
+        correction = entry("BANK-PARTNER-FIX", "1100", [line("55200000", -333, "1200"),
+            line("55200000", 333, "1000")], "POOL-WRONG")
+        owned = OwnedEntry("bank:partner", "banks", correction, E)
+        upstream = replace(upstream, banks=replace(upstream.banks, entries=(*upstream.banks.entries, owned)))
+        result = self.solve(entries, upstream)
+        self.assertTrue(result.complete)
+        finding = next(f for f in result.findings if f.cause == "WRONG_TRADING_PARTNER")
+        self.assertEqual(finding.status, "already_corrected_externally")
+        self.assertEqual(finding.emitted_adjustment, [])
+        for position in result.corrected["comparisons"]:
+            if position["reference"] == "POOL-WRONG":
+                self.assertEqual(position["difference_cents"], 0)
+        replay = self.solve(entries, replace(upstream, prior_projection=result.projection))
+        self.assertTrue(replay.complete)
+        self.assertEqual(replay.projection.entries, result.projection.entries)
+
+    def test_partial_bank_partner_reclassification_is_blocked(self):
+        entries, upstream = self.setup_pool(include_wrong=True)
+        correction = entry("BANK-PARTIAL-FIX", "1100", [line("55200000", -100, "1200"),
+            line("55200000", 100, "1000")], "POOL-WRONG")
+        owned = OwnedEntry("bank:partial-partner", "banks", correction, E)
+        result = self.solve(entries, replace(upstream, banks=replace(upstream.banks, entries=(*upstream.banks.entries, owned))))
+        self.assertFalse(result.complete)
+        finding = next(f for f in result.findings if f.cause == "WRONG_TRADING_PARTNER")
+        self.assertEqual(finding.status, "blocked")
+        self.assertEqual(finding.emitted_adjustment, [])
+
+    def test_external_and_own_reversal_together_are_a_conflict(self):
+        entries = [received("DUP", id=k) for k in ("ORIG", "DUP")]
+        first = self.solve(entries)
+        reversal = copy.deepcopy(entries[1])
+        reversal["id"] = "AP-REVERSAL"
+        for l in reversal["lines"]:
+            l["debit"], l["credit"] = l["credit"], l["debit"]
+        upstream = replace(self.upstream, prior_projection=first.projection,
+            ap_entries=(OwnedEntry("ap:reverse", "ap_reversal", reversal, E),))
+        result = self.solve(entries, upstream)
+        self.assertFalse(result.complete)
+        self.assertEqual(result.records[0]["adjustment"], [])
+
     def test_pooling_wrong_partner_has_mirror_evidence_and_no_tax_changes(self):
         entries, u = self.setup_pool(include_wrong=True)
         r = self.solve(entries, u)

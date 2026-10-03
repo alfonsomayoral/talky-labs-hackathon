@@ -6,13 +6,14 @@ replaces a missing delivery with an empty one.
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from copy import deepcopy
 from typing import Callable
 
 from kalmora.data import PhaseData
 from kalmora.ledger import Ledger, iter_entries
 from kalmora.validation import validate_entry
-from .context import Context, delivery_lines
+from .context import Context, delivery_lines, financial_fingerprint
 from .corrections import duplicate_postings, wrong_partners
 from .interest import loan_interest
 from .invoices import invoices_in_transit
@@ -77,6 +78,58 @@ class _ProjectionWriter:
         return originals + tuple(self.extra.values())
 
 
+def _consume_external_corrections(ctx: Context, writer: _ProjectionWriter,
+                                  batch: list, diagnostics: list[Diagnostic]) -> None:
+    """Respect complete AP/bank corrections with different producer ownership.
+
+    The recorded incident remains a finding. A full financial match, including
+    company, invoice reference, tax and cost objects, proves that its correction
+    is already projected. Each external journal can cover only one incident;
+    excess corrections are a conflict, never evidence of successful resolution.
+    Own replays still go through the exact ownership/content check in add().
+    """
+    def key(entry):
+        return (entry["company"], entry.get("reference"), financial_fingerprint(entry))
+
+    def shape(entry):
+        dimensions = ("account", "partner", "cost_center", "wbs", "assignment", "tax_code", "currency")
+        lines = [tuple(str(l.get(k)) for k in dimensions) +
+                 (str((l["debit"] > l["credit"]) - (l["debit"] < l["credit"])),)
+                 for l in entry["lines"]]
+        return (entry["company"], entry.get("reference"), tuple(sorted(lines)))
+
+    groups = defaultdict(list)
+    for finding in batch:
+        if finding.proposed is not None and finding.cause in {"DUPLICATE_POSTING", "WRONG_TRADING_PARTNER"}:
+            groups[key(finding.proposed)].append(finding)
+    external = defaultdict(list)
+    partial = defaultdict(list)
+    for entry in writer.extra.values():
+        if entry["provenance"]["stage"] != STAGE:
+            external[key(entry)].append(entry)
+            if key(entry) not in groups:
+                partial[shape(entry)].append(entry)
+    for identity, findings in groups.items():
+        matches = sorted(external.get(identity, ()), key=lambda e: e["id"])
+        conflicts = partial.get(shape(findings[0].proposed), ())
+        pending = sorted((f for f in findings if (f.event_id, STAGE) not in writer.owners),
+                         key=lambda f: f.event_id)
+        if conflicts or len(matches) > len(pending):
+            for finding in findings:
+                finding.proposed = None
+                finding.status = "blocked"
+                diagnostics.append(Diagnostic("EXISTING_IC_CORRECTION_CONFLICT",
+                    f"{identity[1]}: {len(matches)} exact external corrections for {len(pending)} uncorrected incidents; "
+                    f"{len(conflicts)} corrections have matching dimensions/directions but different amounts",
+                    (92, 94), finding.event_id, tuple(ctx.evidence(e) for e in [*matches, *conflicts])))
+            continue
+        for finding, correction in zip(pending, matches):
+            finding.proposed = None
+            finding.status = "already_corrected_externally"
+            finding.details["external_correction"] = {"entry_id": correction["id"], **correction["provenance"]}
+            finding.evidence += (ctx.evidence(correction),)
+
+
 def reconcile(data: PhaseData, *, recorded: Ledger, upstream: Upstream,
               contract_validator: Callable[[dict], list[str]] | None = None,
               metadata: dict | None = None) -> Result:
@@ -124,6 +177,7 @@ def reconcile(data: PhaseData, *, recorded: Ledger, upstream: Upstream,
     findings = []
 
     def apply_findings(batch):
+        _consume_external_corrections(ctx, writer, batch, diagnostics)
         for finding in batch:
             if finding.proposed is None:
                 continue
