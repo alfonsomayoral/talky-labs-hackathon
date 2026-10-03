@@ -119,7 +119,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
 
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"OPENAI_API_KEY": "offline-fixture"}):
             with RunRecorder(directory, ["offline-client-test"]) as recorder:
-                client = AsyncLLMClient(config(), recorder, provider=OpenAIResponsesProvider(transport=httpx2.MockTransport(handler)))
+                client = AsyncLLMClient(config(image_detail="high"), recorder, provider=OpenAIResponsesProvider(transport=httpx2.MockTransport(handler)))
                 result = await client.complete(Extracted, "Extract cents exactly", "invoice", images=(ImageInput(b"x" * 139_974, "image/jpeg"),))
             self.assertIsInstance(result.output, Extracted)
             self.assertEqual(result.output.amount_cents, 123)
@@ -129,6 +129,9 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(payload["text"]["format"]["type"], "json_schema")
             self.assertEqual(payload.get("tools", []), [])
             self.assertIn("data:image/jpeg;base64,", json.dumps(payload))
+            images = [part for item in payload["input"] for part in item.get("content", [])
+                      if isinstance(part, dict) and part.get("type") == "input_image"]
+            self.assertEqual([part["detail"] for part in images], ["high"])
             self.assertEqual(len(recorder.report["calls"]), 1)
             self.assertEqual(recorder.report["cost"]["estimated_by_currency"], {"USD": "0.000020"})
 

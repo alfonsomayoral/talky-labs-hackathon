@@ -1,6 +1,6 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v3"
-RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v1"
+EXTRACTION_PROMPT_VERSION = "document-observations-v4"
+RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v2"
 SCHEMA_VERSION = "document-interpretation-v1"
 
 EXTRACTION_INSTRUCTIONS = """Extract only literal observed document facts from the supplied source blocks
@@ -43,6 +43,13 @@ absence statement, or an actual empty XML leaf block with its source path.
 For image evidence supply image_page and image_sha256 from the supplied manifest
 and a block from that page. Transcribe the value and quote exactly; quote fidelity
 will be reviewed against the original image, not automatically treated as OCR.
+Unverified processing aids are machine OCR and may misread even high-confidence
+numbers, punctuation and identifiers. Use them only to locate rows in the page
+image. They are not source blocks and cannot support text evidence. Check every
+transcription against the supplied image and cite that image's page/hash plus
+the original page block. Transcribe all visible table rows in order; inspect the
+whole page rather than stopping after the first rows. Preserve uncertainty when
+the image is unreadable; never copy an OCR value without visual corroboration.
 No accounts, tax-policy choices, approvals, receipt confirmations, tolerances,
 allocations, journal entries, POST/HOLD/REJECT decisions or payment actions.
 """
@@ -59,8 +66,10 @@ policy or posting decisions. SELECTED needs proof for every selected ID: an
 existing source block, literal quote and source_value, plus a candidate_attribute
 and its exact candidate_value. Do not claim the citation alone proves semantic
 equivalence. Image proof requires the supplied image page/hash; quote fidelity
-remains subject to original-image review. Reason must explain selection/abstention
-without introducing new facts or overriding hard constraints.
+remains subject to original-image review. Unverified processing aids are locator
+hints only, never source evidence. Check all quoted values against the supplied
+original page image. Explain selection/abstention without introducing new facts
+or overriding hard constraints.
 """
 
 
