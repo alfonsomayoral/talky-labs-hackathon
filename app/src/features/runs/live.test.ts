@@ -1,5 +1,5 @@
 import type { AgentEvent } from '@/domain/types'
-import { createLiveTracker } from './live'
+import { createLiveTracker, createPacer } from './live'
 
 let seq = 0
 const ev = (item: string, kind: AgentEvent['kind'], result: AgentEvent['result'] = 'PASS'): AgentEvent => ({
@@ -34,6 +34,16 @@ describe('live tracker', () => {
     expect(s.received).toBe(5)
   })
 
+  it('finishes a task without a known size once the next one in the pipeline starts', () => {
+    const t = createLiveTracker({})
+    t.push(msg(ev('ic:1000-1200/X', 'DECIDE')))
+    expect(t.snapshot().tasks.ic.state).toBe('running')
+    t.push(msg(ev('close:ACCRUAL/1', 'DECIDE')))
+    const s = t.snapshot()
+    expect(s.tasks.ic.state).toBe('done')
+    expect(s.tasks.close.state).toBe('running')
+  })
+
   it('ignores malformed messages and unknown items', () => {
     const t = createLiveTracker({})
     t.push({ type: 'message', data: 'not json' })
@@ -59,5 +69,33 @@ describe('live tracker', () => {
     expect(s.state).toBe('done')
     expect(s.error).toBeNull()
     expect(s.tasks.ap.state).toBe('done')
+  })
+})
+
+describe('pacer', () => {
+  const items = (out: { type: string; data: unknown }[]) =>
+    out.flatMap((m) => (m.type === 'message' && Array.isArray(m.data) ? (m.data as AgentEvent[]).map((e) => e.item) : [m.type]))
+
+  it('keeps each task on screen for a second before the next one starts, and holds `done` until the end', () => {
+    const p = createPacer(1000, 100)
+    p.push({ type: 'message', data: [ev('ap:A1', 'DECIDE'), ev('ap:A2', 'DECIDE'), ev('ar_billing:B1', 'DECIDE')] })
+    p.push({ type: 'done', data: '' })
+    expect(items(p.take(0))).toEqual(['ap:A1'])
+    expect(items(p.take(500))).toEqual(['ap:A2'])
+    expect(items(p.take(999))).toEqual([])
+    expect(items(p.take(1000))).toEqual(['ar_billing:B1'])
+    expect(items(p.take(1999))).toEqual([])
+    expect(items(p.take(2000))).toEqual(['done'])
+  })
+
+  it('spreads a task over its second, and passes empty batches straight through', () => {
+    const p = createPacer(1000, 100)
+    p.push({ type: 'message', data: JSON.stringify(Array.from({ length: 50 }, (_, i) => ev(`ap:A${i}`, 'DECIDE'))) })
+    const first = items(p.take(0)).length
+    expect(first).toBeGreaterThan(0)
+    expect(first).toBeLessThan(50)
+    expect(first + items(p.take(1000)).length).toBe(50)
+    p.push({ type: 'message', data: [] })
+    expect(p.take(1000)).toEqual([{ type: 'message', data: [] }])
   })
 })

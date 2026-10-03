@@ -2,6 +2,7 @@
 // `event: done`) into per-task progress for the live pipeline and the event feed.
 import type { AgentEvent, Tasks, TaskKey } from '@/domain/types'
 import { TASK_KEYS } from '@/domain/types'
+import { PIPELINE } from '@/domain/catalog/labels'
 import { parseItemId } from '@/engine'
 
 export type NodeState = 'pending' | 'running' | 'done' | 'failed'
@@ -43,6 +44,84 @@ export function taskTotals(tasks: Tasks | null | undefined): Partial<Record<Task
 }
 
 const isEvent = (x: unknown): x is AgentEvent => typeof x === 'object' && x !== null && typeof (x as AgentEvent).item === 'string'
+
+/** Events of one stream message: a JSON string, an event or a batch. */
+function eventsOf(data: unknown): AgentEvent[] {
+  let payload = data
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload)
+    } catch {
+      return []
+    }
+  }
+  return (Array.isArray(payload) ? payload : [payload]).filter(isEvent)
+}
+
+/** Shortest time a task is shown running, however fast the backend finished it. */
+export const MIN_TASK_MS = 1000
+export const PACE_TICK_MS = 100
+
+type StreamMessage = { type: string; data: unknown }
+
+/**
+ * Replays the stream at a readable pace. The backend can write a whole task's events in milliseconds and the
+ * poll delivers them in one batch; here events keep their order, a task's events are spread over its first
+ * `minMs`, the next task starts only after that, and `done` / `error` wait until every event has been shown.
+ */
+export function createPacer(minMs = MIN_TASK_MS, tickMs = PACE_TICK_MS) {
+  const queue: (AgentEvent | StreamMessage)[] = []
+  let current: TaskKey | null = null
+  let since = 0
+  const taskOf = (x: AgentEvent | StreamMessage) => ('item' in x ? (parseItemId(x.item)?.task ?? null) : undefined)
+
+  return {
+    push(msg: StreamMessage) {
+      if (msg.type !== 'message') queue.push(msg)
+      else {
+        const events = eventsOf(msg.data)
+        // An empty batch still says the run is under way.
+        queue.push(...(events.length ? events : [msg]))
+      }
+    },
+
+    /** Messages to show at `now`; consecutive events are merged into one batch. */
+    take(now: number): StreamMessage[] {
+      const out: StreamMessage[] = []
+      const emit = (x: AgentEvent | StreamMessage) => {
+        if (!('item' in x)) return void out.push(x)
+        const last = out[out.length - 1]
+        if (last?.type === 'message' && Array.isArray(last.data)) last.data.push(x)
+        else out.push({ type: 'message', data: [x] })
+      }
+      while (queue.length) {
+        const next = queue[0]
+        const task = taskOf(next)
+        // Empty batches and events of no task are not paced.
+        if (task === null || ('type' in next && next.type === 'message')) {
+          emit(queue.shift()!)
+          continue
+        }
+        if (task !== current) {
+          if (current !== null && now - since < minMs) break
+          if (task === undefined) {
+            emit(queue.shift()!)
+            continue
+          }
+          current = task
+          since = now
+        }
+        let run = 0
+        while (run < queue.length && taskOf(queue[run]) === current) run++
+        const remaining = minMs - (now - since)
+        const count = remaining <= 0 ? run : Math.ceil((run * tickMs) / (remaining + tickMs))
+        for (let i = 0; i < count; i++) emit(queue.shift()!)
+        if (count < run) break
+      }
+      return out
+    },
+  }
+}
 
 /** Mutable accumulator; `snapshot()` returns an immutable view for React. */
 export function createLiveTracker(totals: Partial<Record<TaskKey, number>>) {
@@ -104,7 +183,9 @@ export function createLiveTracker(totals: Partial<Record<TaskKey, number>>) {
         const total = totals[t] ?? null
         const seen = items.get(t)!.size
         const done = t === 'bank_rec' ? accounts.size : decided.get(t)!.size
-        const complete = state === 'done' || (total !== null && total > 0 && done >= total)
+        // Tasks run in PIPELINE order: one that has events is finished once a later one has started.
+        const overtaken = seen > 0 && PIPELINE.slice(PIPELINE.indexOf(t) + 1).some((later) => items.get(later)!.size > 0)
+        const complete = state === 'done' || overtaken || (total !== null && total > 0 && done >= total)
         const nodeState: NodeState = complete ? 'done' : state === 'failed' ? (seen ? 'failed' : 'pending') : seen ? 'running' : 'pending'
         tasks[t] = { state: nodeState, items: seen, decided: decided.get(t)!.size, done, total, fails: fails.get(t) ?? 0, lastItem: last.get(t) ?? null }
       }
