@@ -13,7 +13,7 @@ Recorrido de `/tareas/*`, `/balance` y `/datos/*` con julio (golden) y con la ej
 - **AP, ordenar por Total** (`tasks/ap/ApPage.tsx`): por valor en EUR.
 - **Cierre, deterioro** (`tasks/close/ClosePage.tsx`): «Partidas abiertas» de la provisión con `Amount`.
 
-### Esta PR
+### PR #161 (fusionada)
 
 - **AP, datos de cada acción del maestro** (`tasks/ap/model.ts` → `actionDetails`, `tasks/ap/ApDocCard.tsx`): la ficha enseñaba solo «Registrar embargo» o «Actualizar datos bancarios». Ahora muestra lo que trae `action_data`: referencia e importe del embargo (`API005192`, 61.930,20 €), IBAN anterior y nuevo con certificado y fecha (`API005196`), factor, IBAN y fecha de la cesión (`API005190`), vigencia y referencia del certificado art. 43 (`API005622`), validez de la proforma. Fechas con `formatDate`, importe con `Amount`, IBAN y referencias con `Mono`. Tests en `model.test.ts`.
 - **Contraste** (petición de qa-shell-demo, `--brand-line` de #153): `--ink-4` → `--ink-3` en el «—» de AP y del mapa de calor, nombres de grupo del mapa de calor, recuento de cada maestro y placeholder del diario; bordes de selección y foco de `--brand` a `--brand-line` en ledger, ar-cash, ap, bank, ar-billing, ic y data-explorer.
@@ -37,10 +37,19 @@ Recorrido de `/tareas/*`, `/balance` y `/datos/*` con julio (golden) y con la ej
 - Recorrido con teclado y lector de pantalla de cada vista: solo se revisó con ratón y texto.
 - Listas en anchos menores de 1440 px.
 
+## Pendiente
+
+Paquete cerrado en modo cierre. Nada de esto rompe nada; queda para después:
+
+- **Ficha AP de documentos que no son factura:** el apartado «Pago» enseña «El proveedor» y «Sin bloqueo», que no aplican a una proforma, un certificado o un embargo. Ocultarlo en `NOT_INVOICE` (`tasks/ap/ApDocCard.tsx`).
+- **Dominio parecido:** la fila «Dominio del remitente» marca la diferencia, pero no resalta el carácter que cambia (`señalizaci0nesvial.es`).
+- **Balance, tabla de cuentas:** a 1440 px la descripción de la cuenta queda cortada en las filas largas; con golden caben justas las 8 columnas.
+- **Bancos, mapa de decisión de septiembre:** «Intereses de préstamo sin contabilizar» sale con 2 líneas sin casar y 3 ajustes. Viene de la entrega del prototipo, no de la app, pero conviene que el backend lo cuadre.
+- **Sin verificar:** teclado y lector de pantalla en cada vista, y anchos menores de 1440 px.
+
 ## Peticiones a la coordinadora
 
-- **`DataTable` (qa-shell-demo):** una celda alineada a la derecha cuyo contenido no cabe se recorta por la izquierda y se pierden los primeros dígitos, sin elipsis. Ya pasada por la coordinadora.
-- **Kit, `MasterCompare.tsx:106` (qa-core):** la nota de cesión dice «desde 2026-07-14» en ISO; debería usar `formatDate`. Sale en Razonamiento y Golden de las facturas con pago al factor (`API004636`, `API004656`, `API004689`, `API004912`).
+- Resueltas: `DataTable` ya no recorta por la izquierda (#157) y `MasterCompare` formatea la fecha de la cesión.
 
 ## Commits
 
