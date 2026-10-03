@@ -11,6 +11,7 @@ import { useActiveRun } from '@/engine'
 import { formatDateTime, formatMonth, formatNumber } from '@/lib/format'
 import { DatasetInventory } from './DatasetInventory'
 import { DropZone, FilesPicker, FolderPicker, isSingleZip, ZipPicker } from './FilePickers'
+import { ConfirmRemove, type RemoveTarget } from './ConfirmRemove'
 import { filesPresent, RUN_SOURCE, runPath } from './taskMeta'
 import s from './NewRunPage.module.css'
 
@@ -61,10 +62,13 @@ function Step({ n, title, description, done, disabled, children }: { n: number; 
   )
 }
 
-function DatasetStep() {
+/** Each visit starts blank: the dataset already open is offered in the list, not preselected. */
+function DatasetStep({ chosenId, onChosen }: { chosenId: string | null; onChosen: (id: string) => void }) {
   const ds = useDatasetStore()
-  const meta = ds.api?.meta ?? null
+  const active = ds.api?.meta ?? null
+  const meta = active?.id === chosenId ? active : null
   const [changing, setChanging] = useState(false)
+  const [forget, setForget] = useState<RemoveTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
   const busy = ds.status === 'loading'
 
@@ -77,7 +81,9 @@ function DatasetStep() {
     fn().then(
       (m) => {
         setChanging(false)
-        if (m) toast.success(`${m.name} cargado`, { description: `Cierre de ${formatMonth(m.month)}` })
+        if (!m) return
+        onChosen(m.id)
+        if (m.id !== active?.id) toast.success(`${m.name} cargado`, { description: `Cierre de ${formatMonth(m.month)}` })
       },
       (e: unknown) => setError(message(e)),
     )
@@ -88,6 +94,7 @@ function DatasetStep() {
   if (busy) return <LoadingCard progress={ds.progress} />
 
   const others = ds.datasets.filter((d) => d.id !== meta?.id)
+  const reopen = (id: string) => load(() => ds.activate(id).then(() => useDatasetStore.getState().api?.meta))
   const showLoader = !meta || changing
 
   return (
@@ -147,6 +154,10 @@ function DatasetStep() {
                     <span className={s.grow} />
                     {meta?.remoteId === a.id ? (
                       <Badge tone="ok">Cargado</Badge>
+                    ) : active?.remoteId === a.id ? (
+                      <Button size="sm" onClick={() => onChosen(active.id)}>
+                        Usar
+                      </Button>
                     ) : (
                       <Button size="sm" onClick={() => load(() => ds.loadFromHttp(a.id))}>
                         Cargar
@@ -168,10 +179,23 @@ function DatasetStep() {
                       {formatMonth(d.month)} · {SOURCE_KIND[d.sourceKind]} · {formatDateTime(d.loadedAt)}
                     </span>
                     <span className={s.grow} />
-                    <Button size="sm" onClick={() => load(() => ds.activate(d.id))}>
-                      Activar
+                    <Button size="sm" onClick={() => reopen(d.id)}>
+                      {d.id === active?.id ? 'Usar' : 'Activar'}
                     </Button>
-                    <IconButton size="sm" icon={<Trash2 />} label={`Olvidar ${d.name}`} onClick={() => void ds.remove(d.id)} />
+                    {d.id !== active?.id && (
+                      <IconButton
+                        size="sm"
+                        icon={<Trash2 />}
+                        label={`Olvidar ${d.name}`}
+                        onClick={() =>
+                          setForget({
+                            title: 'Olvidar dataset',
+                            description: `Se quita «${d.name}» y sus ejecuciones de este navegador. Los ficheros originales no se tocan.`,
+                            run: () => ds.remove(d.id),
+                          })
+                        }
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -179,6 +203,8 @@ function DatasetStep() {
           )}
         </>
       )}
+
+      <ConfirmRemove target={forget} onClose={() => setForget(null)} />
 
       {(error ?? (ds.status === 'error' ? ds.error : null)) && (
         <p className={s.error} role="alert">
@@ -219,7 +245,7 @@ function ImportedFiles({ run }: { run: RunBundle }) {
   )
 }
 
-function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
+function ResultsStep({ meta, hasRun, onCreated }: { meta: DatasetMeta; hasRun: boolean; onCreated: (runId: string) => void }) {
   const navigate = useNavigate()
   const runs = useRunStore()
   const apiConfigured = runs.canStartApiRun()
@@ -239,6 +265,7 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
   const importFiles = (files: File[]) =>
     attempt('import', () => runs.importRun(isSingleZip(files) ? files[0] : files), (run) => {
       setImported(run)
+      onCreated(run.id)
       toast.success('Resultados importados', { description: `${run.label} · ${filesPresent(run)} de 6 entregas` })
     })
 
@@ -285,7 +312,12 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
                 variant={primary === 'golden' ? 'primary' : 'secondary'}
                 size="sm"
                 loading={pending === 'golden'}
-                onClick={() => attempt('golden', () => runs.createGoldenRun(), (run) => toast.success('Referencia abierta', { description: run.label }))}
+                onClick={() =>
+                  attempt('golden', () => runs.createGoldenRun(), (run) => {
+                    onCreated(run.id)
+                    toast.success('Referencia abierta', { description: run.label })
+                  })
+                }
               >
                 Abrir referencia
               </Button>
@@ -304,20 +336,23 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
 }
 
 export default function NewRunPage() {
-  const meta = useDatasetStore((st) => st.api?.meta ?? null)
+  const [chosenId, setChosenId] = useState<string | null>(null)
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const active = useDatasetStore((st) => st.api?.meta ?? null)
+  const meta = active?.id === chosenId ? active : null
   const run = useActiveRun()
-  const activeRun = run && meta && run.datasetId === meta.id ? run : null
+  const activeRun = run && meta && run.id === createdId && run.datasetId === meta.id ? run : null
 
   return (
     <Page width="narrow">
       <PageHeader title="Nuevo cierre" subtitle="Carga las entradas del mes y trae los resultados del agente." />
 
       <Step n={1} title="Datos del mes" description="La carpeta de una fase tal como la dan los organizadores." done={!!meta}>
-        <DatasetStep />
+        <DatasetStep chosenId={chosenId} onChosen={setChosenId} />
       </Step>
 
       <Step n={2} title="Resultados del agente" description="De dónde salen las 6 entregas que la app revisa." done={!!activeRun} disabled={!meta}>
-        {meta ? <ResultsStep meta={meta} hasRun={!!activeRun} /> : <p className={s.muted}>Carga primero los datos del mes.</p>}
+        {meta ? <ResultsStep meta={meta} hasRun={!!activeRun} onCreated={setCreatedId} /> : <p className={s.muted}>Carga primero los datos del mes.</p>}
       </Step>
 
       {activeRun && (
