@@ -184,9 +184,9 @@ def _cfdi_field(path: str, leaves: dict[str, Fact]) -> str | None:
 
 
 _FISCAL_TOTALS = {
-    # The fiscal total is base + charged taxes - withheld taxes in both schemas.
+    # InvoiceTotal = base + charged taxes - withheld taxes. A CFDI Total stays
+    # payable only: its PDF twin, not the XML, is the arithmetic source (§2.2).
     _INVOICE + "/InvoiceTotals[1]/InvoiceTotal[1]": _INVOICE + "/InvoiceTotals[1]/TotalTaxesWithheld[1]",
-    "/Comprobante/@Total": "/Comprobante/Impuestos[1]/@TotalImpuestosRetenidos",
 }
 
 

@@ -158,17 +158,13 @@ class XMLExtractorTests(unittest.IsolatedAsyncioTestCase):
     async def test_fiscal_total_is_gross_only_when_nothing_is_withheld(self):
         unwithheld = FACTURAE.replace("<TotalTaxesWithheld>15.00", "<TotalTaxesWithheld>0.00").replace(
             "<InvoiceTotal>106.00", "<InvoiceTotal>121.00")
-        cfdi = CFDI.replace(' TotalImpuestosRetenidos="10.67"', "").replace('Total="105.33"', 'Total="116.00"')
-        for xml, total in ((unwithheld, "/Facturae/Invoices[1]/Invoice[1]/InvoiceTotals[1]/InvoiceTotal[1]"),
-                           (cfdi, "/Comprobante/@Total")):
-            facts = await XMLDocumentExtractor().extract(self.parse(xml))
-            gross, = facts.fields["gross"]
-            self.assertEqual(gross.evidence.field, total)
-            self.assertEqual(normalize_document_facts(facts).facts.fields["gross_cents"][0].value,
-                             12100 if "Facturae" in xml else 11600)
         facts = await XMLDocumentExtractor().extract(self.parse(unwithheld))
+        gross, = facts.fields["gross"]
+        self.assertEqual(gross.evidence.field, "/Facturae/Invoices[1]/Invoice[1]/InvoiceTotals[1]/InvoiceTotal[1]")
+        self.assertEqual(normalize_document_facts(facts).facts.fields["gross_cents"][0].value, 12100)
         self.assertEqual(facts.fields["raw.invoice_total"][0].value, "121.00")
-        for withheld in (FACTURAE, CFDI):
+        cfdi = CFDI.replace(' TotalImpuestosRetenidos="10.67"', "").replace('Total="105.33"', 'Total="116.00"')
+        for withheld in (FACTURAE, CFDI, cfdi):
             self.assertNotIn("gross", (await XMLDocumentExtractor().extract(self.parse(withheld))).fields)
 
     async def test_every_leaf_and_alias_has_exact_original_evidence(self):
