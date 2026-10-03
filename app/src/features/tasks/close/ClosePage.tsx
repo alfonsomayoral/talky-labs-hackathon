@@ -136,7 +136,7 @@ function ItemTable({ label, items, columns }: { label: string; items: WorkItem[]
 const amountColumn = (header = 'Importe'): Column<WorkItem> => ({
   id: 'amount',
   header,
-  width: 140,
+  width: 156,
   align: 'right',
   cell: (it) => <Amount cents={it.amount} currency={it.currency ?? 'EUR'} />,
   sortValue: (it) => it.amount,
@@ -187,7 +187,7 @@ function Accruals({ items, rows, core, review }: TypeViewProps) {
       {
         id: 'average',
         header: 'Media mensual',
-        width: 130,
+        width: 156,
         align: 'right',
         cell: (it) => <Amount cents={history.get(it.id)!.average} currency={it.currency ?? 'EUR'} />,
         sortValue: (it) => history.get(it.id)!.average,
@@ -394,7 +394,7 @@ function BadDebt({ items, rows, core }: TypeViewProps) {
                 <dt>Provisión necesaria</dt>
                 <dd>
                   <Amount cents={typeof row.target === 'number' ? row.target : aging.required} currency={cur} />
-                  {typeof row.target === 'number' && row.target !== aging.required && <Badge tone="warn">Partidas abiertas: {formatNumber(aging.required / 100, { decimals: 2 })}</Badge>}
+                  {typeof row.target === 'number' && row.target !== aging.required && <Badge tone="warn">Partidas abiertas: <Amount cents={aging.required} currency={cur} /></Badge>}
                 </dd>
               </div>
               <div>

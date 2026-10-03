@@ -125,7 +125,7 @@ function Cash({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: RunB
         sortValue: (r) => r.item.counterparty,
       },
       { id: 'company', header: 'Soc.', width: 60, cell: (r) => <Mono muted>{r.item.company ?? '—'}</Mono>, sortValue: (r) => r.item.company },
-      { id: 'amount', header: 'Importe', width: 140, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => r.item.amount },
+      { id: 'amount', header: 'Importe', width: 156, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => r.item.amount },
       {
         id: 'split',
         header: 'Reparto',

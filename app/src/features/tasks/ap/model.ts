@@ -15,6 +15,7 @@ import type {
 } from '@/domain/types'
 import { AP_DECISIONS, AP_DOCUMENT_TYPES } from '@/domain/types'
 import type { Tone } from '@/components'
+import { formatDate } from '@/lib/format'
 
 /** Status colour of each decision (PLAN §5: resolved, blocked or rejected). */
 export const DECISION_TONE: Record<string, Tone> = {
@@ -284,8 +285,8 @@ export function masterCompare({ row, vendor, company, einvoice, certificates, se
     field({
       id: 'certificate',
       label: 'Certificado art. 43',
-      document: date,
-      master: `Vigente hasta ${last.valid_until}`,
+      document: formatDate(date),
+      master: `Vigente hasta ${formatDate(last.valid_until)}`,
       state: valid ? 'match' : 'mismatch',
       note: valid ? null : 'Caducado a la fecha de la factura',
     })

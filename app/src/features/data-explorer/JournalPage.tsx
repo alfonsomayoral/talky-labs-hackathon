@@ -58,7 +58,7 @@ export function useJournalColumns(withCompany = true): Column<JournalEntry>[] {
       { id: 'reference', header: 'Referencia', width: 'minmax(130px, 1fr)', cell: (e) => (e.reference ? <Mono>{e.reference}</Mono> : null) },
       { id: 'text', header: 'Texto', width: 'minmax(200px, 2fr)', cell: (e) => e.header_text },
       { id: 'lines', header: 'Líneas', width: 64, align: 'right', cell: (e) => e.lines.length },
-      { id: 'amount', header: 'Importe', width: 150, align: 'right', cell: (e) => <Amount cents={debit(e)} currency={e.currency} />, sortValue: debit },
+      { id: 'amount', header: 'Importe', width: 172, align: 'right', cell: (e) => <Amount cents={debit(e)} currency={e.currency} />, sortValue: debit },
     ],
     [withCompany],
   )
