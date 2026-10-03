@@ -39,8 +39,13 @@ def project_cash(data: PhaseData, cash: ArCashRun, bank: BankRecRun) -> CashProj
     projected = recorded.project()
     for entry in (*bank_entries(bank), *journal_entries(data, cash)):
         projected.add_entry(entry, **entry['provenance'])
+    receipt_amounts = {str(line['bank_line']): line['amount']
+                       for account in data.table('bank_accounts')
+                       for line in data.bank_lines(str(account['id']), data.month)}
     unresolved = tuple(str(result.row['bank_line']) for result in cash.results
-                       if not result.row['adjustment'])
+                       if sum(line['debit'] - line['credit'] for line in result.row['adjustment']
+                              if line['account'] == '55500000')
+                       != receipt_amounts.get(str(result.row['bank_line'])))
     return CashProjection(recorded, projected, unresolved)
 
 

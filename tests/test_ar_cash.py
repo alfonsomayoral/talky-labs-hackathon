@@ -375,6 +375,17 @@ class ArCashTests(unittest.TestCase):
              "partner": "C1", "assignment": "PAG7654321"},
         ])
 
+    def test_matured_note_cannot_be_consumed_by_two_receipts(self):
+        self.test_matured_promissory_note_is_applied_to_431()
+        first = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        second = dict(first, bank_line="BL2", booking_date="2026-07-03", value_date="2026-07-03")
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [first, second])
+        run = self._run()
+        self.assertEqual(run.results[0].row["applications"], [{"pagare": "7654321", "amount": 8000}])
+        self.assertEqual(run.results[1].row["applications"], [])
+        self.assertEqual(run.results[1].row["adjustment"], [])
+
     def test_unmatured_promissory_note_is_not_available_on_receipt_date(self):
         self._jsonl("erp/promissory_notes.jsonl", [{
             "number": "7654321", "customer": "C1", "company": "1100",
