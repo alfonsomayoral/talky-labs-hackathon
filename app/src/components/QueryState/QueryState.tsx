@@ -41,7 +41,8 @@ export function QueryState({ status, error, isEmpty, idle, loading, empty, onRet
   if (status === 'loading') {
     return (
       loading ?? (
-        <div className={styles.loading} role="status" aria-label="Cargando">
+        <div className={styles.loading} role="status">
+          <span className="sr-only">Cargando…</span>
           <Skeleton width={180} height={16} />
           <Skeleton lines={4} />
         </div>
@@ -50,12 +51,14 @@ export function QueryState({ status, error, isEmpty, idle, loading, empty, onRet
   }
   if (status === 'error') {
     return (
-      <EmptyState
-        icon={<TriangleAlert />}
-        title="No se pudo cargar"
-        description={error ?? 'Error desconocido.'}
-        action={onRetry && <Button onClick={onRetry}>Reintentar</Button>}
-      />
+      <div role="alert">
+        <EmptyState
+          icon={<TriangleAlert />}
+          title="No se pudo cargar"
+          description={error ?? 'Error desconocido.'}
+          action={onRetry && <Button onClick={onRetry}>Reintentar</Button>}
+        />
+      </div>
     )
   }
   if (isEmpty) {

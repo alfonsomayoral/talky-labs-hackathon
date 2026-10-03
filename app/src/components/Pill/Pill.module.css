@@ -36,7 +36,7 @@
   margin-right: -4px;
   padding: 2px;
   border-radius: var(--radius-pill);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .remove:hover {

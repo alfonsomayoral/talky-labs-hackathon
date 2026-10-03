@@ -44,9 +44,12 @@
 }
 
 .handle:hover::after,
-.resizing .handle::after,
-.handle:focus-visible::after {
+.resizing .handle::after {
   background: var(--brand-border);
+}
+
+.handle:focus-visible::after {
+  background: var(--brand-line);
 }
 
 .handle:focus-visible {

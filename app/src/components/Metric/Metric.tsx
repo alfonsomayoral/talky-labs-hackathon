@@ -29,9 +29,9 @@ export function Metric({ label, value, delta, deltaTone = 'neutral', comparison,
         <span>{label}</span>
         {hint && (
           <Tooltip content={hint}>
-            <span className={styles.hint} tabIndex={0} aria-label={hint}>
+            <button type="button" className={styles.hint} aria-label={hint}>
               <Info aria-hidden />
-            </span>
+            </button>
           </Tooltip>
         )}
       </div>

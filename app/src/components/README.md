@@ -7,6 +7,8 @@ Import everything from `@/components`. Live examples: `/dev/ui` (dev only). Toke
 - **Colour carries meaning only.** Orange (`--brand`) = primary action, selection, focus. Status colours = status. Everything else is ink on white with hairline borders (`--line`).
 - **One primary button per view** (orange pill). The rest: `secondary` (bordered) or `ghost`.
 - **Orange text on white** must use `--brand-ink` (#C2410C), never `--brand` (fails contrast at 12–13px). Status text on tinted fills uses `--ok-ink`, `--warn-ink`, `--danger-ink`, `--info-ink`.
+- **Orange indicators** (selected border or underline, focus ring, check) use `--brand-line` (#EA580C, ≥ 3:1). Orange fills under white text use `--brand-ink`, as the primary button does. `--brand` stays for large areas and icons next to a label.
+- **Grey text** is `--ink-3` at least on white and `--ink-2` on `--ground` or `--bg-muted`; `--ink-4` is only for disabled text and decorative icons.
 - **Ids, accounts, codes, policy refs** → `Mono`. **Money** → `Amount` (never format cents by hand), right-aligned in tables. Dates/percent/durations → `@/lib/format`.
 - **Density:** rows 36px, 13px text, 16px lucide icons with 1.5 stroke (set globally by `LucideProvider` in `main.tsx`; just render `<Icon />`).
 - No banners, illustrations, gradients or heavy shadows. Empty states: an icon, a sentence, one action.
@@ -90,7 +92,7 @@ const columns = useMemo<Column<WorkItem>[]>(() => [
 - `width`: px number or any grid track; default `minmax(0, 1fr)`. Horizontal scroll appears when fixed widths exceed the space.
 - Sort: click a header with `sortValue` (asc → desc → off); nulls last. Controlled with `sort`/`onSortChange` or uncontrolled with `defaultSort`.
 - Groups: `groupBy`, `groupOrder`, `renderGroup`; headers collapse on click and show counts.
-- Keyboard: `j`/`k`/`↓`/`↑` move the cursor (brand-soft row), `Enter` → `onOpen`. `globalKeys` listens on the whole page (use it on the page's main list, once per page).
+- Keyboard: `j`/`k`/`↓`/`↑` move the cursor (brand-soft row), `Enter` → `onOpen`. `Tab` reaches the sortable headers and the group headers (`Enter` sorts or collapses). `globalKeys` listens on the whole page (use it on the page's main list, once per page).
 - Height: inside `<Page fill>` it fills the remaining space; elsewhere pass `height` (px).
 - Built on `@tanstack/react-virtual` only (sorting/grouping are a few pure functions in `DataTable/model.ts`), so column definitions need no TanStack Table types.
 

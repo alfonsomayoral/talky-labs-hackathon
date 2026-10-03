@@ -113,7 +113,7 @@ pre {
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: 2px;
 }
 

@@ -45,9 +45,9 @@
   height: 14px;
 }
 
-/* Talky primary: orange pill */
+/* Talky primary: orange pill. Fill is --brand-ink: white on --brand only reaches 2.8:1. */
 .primary {
-  background: var(--brand);
+  background: var(--brand-ink);
   color: var(--ink-inverse);
   border-radius: var(--radius-pill);
   padding: 0 var(--space-4);
@@ -58,12 +58,9 @@
   padding: 0 var(--space-3);
 }
 
-.primary:hover:not(:disabled) {
-  background: var(--brand-hover);
-}
-
+.primary:hover:not(:disabled),
 .primary:active:not(:disabled) {
-  background: var(--brand-ink);
+  background: var(--brand-strong);
 }
 
 .secondary {

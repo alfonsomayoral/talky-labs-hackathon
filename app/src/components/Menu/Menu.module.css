@@ -81,7 +81,7 @@
 
 .hint {
   flex-shrink: 0;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--text-12);
 }
 

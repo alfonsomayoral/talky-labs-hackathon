@@ -79,7 +79,7 @@
   flex-shrink: 0;
   padding: 2px;
   border-radius: var(--radius-xs);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .close:hover {
