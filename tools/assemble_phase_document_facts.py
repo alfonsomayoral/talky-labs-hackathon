@@ -59,7 +59,9 @@ def validate_literals(document, facts):
                 raise ValueError(f'{name}: value is not in its quote')
 
 
-def assemble(phase_root, capture_roots, output, *, native_tables=False):
+def assemble(phase_root, capture_roots, output, *, native_tables=False, phase='phase_test'):
+    if phase not in {'phase_dev', 'phase_test'}:
+        raise ValueError('Unknown phase identity')
     phase_root = Path(phase_root).resolve(strict=True)
     output = Path(output).resolve()
     if output.is_relative_to(phase_root) or phase_root.is_relative_to(output):
@@ -74,6 +76,8 @@ def assemble(phase_root, capture_roots, output, *, native_tables=False):
         reports.sort(key=lambda pair: pair[1].get('started_at') or datetime.fromtimestamp(
             pair[0].stat().st_mtime, timezone.utc).isoformat())
         for run, report in reports:
+            if report.get('phase') != phase:
+                raise ValueError('Capture report belongs to a different phase')
             for item in report['documents']:
                 if item['status'] != 'completed':
                     continue
@@ -153,7 +157,7 @@ def assemble(phase_root, capture_roots, output, *, native_tables=False):
         except Exception as error:
             row.update(status='failed', error=str(error))
         records.append(row)
-    report = {'schema_version': 1, 'phase': 'phase_test', 'source_only': True,
+    report = {'schema_version': 1, 'phase': phase, 'source_only': True,
               'official_score_computed': False, 'organizer_golden_used': False,
               'new_provider_calls': 0, 'documents': records,
               'summary': {'original_documents': len(sources),
@@ -166,11 +170,13 @@ def assemble(phase_root, capture_roots, output, *, native_tables=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--phase-root', type=Path, required=True)
+    parser.add_argument('--phase', choices=('phase_dev', 'phase_test'), default='phase_test')
     parser.add_argument('--capture-root', type=Path, action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--native-tables', action='store_true')
     args = parser.parse_args()
-    report = assemble(args.phase_root, args.capture_root, args.output, native_tables=args.native_tables)
+    report = assemble(args.phase_root, args.capture_root, args.output, native_tables=args.native_tables,
+                      phase=args.phase)
     print(json.dumps(report['summary']))
     return int(any(row['status'] != 'assembled' for row in report['documents']))
 

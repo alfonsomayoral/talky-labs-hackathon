@@ -1,6 +1,8 @@
 """Verified prepared AP views preserve originals, failures and fixture identity."""
 import asyncio
+import base64
 from copy import deepcopy
+from io import BytesIO
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,6 +13,7 @@ from kalmora.ap_document_bridge import APDocumentBridge
 from kalmora.ap_sources import load_prepared_ap_sources, prepare_ap_sources
 from kalmora.documents.ap_sources import APAttachment, APMessage, APTaskSources
 from kalmora.documents.contracts import digest, fingerprint
+from kalmora.documents.ocr import PDFVisionConfig, PDFVisionProcessor
 from kalmora.documents.replay import ExtractionCapture, RecordedExtractor, RecordingConfig, RecordingStore
 from kalmora.documents.router import DocumentRouter
 from kalmora.facts import DocumentFacts, Evidence, Fact, atomic_json
@@ -75,6 +78,102 @@ class APPreparedReplayTests(unittest.TestCase):
     def load(self, run):
         return load_prepared_ap_sources(self.phase, run.manifest_path)
 
+    def rendered_fixture(self):
+        try:
+            from pypdf import PdfWriter
+            import PIL.Image
+        except ImportError:
+            self.skipTest("PDF vision requires the documents extra")
+        config = PDFVisionConfig()
+        if not all(Path(tool).is_file() for tool in (config.renderer, config.tesseract)):
+            self.skipTest("default local renderer/OCR tools unavailable")
+        (self.phase / "inbox/ap/OPAQUE-X/invoice.xml").unlink()
+        self.sources("OPAQUE-X", {"scan.pdf": ""})
+        relative = "inbox/ap/OPAQUE-X/scan.pdf"
+        writer = PdfWriter()
+        writer.add_blank_page(width=72, height=72)
+        writer.write(self.phase / relative)
+        processor = PDFVisionProcessor(self.phase, config)
+        rendered = processor.process(DocumentRouter(self.phase).parse(relative))
+        recording = RecordingConfig("fixture", "fixture-model", "fixture-v1", "prompt-v1",
+                                    "a" * 64, "schema-v1", "b" * 64)
+        store = RecordingStore(self.root / "captures")
+        raw = DocumentFacts(rendered.source_sha256, "fixture-v1", {})
+        store.save("extract", rendered, recording,
+                   ExtractionCapture(raw, {}, {}, unknowns=({"field": "document_type_hint"},)),
+                   origin="synthetic")
+        run = self.prepare(mode="fixture", extractor=RecordedExtractor(store, recording, mode="fixture"),
+                           transform=processor.process)
+        self.assertEqual(run.manifest["documents"][0]["attachments"][0]["status"], "ACCEPTED")
+        return run, rendered
+
+    @staticmethod
+    def refresh_vision_identity(parsed):
+        provenance = [aid["provenance"] for aid in parsed["unverified_processing_aids"]]
+        identity = fingerprint(dict(config=provenance[0]["config"], aids=provenance))
+        parsed["parser_version"] = parsed["parser_version"].split("/pdf-vision-v2:")[0] + "/pdf-vision-v2:" + identity
+
+    def test_default_rendered_pdf_replays_complete_view_without_provider_or_capture_adapter(self):
+        run, rendered = self.rendered_fixture()
+        with patch("socket.socket", side_effect=AssertionError("network disabled")), \
+                patch.object(RecordedExtractor, "__init__", side_effect=AssertionError("no capture adapter")):
+            loaded = self.load(run)
+        attachment, = loaded["OPAQUE-X"].attachments
+        self.assertEqual(attachment.document, rendered)
+        self.assertIsNone(attachment.error)
+        self.assertEqual(attachment.facts.fields, {})
+        self.assertEqual(attachment.unknowns, ({"field": "document_type_hint"},))
+        self.assertEqual(loaded["OTHER-7"].attachments[0].classification.document_type, "INVOICE")
+
+    def test_rehashed_rendered_images_aids_provenance_and_warnings_are_authenticated(self):
+        run, _ = self.rendered_fixture()
+        from PIL import Image
+        def image_mutation(parsed):
+            saved = parsed["images"][0]
+            with Image.open(BytesIO(base64.b64decode(saved["base64"]))) as original:
+                image = original.convert("RGB")
+            image.putpixel((0, 0), (0, 0, 0))
+            stream = BytesIO()
+            image.save(stream, "PNG")
+            data = stream.getvalue()
+            saved.update(base64=base64.b64encode(data).decode("ascii"), sha256=digest(data))
+            parsed["unverified_processing_aids"][0]["provenance"]["image_sha256"] = digest(data)
+        def aid_mutation(parsed):
+            aid = parsed["unverified_processing_aids"][0]
+            aid["text"] = "Invented OCR text"
+            aid["provenance"]["text_sha256"] = digest(aid["text"].encode())
+        def provenance_mutation(parsed):
+            parsed["unverified_processing_aids"][0]["provenance"]["authoritative"] = True
+        def warnings_mutation(parsed):
+            parsed["warnings"].append("invented:source_verified")
+        for name, mutate in (("image", image_mutation), ("aid", aid_mutation),
+                             ("provenance", provenance_mutation), ("warnings", warnings_mutation)):
+            with self.subTest(field=name):
+                def alter(artifact):
+                    mutate(artifact["parsed"])
+                    self.refresh_vision_identity(artifact["parsed"])
+                self.alter_artifact(run, alter)
+                with self.assertRaisesRegex(ValueError, "original blocks/pages/parser"):
+                    self.load(run)
+
+    def test_custom_pdf_vision_tools_and_unsupported_transform_are_never_executed(self):
+        run, _ = self.rendered_fixture()
+        def custom(artifact):
+            parsed = artifact["parsed"]
+            parsed["unverified_processing_aids"][0]["provenance"]["config"]["renderer"] = "/saved/arbitrary/program"
+            self.refresh_vision_identity(parsed)
+        self.alter_artifact(run, custom)
+        with patch.object(PDFVisionProcessor, "process", side_effect=AssertionError("saved tools must not execute")):
+            with self.assertRaisesRegex(ValueError, "current local default configuration"):
+                self.load(run)
+        def old_transform(artifact):
+            artifact["parsed"]["parser_version"] = artifact["parsed"]["parser_version"].replace(
+                "/pdf-vision-v2:", "/pdf-vision-v1:")
+        self.alter_artifact(run, old_transform)
+        with patch.object(PDFVisionProcessor, "process", side_effect=AssertionError("unsupported transform must not execute")):
+            with self.assertRaisesRegex(ValueError, "original blocks/pages/parser"):
+                self.load(run)
+
     def test_original_xml_returns_stable_public_typed_views_without_provider_or_extraction(self):
         run = self.prepare()
         with patch("socket.socket", side_effect=AssertionError("network disabled")), \
@@ -91,7 +190,10 @@ class APPreparedReplayTests(unittest.TestCase):
         self.assertIsInstance(task.message, APMessage)
         attachment, = task.attachments
         self.assertIsInstance(attachment, APAttachment)
-        self.assertEqual(attachment.normalized.facts.fields["payable_cents"][0].value, 1210)
+        # InvoiceTotal alone does not establish the amount outstanding after
+        # advances/subsidies. Keep the literal and leave payable unresolved.
+        self.assertEqual(attachment.facts.fields["raw.invoice_total"][0].value, "12.10")
+        self.assertNotIn("payable_cents", attachment.normalized.facts.fields)
         self.assertEqual(attachment.classification.document_type, "INVOICE")
         self.assertEqual(APDocumentBridge.from_task_sources(task).classification.document_type, "INVOICE")
         original_message = json.loads((self.phase / task.message.path).read_text())
@@ -182,7 +284,7 @@ class APPreparedReplayTests(unittest.TestCase):
     def test_rehashed_normalized_mutation_is_refused_by_current_conversion(self):
         run = self.prepare()
         def mutate(artifact):
-            artifact["normalized"]["fields"]["payable_cents"][0]["value"] = 9999
+            artifact["normalized"]["fields"]["net_cents"][0]["value"] = 9999
         self.alter_artifact(run, mutate)
         with self.assertRaisesRegex(ValueError, "current conversion"):
             self.load(run)

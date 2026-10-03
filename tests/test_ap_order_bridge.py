@@ -349,6 +349,14 @@ class APOrderBridgeIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((match.reference.status, match.semantic_called, match.quantity_line), ("CONFLICT", False, None))
         self.assertEqual(self.resolver.requests, [])
 
+    async def test_known_future_order_is_not_found_without_semantic_replacement(self):
+        self.orders.append(dict(self.orders[0], id="FUTURE", created_on="2031-11-02"))
+        match = await self.resolve(replace(self.query, po_reference="FUTURE"))
+        self.assertEqual((match.reference.status, match.semantic_called, match.quantity_line), ("NOT_FOUND", False, None))
+        self.assertEqual(match.reference.diagnostics, ("PO_REFERENCE_AFTER_INVOICE",))
+        self.assertEqual(match.reference.candidates, ())
+        self.assertEqual(self.resolver.requests, [])
+
     async def test_joint_deficit_with_other_unknown_receipt_capacity_stays_unknown(self):
         bridge = self.bridge()
         known = bridge.history.certainties[0]

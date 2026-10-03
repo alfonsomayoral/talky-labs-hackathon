@@ -68,6 +68,12 @@ source relationships and monetary bindings belong to the monetary planner.
 - PO queries require positive observed milli quantity, observed UOM, scope,
   invoice date and an observed valid receipt cutoff. No PO unit or default
   month-end cutoff is inferred. Contradicting references remain unresolved.
+- A printed project reference binds to an active project ID in the same company:
+  either a literal ID or a unique name after case/whitespace normalization. The
+  source name remains intact and the query retains invoice/ERP join evidence.
+  Missing, foreign, malformed or ambiguous project facts stay `UNKNOWN`; neither
+  a PO project nor a vendor default replaces them. The projects table is parsed
+  only for an observed reference and an available table is pinned by the batch.
 - `APOrderBridge` checks exact references and scope before bounded semantic
   resolution. A unique scope-only candidate remains `UNCONFIRMED`. The returned
   receipt IDs use established historical capacity and the explicit cutoff;

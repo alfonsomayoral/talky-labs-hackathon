@@ -46,6 +46,7 @@ class CommandCloser:
         self._command, self._run_dir = command, Path(run_dir)
         self._active: dict[str, str] = {}
         self._lock = threading.Lock()
+        self.recover()      # a run left "running" by a stopped server can never finish: close it when the server starts
 
     def start(self, phase: str, phase_dir: Path, month: str) -> str:
         if not valid_phase_name(phase):
@@ -113,7 +114,7 @@ class CommandCloser:
                 owned = manifest.get("run_id") in self._active.values()
             if manifest.get("status") == "running" and not owned:
                 _write(path, {**manifest, "status": "failed", "exit_code": -2, "interrupted": True,
-                              "error": "Interrupted: the server stopped before the run ended.",
+                              "error": "interrupted: the server stopped during the run",
                               "finished_at": _now(), "deliverables": summarize_deliverables(path.parent)})
                 count += 1
         return count

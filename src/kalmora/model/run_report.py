@@ -30,8 +30,8 @@ class RunReport(TypedDict):
     """UTC ISO 8601 timestamps."""
 
     elapsed_seconds: float
-    status: Literal["completed", "failed"]
-    """``failed`` if an exception was raised or the exit code is nonzero."""
+    status: Literal["running", "completed", "failed"]
+    """``running`` from enter until exit; ``failed`` if an exception was raised or the exit code is nonzero."""
 
     error_type: str | None
     cost: CostSummary

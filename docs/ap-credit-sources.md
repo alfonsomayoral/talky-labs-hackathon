@@ -50,3 +50,16 @@ provider is used.
 ```sh
 KALMORA_PHASE_ERP=/path/participant/phase_dev/erp .venv/bin/python -m unittest discover -s tests -p test_ap_credit_sources.py -v
 ```
+
+
+The [credit/restoration extension](ap-credit-restoration.md) now resolves an
+observed equivalent imputation group without inventing a specific original line,
+and retains the original reference Evidence plus document currency/SHA. Documentary
+line/PO/tax selectors must come from that associated reference document. A source
+with applied 407 may resolve original identity but still needs explicit restored
+application/carrying/classification facts. Local cost/FX legs are retained, not
+recoded or converted into document cents. An original with no supplier line can
+resolve with `reconciliation_account=None` only when its register payable is
+explicitly zero and its 407 proves vendor scope. The caller supplies the active
+reconciliation account to the credit builder; zero capacity creates no liability
+line. Missing/conflicting payable/vendor evidence still abstains.

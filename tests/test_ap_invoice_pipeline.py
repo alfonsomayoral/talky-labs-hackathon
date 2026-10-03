@@ -10,7 +10,7 @@ from kalmora.ap_journal import AdvanceApplication, AdvanceBalance, AdvanceState,
 from kalmora.ap_holds import PriceLine, PricePortion
 from kalmora.ap_line_source_bridge import APLineSourceBinding
 from kalmora.ap_output import validate_ap_row
-from kalmora.ap_pipeline import APInvoiceRequest, evaluate_ap_invoice
+from kalmora.ap_pipeline import APInvoiceRequest, APQuantityCheckInputs, evaluate_ap_invoice
 from kalmora.ap_transaction import APTransactionState
 from kalmora.ap_withholding import ContractGuarantee, WithholdingBase
 from kalmora.facts import DocumentFacts, Evidence, Fact
@@ -89,6 +89,81 @@ class APInvoicePipelineTests(unittest.TestCase):
         fields.update({name: [Fact(value, Evidence("synthetic/invoice.xml", name))]
                        for name, value in values.items()})
         return replace(request, amount_sources=(replace(source, fields=fields),))
+
+    def quantity_request(self, request):
+        posting = request.posting
+        quantity = APQuantityCheckInputs(quantity_lines=posting.quantity_lines,
+            order_catalog=posting.order_catalog, receipt_catalog=posting.receipt_catalog,
+            order_prices=posting.order_prices, receipt_as_of=posting.receipt_as_of)
+        return replace(request, header=None, posting=None, quantity_inputs=quantity)
+
+    def test_independent_quantity_shortage_precedes_missing_net_or_monetary_coding(self):
+        committed = self.run_invoice(self.request("EARLIER-RECEIPT-USER"))
+        for net_observed in (False, True):
+            with self.subTest(net_observed=net_observed):
+                request = self.quantity_request(self.request("SOURCE-ONLY-" + str(net_observed)))
+                source = request.amount_sources[0]
+                fields = dict(source.fields)
+                if not net_observed:
+                    fields.pop("line.1.net_cents")
+                request = replace(request, amount_sources=(replace(source, fields=fields),))
+                before = request.amount_sources[0].to_dict()
+                with patch("kalmora.ap_pipeline.commit_ap_transaction", side_effect=AssertionError("HOLD cannot post")):
+                    result = self.run_invoice(request, committed.state)
+                self.assertEqual((result.status, result.row["decision"], result.row["reasons"]),
+                                 ("DECIDED", "HOLD", ["QTY_NOT_RECEIVED"]))
+                self.assertIs(result.state, committed.state)
+                self.assertIsNone(request.header)
+                self.assertIsNone(request.posting)
+                self.assertNotIn("journal_entry", result.row)
+                self.assertEqual(request.amount_sources[0].to_dict(), before)
+
+        # A later monetary defect cannot defeat the independent, proved HOLD.
+        monetary = self.request("QUANTITY-BEFORE-MONEY")
+        independent = self.quantity_request(monetary)
+        bad_line = replace(monetary.posting.valuation_lines[0], amount_doc=9999)
+        result = self.run_invoice(replace(monetary, quantity_inputs=independent.quantity_inputs,
+            posting=replace(monetary.posting, valuation_lines=(bad_line,))), committed.state)
+        self.assertEqual(result.row["reasons"], ["QTY_NOT_RECEIVED"])
+        self.assertIs(result.state, committed.state)
+
+    def test_independent_price_variance_precedes_monetary_preparation_and_never_consumes(self):
+        request = self.quantity_request(self.request("SOURCE-ONLY-PRICE"))
+        line = replace(request.price_lines[0], invoice_unit_price_cents=(self.fact(10201, "observed price"),))
+        request = self.source_fields(replace(request, price_lines=(line,)), **{"line.1.unit_price_e4": 1020100})
+        result = self.run_invoice(request)
+        self.assertEqual((result.status, result.row["decision"], result.row["reasons"]),
+                         ("DECIDED", "HOLD", ["PRICE_VARIANCE"]))
+        self.assertIs(result.state, self.state)
+        self.assertEqual(self.state.consumption.usages[0].quantity_milli, 1000)
+        clear = self.run_invoice(self.quantity_request(self.request("SOURCE-ONLY-CLEAR")))
+        self.assertEqual((clear.status, clear.diagnostics), ("UNKNOWN", ("MONETARY_POSTING_INPUTS_UNKNOWN",)))
+        self.assertIs(clear.state, self.state)
+
+    def test_independent_quantity_inputs_preserve_source_catalogue_and_cutoff_guards(self):
+        request = self.quantity_request(self.request())
+        forged = self.source_fields(request, **{"line.1.quantity_milli": 2000})
+        with self.assertRaisesRegex(ValueError, "quantity contradicts"):
+            self.run_invoice(forged)
+        changed = replace(request.quantity_inputs, receipt_catalog=())
+        with self.assertRaisesRegex(ValueError, "complete active ERP catalogue"):
+            self.run_invoice(replace(request, quantity_inputs=changed))
+        future = replace(request.quantity_inputs, receipt_as_of="2031-11-01")
+        with self.assertRaisesRegex(ValueError, "phase horizon"):
+            self.run_invoice(replace(request, quantity_inputs=future,
+                receipt_as_of=self.fact("2031-11-01", "future cutoff")))
+        missing = self.run_invoice(replace(request, receipt_as_of=None))
+        self.assertEqual(missing.diagnostics, ("QUANTITY_POSTING_INPUTS_UNKNOWN",))
+        self.assertIs(missing.state, self.state)
+        monetary = self.request()
+        with self.assertRaisesRegex(ValueError, "differ from monetary posting"):
+            self.run_invoice(replace(monetary, quantity_inputs=replace(request.quantity_inputs,
+                quantity_lines=())))
+        with self.assertRaisesRegex(TypeError, "immutable typed line/catalogue"):
+            replace(request.quantity_inputs, quantity_lines=list(request.quantity_inputs.quantity_lines))
+        line = request.quantity_inputs.quantity_lines[0]
+        with self.assertRaisesRegex(TypeError, "immutable typed order portions"):
+            replace(request.quantity_inputs, quantity_lines=(replace(line, portions=list(line.portions)),))
 
     def test_observed_deductions_cannot_be_ignored_by_zero_posting(self):
         request = self.direct(self.request())
@@ -320,6 +395,13 @@ class APInvoicePipelineTests(unittest.TestCase):
         self.assertEqual(result.diagnostics, ("HISTORICAL_RECEIPT_CAPACITY_UNKNOWN",))
         self.assertIs(result.state, self.state)
         self.assertIsNone(result.row)
+
+        # The same uncertainty must survive without a monetary/header plan.
+        independent = self.quantity_request(request)
+        independent_result = self.run_invoice(independent)
+        self.assertEqual(independent_result.diagnostics, ("HISTORICAL_RECEIPT_CAPACITY_UNKNOWN",))
+        self.assertIs(independent_result.state, self.state)
+        self.assertIsNone(independent_result.row)
 
     def test_late_output_failure_leaves_original_state_available_for_a_different_invoice(self):
         request = self.request()

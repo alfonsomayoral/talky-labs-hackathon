@@ -33,7 +33,7 @@ class AssemblyTests(unittest.TestCase):
         transformation = self.document.transformation_sha256
         atomic_json(root / 'parsed' / self.document.source_sha256 / (transformation + '.json'), self.document.to_dict())
         atomic_json(root / 'configurations' / ('c' * 64) / 'facts' / (transformation + '.json'), {'raw': facts.to_dict()})
-        atomic_json(root / 'runs/one/capture.json', {'config_sha256': 'c' * 64, 'documents': [
+        atomic_json(root / 'runs/one/capture.json', {'phase': 'phase_test', 'config_sha256': 'c' * 64, 'documents': [
             {'path': self.document.path, 'sha256': self.document.source_sha256,
              'transformation_sha256': transformation, 'status': 'completed'}]})
 
@@ -83,6 +83,17 @@ class AssemblyTests(unittest.TestCase):
         report = assembly.assemble(self.phase, [self.capture_root], self.root / 'output')
         self.assertEqual(report['summary']['statuses'], {'assembled': 1})
         self.assertIn('c' * 64, report['documents'][0]['source_capture'])
+
+    def test_phase_identity_cannot_silently_relabel_september_as_july(self):
+        with self.assertRaisesRegex(ValueError, 'different phase'):
+            assembly.assemble(self.phase, [self.capture_root], self.root / 'output', phase='phase_dev')
+        report_path = self.capture_root / 'runs/one/capture.json'
+        capture = json.loads(report_path.read_text())
+        capture['phase'] = 'phase_dev'
+        atomic_json(report_path, capture)
+        report = assembly.assemble(self.phase, [self.capture_root], self.root / 'output', phase='phase_dev')
+        self.assertEqual(report['phase'], 'phase_dev')
+        self.assertEqual(report['summary']['statuses'], {'assembled': 1})
 
 
 if __name__ == '__main__':

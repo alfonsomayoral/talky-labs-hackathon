@@ -14,6 +14,7 @@ from .ap_credit_state import (
 )
 from .ap_tax import PostingDecision, TaxResult, fiscal_line, local_amount, nonnegative, require_posting
 from .ap_valuation import CostAssignment, ValuationResult
+from .facts import Fact
 from .ap_withholding import WithholdingResult
 from .model.journal_entry import JournalEntry
 from .model.journal_line import JournalLine
@@ -74,10 +75,31 @@ class AdvanceUsage:
 
 
 @dataclass(frozen=True)
+class CreditAdvanceRestoration:
+    advance_id: str
+    original_entry: JournalEntry
+    original_line: int
+    amount_doc: int
+    application_doc: Fact  # Explicit original application cents, never local FX inference.
+    treatment: Literal["NON_MONETARY", "MONETARY"]
+    treatment_reference: str
+    line_id: str
+    cost_assignment: CostAssignment | None = None
+    classification_advance: Fact | None = None
+    classification_treatment: Fact | None = None
+    original_adjustment_line: Fact | None = None
+    application_original: Fact | None = None
+    application_advance: Fact | None = None
+    application_po: Fact | None = None
+
+
+@dataclass(frozen=True)
 class CreditReference:
     line_id: str
     original_entry: JournalEntry
-    original_line: int
+    original_line: int | None
+    original_lines: tuple[int, ...] = ()  # Equivalent observed imputation; no invented line.
+    original_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -173,18 +195,21 @@ def _entry(company: str, currency: str, invoice_number: str, invoice_date: str,
 
 def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliation_account: str,
                        invoice_date: str, valuation: ValuationResult, tax: TaxResult,
-                       withholding: WithholdingResult, references: Iterable[CreditReference]) -> tuple[CreditReservation, ...]:
+                       withholding: WithholdingResult, references: Iterable[CreditReference],
+                       restored_by_original: Mapping[str, int] | None = None) -> tuple[CreditReservation, ...]:
     references = tuple(references)
     if not references:
         raise ValueError("credit notes require resolved original imputation evidence")
-    candidates: dict[str, list[tuple[tuple[str, str, int], JournalLine]]] = {}
+    candidates: dict[str, list[tuple[tuple[str, str, str], JournalLine]]] = {}
     originals: dict[str, JournalEntry] = {}
     limits: dict[tuple[str, str], tuple[int, int]] = {}
-    original_lines: dict[tuple[str, str, int], JournalLine] = {}
-    seen_refs: set[tuple[str, tuple[str, str, int]]] = set()
+    original_lines: dict[tuple[str, str, str], JournalLine] = {}
+    seen_refs: set[tuple[str, tuple[str, str, str]]] = set()
     for ref in references:
         _text(ref.line_id, "credited line id")
         original = ref.original_entry
+        if ref.original_sha256 is not None and original_credit_sha256(original) != ref.original_sha256:
+            raise ValueError("original reference snapshot changed after binding")
         if validate_entry(original) or original.get("company") != company or not original.get("id"):
             raise ValueError("invalid original credit-note journal evidence")
         if (original.get("doc_type") != "KR" or not original.get("document_date")
@@ -194,26 +219,50 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         if original["id"] in originals and originals[original["id"]] != original:
             raise ValueError("conflicting original journal evidence")
         originals[original["id"]] = original
-        if not any(l["account"] == reconciliation_account and l.get("partner") == vendor for l in original["lines"]):
+        supplier_lines = [l for l in original["lines"] if l["account"] in {"40000000", "41000000", "40300000"}]
+        fully_prepaid = (not supplier_lines and original["id"] in (restored_by_original or {})
+                         and any(l["account"] == "40700000" and l["credit"] and l.get("partner") == vendor
+                                 for l in original["lines"])
+                         and all(l.get("partner") == vendor for l in original["lines"] if l["account"] == "40700000"))
+        if not fully_prepaid and not any(l["account"] == reconciliation_account and l.get("partner") == vendor for l in supplier_lines):
             raise ValueError("credit original belongs to another vendor/reconciliation account")
         if any(l["account"].startswith("407") and (l["debit"] or l["credit"])
-               for l in original["lines"]):
+               for l in original["lines"]) and original["id"] not in (restored_by_original or {}):
             raise ValueError("credit original contains applied advances; restoration requires resolved evidence")
-        if any((l.get("currency") or original.get("currency") or company_local_currency(company)) != currency
-               or (currency != company_local_currency(company) and "amount_doc" not in l)
-               for l in original["lines"]):
+        def unresolved_currency(line):
+            local = company_local_currency(company)
+            leg_currency = line.get("currency") or original.get("currency") or local
+            if original["id"] in (restored_by_original or {}):
+                if line["account"] == "40700000" or (leg_currency == local and line.get("tax_code") is None
+                                                       and line["account"].startswith(("2", "6", "768"))):
+                    return False
+            return leg_currency != currency or currency != local and "amount_doc" not in line
+        if any(unresolved_currency(line) for line in original["lines"]):
             raise ValueError("credit original document-currency amounts are unresolved")
-        number = integer(ref.original_line, "original line number")
-        matches = [l for i, l in enumerate(original["lines"], 1) if l.get("line", i) == number]
-        if len(matches) != 1 or (matches[0].get("currency") or original.get("currency") or company_local_currency(company)) != currency:
+        numbers = ref.original_lines or (integer(ref.original_line, "original line number"),)
+        if ref.original_lines and (ref.original_line is not None or not isinstance(numbers, tuple)
+                                   or len(set(numbers)) != len(numbers) or len(numbers) < 2):
+            raise ValueError("equivalent original imputation requires distinct observed lines")
+        numbers = tuple(sorted(integer(number, "original line number") for number in numbers))
+        matches = [l for i, l in enumerate(original["lines"], 1) if l.get("line", i) in numbers]
+        if len(matches) != len(numbers) or any((l.get("currency") or original.get("currency") or company_local_currency(company)) != currency for l in matches):
             raise ValueError("original credited line/currency unresolved")
-        key = (company, original["id"], number)
+        signature = lambda l: (l["account"], l.get("partner"), l.get("cost_center"), l.get("wbs"),
+                               l.get("assignment"), l.get("tax_code"), l["debit"] > l["credit"])
+        if len({signature(line) for line in matches}) != 1:
+            raise ValueError("grouped original lines have different imputation or fiscal treatment")
+        bucket = f"line:{numbers[0]}" if len(numbers) == 1 else "lines:" + json.dumps(numbers, separators=(",", ":"))
+        aggregate = {**matches[0], "debit": sum(l["debit"] for l in matches),
+                     "credit": sum(l["credit"] for l in matches),
+                     "amount_doc": sum(l.get("amount_doc", max(l["debit"], l["credit"])) for l in matches)}
+        matches = [aggregate]
+        key = (company, original["id"], bucket)
         original_lines[key] = matches[0]
         if (ref.line_id, key) in seen_refs:
             raise ValueError("duplicate original credit mapping")
         seen_refs.add((ref.line_id, key))
         candidates.setdefault(ref.line_id, []).append((key, matches[0]))
-    credited: dict[tuple[str, str, int], int] = {}
+    credited: dict[tuple[str, str, str], int] = {}
     line_original: dict[str, str] = {}
     for component in valuation.components:
         matches = [(key, l) for key, l in candidates.get(component.line_id, ())
@@ -232,7 +281,7 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
             raise ValueError("aggregate credit exceeds referenced original line")
     for key, amount in credited.items():
         line = original_lines[key]
-        limits[(key[1], f"line:{key[2]}")] = (line.get("amount_doc", max(line["debit"], line["credit"])), amount)
+        limits[(key[1], key[2])] = (line.get("amount_doc", max(line["debit"], line["credit"])), amount)
     fiscal_original: dict[str, str] = {}
     fiscal_by_original: dict[str, list] = {}
     requested_vat: dict[tuple[str, str], int] = {}
@@ -354,7 +403,10 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
                        for l in originals[original_id]["lines"] if l["account"] == reconciliation_account and l.get("partner") == vendor)
         deducted = sum(c.amount_doc for c in withholding.components if c.kind == "WITHHOLDING"
                        and fiscal_original.get(c.line_id) == original_id)
-        amount = sum(c.gross_doc for c in fiscal) - deducted - guarantee_requests.get(original_id, 0)
+        amount = (sum(c.gross_doc for c in fiscal) - deducted - guarantee_requests.get(original_id, 0)
+                  - (restored_by_original or {}).get(original_id, 0))
+        if amount < 0:
+            raise ValueError("credit restoration exceeds original credited gross")
         limits[(original_id, "supplier")] = (capacity, amount)
     hashes = {ident: original_credit_sha256(entry) for ident, entry in originals.items()}
     return tuple(CreditReservation(ident, hashes[ident], bucket, capacity, amount)
@@ -370,7 +422,8 @@ def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
                      invoice_orders: tuple[str, ...] = (),
                      order_bindings: Iterable[InvoiceLineOrder] = (),
                      credit_references: Iterable[CreditReference] = (), rates: RateTable | None = None,
-                     context: ValidationContext | None = None) -> APJournalResult:
+                     context: ValidationContext | None = None,
+                     credit_restorations: Iterable[CreditAdvanceRestoration] = ()) -> APJournalResult:
     """Assemble and validate all monetary components; state remains caller-owned.
 
     Supplier rounding is the balanced residual, never a guessed FX plug.
@@ -427,14 +480,126 @@ def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
         raise ValueError("invoice or credit-note document type required")
     advances = tuple(advances)
     credit_balances = state.credits
+    restorations = tuple(credit_restorations)
+    credit_references = tuple(credit_references)
+    if restorations and document_type != "CREDIT_NOTE":
+        raise ValueError("advance restoration requires a credit note")
+    restored_by_original, restoration_lines, restoration_reservations = {}, [], []
+    restored_doc = 0
+    restored_lines = {}
+    for restoration in restorations:
+        if not isinstance(restoration, CreditAdvanceRestoration):
+            raise TypeError("typed credit advance restoration required")
+        original = restoration.original_entry
+        if (not isinstance(restoration.application_doc, Fact)
+                or validate_entry(original) or original.get("company") != company or original.get("doc_type") != "KR"
+                or original.get("document_date", invoice_date) > invoice_date or not original.get("id")):
+            raise ValueError("restoration requires evidenced original invoice application")
+        number = integer(restoration.original_line, "original advance line")
+        matched = [line for i, line in enumerate(original["lines"], 1) if line.get("line", i) == number]
+        balance = balances.get((company, restoration.advance_id))
+        if (len(matched) != 1 or balance is None or (balance.vendor, balance.currency) != (vendor, currency)
+                or matched[0]["account"] != "40700000" or not matched[0]["credit"] or matched[0]["debit"]
+                or matched[0].get("partner") != vendor or matched[0].get("assignment") != balance.invoice_number):
+            raise ValueError("restoration does not bind an original 407 to its advance")
+        line = matched[0]
+        candidates = [candidate for candidate in balances.values()
+                      if (candidate.company, candidate.vendor, candidate.currency, candidate.invoice_number) ==
+                         (company, vendor, currency, line.get("assignment"))]
+        link = (restoration.application_original, restoration.application_advance, restoration.application_po)
+        if len(candidates) != 1 or any(fact is not None for fact in link):
+            if (not all(isinstance(fact, Fact) for fact in link)
+                    or tuple(fact.value for fact in link) != (original["id"], balance.advance_id, balance.po)
+                    or len({fact.evidence.document for fact in (*link, restoration.application_doc)}) != 1):
+                raise ValueError("original application-to-advance/PO link is ambiguous or contradictory")
+        capacity = nonnegative(restoration.application_doc.value, "original application document cents")
+        amount = nonnegative(restoration.amount_doc, "restored document cents")
+        if not capacity or not amount or amount > balance.used_doc or capacity > balance.amount_doc:
+            raise ValueError("restoration exceeds observed original/consumed advance")
+        recorded_currency = line.get("currency") or original.get("currency") or company_local_currency(company)
+        recorded_doc = line.get("amount_doc", line["credit"] if recorded_currency == company_local_currency(company) else None)
+        if (recorded_currency == currency and recorded_doc != capacity
+                or recorded_currency not in {currency, company_local_currency(company)}):
+            raise ValueError("original restoration document cents conflict")
+        restored_lines[restoration.line_id] = restored_lines.get(restoration.line_id, 0) + amount
+        if restored_lines[restoration.line_id] > bases.get(restoration.line_id, 0):
+            raise ValueError("restoration exceeds credited line base")
+        original_id, bucket = original["id"], f"advance:{number}"
+        if any(request.original_id == original_id and request.bucket == bucket for request in restoration_reservations):
+            raise ValueError("duplicate original advance restoration")
+        used = next((credit.used_doc for credit in state.credits
+                     if (credit.company, credit.original_id, credit.bucket) == (company, original_id, bucket)), 0)
+        historical = _ratio(line["credit"], used + amount, capacity) - _ratio(line["credit"], used, capacity)
+        new_doc = balance.used_doc - amount
+        new_local = balance.used_local - historical
+        if (new_local < 0 or new_local != _ratio(balance.amount_local, new_doc, balance.amount_doc)
+                or not historical):
+            raise ValueError("restoration carrying cents cannot preserve observed application and advance invariant")
+        if restoration.treatment not in {"MONETARY", "NON_MONETARY"}:
+            raise ValueError("restoration classification unresolved")
+        _text(restoration.treatment_reference, "original advance treatment evidence")
+        classification = (restoration.classification_advance, restoration.classification_treatment)
+        if (not all(isinstance(fact, Fact) for fact in classification)
+                or classification[0].value != balance.advance_id or classification[1].value != restoration.treatment
+                or classification[0].evidence.document != classification[1].evidence.document):
+            raise ValueError("restoration needs an associated original advance classification Fact")
+        original_current = local_amount(capacity, company, currency, original["document_date"], rates)
+        original_delta = line["credit"] - original_current
+        local = company_local_currency(company)
+        auxiliary = [(l.get("line", i), l) for i, l in enumerate(original["lines"], 1)
+                     if (l.get("currency") or original.get("currency") or local) == local
+                     and l.get("tax_code") is None
+                     and l["account"].startswith(("2", "6", "768"))]
+        if restoration.original_adjustment_line is not None:
+            fact = restoration.original_adjustment_line
+            if not isinstance(fact, Fact) or type(fact.value) is not int:
+                raise ValueError("original adjustment line requires evidenced integer identity")
+            auxiliary = [(number, l) for number, l in auxiliary if number == fact.value]
+        if original_delta:
+            if restoration.treatment == "MONETARY":
+                expected_account = "66800000" if original_delta > 0 else "76800000"
+                candidates = [l for _, l in auxiliary if l["account"] == expected_account]
+            else:
+                coding = restoration.cost_assignment
+                if coding is None:
+                    raise ValueError("original non-monetary classification requires original cost coding")
+                candidates = [l for _, l in auxiliary if (l["account"], l.get("cost_center"), l.get("wbs")) ==
+                              (coding.account, coding.cost_center, coding.wbs)]
+            if len(candidates) != 1 or candidates[0]["debit"] - candidates[0]["credit"] != original_delta:
+                raise ValueError("restoration classification contradicts or cannot resolve original adjustment")
+        if restoration.line_id not in assignment_map or not any(ref.line_id == restoration.line_id
+                and ref.original_entry == original for ref in credit_references):
+            raise ValueError("restoration must bind to the same credited original imputation")
+        current = local_amount(amount, company, currency, invoice_date, rates)
+        delta = historical - current
+        if restoration.treatment == "NON_MONETARY":
+            coding = restoration.cost_assignment
+            if coding is None or coding != assignment_map[restoration.line_id] or coding.company != company:
+                raise ValueError("restoration requires the credited non-monetary cost assignment")
+            if delta:
+                restoration_lines.append(fiscal_line(coding.account, abs(delta), abs(delta), company_local_currency(company),
+                                         None, credit=delta < 0, cost_center=coding.cost_center, wbs=coding.wbs))
+        else:
+            if restoration.cost_assignment is not None:
+                raise ValueError("monetary restoration cannot recode expense")
+            if delta:
+                restoration_lines.append(fiscal_line("66800000" if delta > 0 else "76800000", abs(delta), abs(delta),
+                                          company_local_currency(company), None, credit=delta < 0))
+        restoration_lines.append(fiscal_line("40700000", amount, historical, currency, None,
+                                             credit=True, partner=vendor, assignment=balance.invoice_number))
+        restored_by_original[original_id] = restored_by_original.get(original_id, 0) + amount
+        restored_doc += amount
+        balances[(company, restoration.advance_id)] = replace(balance, used_doc=new_doc, used_local=new_local)
+        restoration_reservations.append(CreditReservation(original_id, original_credit_sha256(original), bucket, capacity, amount))
     if document_type == "CREDIT_NOTE":
         if advances:
             raise ValueError("credit-note advance restoration requires separate resolved evidence")
         reservations = _credit_imputation(company=company, vendor=vendor, currency=currency,
                            invoice_date=invoice_date,
                            reconciliation_account=reconciliation_account, valuation=valuation,
-                           tax=tax, withholding=withholding, references=credit_references)
-        credit_balances = reserve_credit(state.credits, reservations, company=company, vendor=vendor, currency=currency)
+                           tax=tax, withholding=withholding, references=credit_references,
+                           restored_by_original=restored_by_original)
+        credit_balances = reserve_credit(state.credits, (*reservations, *restoration_reservations), company=company, vendor=vendor, currency=currency)
     lines: list[JournalLine] = []
     tax_codes = {component.line_id: component.tax_code for component in tax.components}
     for component in valuation.components:
@@ -465,7 +630,8 @@ def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
                 component.line_id not in bases or component.base_doc > bases[component.line_id]):
             raise ValueError("withholding base is not resolved within the valued invoice line")
         lines.append(dict(line))
-    advance_doc = 0
+    lines.extend(restoration_lines)
+    advance_doc = restored_doc
     usages: list[AdvanceUsage] = []
     seen: set[tuple[str, str | None]] = set()
     consumed_portions: dict[tuple[str, str], int] = {}
