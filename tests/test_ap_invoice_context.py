@@ -1,4 +1,6 @@
 """Invoice/ERP boundaries use source facts and arbitrary months/identities."""
+from dataclasses import replace
+from decimal import Decimal
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -232,6 +234,8 @@ class APInvoiceContextTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(any("SOURCE_OBSERVATION_UNKNOWN" in note for note in context.diagnostics))
 
     async def test_omitted_flags_withholding_guarantee_and_payable_basis_stay_unknown(self):
+        (self.phase / "erp" / "companies.json").write_text(json.dumps([
+            dict(code="CO-ALPHA", tax_id="TAX-BUYER"), dict(code="CO-OTHER", tax_id="TAX-OTHER")]))
         context = await self.resolve()
         self.assertEqual(context.rejection_fields["withholding_required"], ())
         self.assertEqual(context.rejection_fields["cfdi_applicable"], ())
@@ -304,6 +308,70 @@ class APInvoiceContextTests(unittest.IsolatedAsyncioTestCase):
         context = await self.resolve(self.task(received="2031-12-10T09:30:00Z"))
         self.assertIsNone(context.request)
         self.assertIn("MESSAGE_RECEPTION_UNKNOWN", context.diagnostics)
+
+    def direct_vendor(self, **changes):
+        """A PO-free supplier, as the active master states it, beside a works subcontractor."""
+        self.vendor.update(po_required=False, country="ES", email="billing@beta.invalid", withholding=None)
+        self.vendor.update(changes)
+        works = dict(id="SUPPLIER-WORKS", tax_id="TAX-WORKS", companies=["CO-ALPHA"], guarantee_retention_bp=500)
+        self.write("vendors", [self.vendor, works])
+        self.write("purchase_orders", [])
+        self.write("goods_receipts", [])
+        (self.phase / "erp" / "tax_codes.json").write_text(json.dumps({"tax_codes": {
+            "S21": dict(country="ES", kind="input", rate=2100), "SISP": dict(country="ES", kind="reverse", rate=2100)}}))
+        fields = {name: value for name, value in self.fields.items()
+                  if name not in {"po_reference", "line.1.po_item"}}
+        return dict(fields, tax_rate="21.00%")
+
+    async def test_master_and_channel_evidence_resolve_direct_invoice_flags(self):
+        fields = self.direct_vendor()
+        task = self.task((self.attachment(fields),))
+        task = APTaskSources(task.doc_id, replace(task.message, sender=None, channel="facturae"), task.attachments)
+        context = await self.resolve(task)
+        self.assertEqual(context.expected_company.value, "CO-ALPHA")
+        self.assertIn(Evidence("erp/vendors.jsonl", "id=SUPPLIER-BETA.companies"),
+                      [f.evidence for f in context.rejection_fields["order_company"]])
+        values = lambda mapping, name: {f.value for f in mapping[name]}
+        for name, value in (("isp_required", False), ("certification_applicable", False),
+                            ("vat_check_applicable", True), ("cfdi_applicable", False)):
+            self.assertEqual(values(context.rejection_fields, name), {value}, name)
+        self.assertEqual(context.rejection_fields["vat_lines"][0].value[0]["applied_rate"], Decimal("0.21"))
+        for name in ("quantity_check_applicable", "price_check_applicable", "similar_domain"):
+            self.assertEqual(values(context.hold_fields, name), {False}, name)
+        self.assertEqual((context.request.guarantee_applicable.value, context.request.construction_subcontractor.value),
+                         (False, False))
+        self.assertEqual(context.advance_applicable.value, False)
+
+    async def test_document_flags_govern_and_foreign_or_unmodelled_masters_stay_unknown(self):
+        fields = self.direct_vendor(country="PT")
+        context = await self.resolve(self.task((self.attachment(dict(fields, vat_check_applicable=False)),)))
+        self.assertEqual({f.value for f in context.rejection_fields["vat_check_applicable"]}, {False})
+        self.assertEqual(context.rejection_fields["vat_lines"], ())
+        self.assertIsNone(context.advance_applicable)
+        self.assertEqual([(f.value, f.evidence.field) for f in context.hold_fields["similar_domain"]],
+                         [(False, "from"), (False, "id=SUPPLIER-BETA.email")])  # unrelated, not look-alike
+        self.write("vendors", [self.vendor])  # guarantee rates not modelled by this master
+        context = await self.resolve(self.task((self.attachment(fields),)))
+        self.assertIsNone(context.request.guarantee_applicable)
+        self.assertIsNone(context.request.construction_subcontractor)
+
+    async def test_unaffiliated_recipient_of_a_direct_vendor_is_a_wrong_addressee(self):
+        fields = dict(self.direct_vendor(), recipient_tax_id="TAX-OTHER")
+        context = await self.resolve(self.task((self.attachment(fields),)))
+        self.assertEqual({f.value for f in context.rejection_fields["recipient_company"]}, {"CO-OTHER"})
+        self.assertEqual({f.value for f in context.rejection_fields["order_company"]}, {"CO-ALPHA"})
+
+    async def test_xml_outstanding_amount_is_after_advances_and_states_no_account(self):
+        path = "inbox/ap/TASK-ELSEWHERE/invoice.xml"
+        outstanding = "/Facturae/Invoices[1]/Invoice[1]/InvoiceTotals[1]/TotalOutstandingAmount[1]"
+        fields = dict(self.direct_vendor(), payable=[Fact("12.10", Evidence(path, outstanding, None, "12.10"))],
+                      **{"raw.xml./Facturae/FileHeader[1]/SchemaVersion[1]": "3.2.2"})
+        context = await self.resolve(self.task((self.attachment(fields, path, "application/xml"),)))
+        self.assertEqual(context.request.source_payable_basis.value, "AFTER_APPLIED_ADVANCES")
+        self.assertEqual(context.request.source_payable_basis.evidence.field, outstanding)
+        self.assertEqual({f.value for f in context.hold_fields["bank_differs"]}, {False})
+        context = await self.resolve(self.task((self.attachment(dict(fields, iban="ES01BETA"), path, "application/xml"),)))
+        self.assertEqual(len(context.hold_fields["bank_differs"]), 2)  # compared with the master instead
 
     async def test_credit_and_advance_remain_explicitly_outside_this_adapter(self):
         for hint in ("Credit note", "Down payment request"):

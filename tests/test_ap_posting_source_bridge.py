@@ -289,6 +289,14 @@ class PostingSourceBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.posting.quantity_lines, ())
         self.assertIsNone(result.posting.valuation_lines[0].quantity_milli)
         del fields["quantity_check_applicable"]
+        context = await self.context(fields)  # the master's PO-free vendor without any recorded order
+        self.assertEqual(self.prepare(context).status, "READY")
+        self.write("purchase_orders", [dict(self.order, id="PO-ZETA-OPTIONAL")])
+        context = await self.context(fields)
+        self.assertEqual(self.prepare(context).status, "UNKNOWN")
+        self.write("purchase_orders", [])
+        del self.vendor["po_required"]
+        self.write("vendors", [self.vendor])
         context = await self.context(fields)
         self.assertEqual(self.prepare(context).status, "UNKNOWN")
         fields.update(quantity_check_applicable=False, po_reference="UNRESOLVED-PRINTED-PO")

@@ -249,7 +249,7 @@ async def run_ap_phase(phase_path, manifest_path, *, receipt_as_of: Fact | None 
             request = _quantity_request(context, baseline)
             if (posting_date is not None and coding is not None
                     and tax_catalog is not None and withholding_catalog is not None):
-                advance = _one(context.financial_facts.field("advance_applicable"))
+                advance = context.advance_applicable
                 base = _one(context.financial_facts.integer("guarantee_base_cents"))
                 reference = _one(context.financial_facts.text("contract_reference"))
                 guarantee = APGuaranteePostingPlan(base, reference) if base is not None and reference is not None else None

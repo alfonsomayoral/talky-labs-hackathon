@@ -15,12 +15,14 @@ from types import MappingProxyType
 from .ap_chronology import receipt_key
 from .ap_document_bridge import APDocumentBridge, APFactSet, APField, APLineFacts, APSourceView
 from .ap_erp import APERPBaseline
+from .ap_hold_sources import similar_domain
 from .ap_holds import PriceLine, PricePortion
 from .ap_identity import APIdentityResult, IdentityCatalog, normalize_tax_identifier
 from .ap_order_bridge import APOrderBridge, APOrderMatch
 from .ap_orders import POCandidate, POQuery
 from .ap_pipeline import APInvoiceRequest
 from .ap_project_binding import resolve_ap_project_binding
+from .ap_rejection_sources import tax_regime_fields
 from .ap_transaction import APTransactionState
 from .data import PhaseData
 from .documents.ap_sources import APTaskSources
@@ -34,6 +36,9 @@ _REJECTION_FLAGS = ("isp_required", "vat_check_applicable", "withholding_require
 _HOLD_FLAGS = ("vendor_in_master", "bank_differs", "signed_change_supported", "factoring_supported",
                "similar_domain", "quantity_check_applicable", "price_check_applicable")
 _BASIS = {"BEFORE_APPLIED_ADVANCES", "AFTER_APPLIED_ADVANCES"}
+# Facturae 3.2.2: TotalOutstandingAmount = InvoiceTotal - subsidies - payments on account.
+_OUTSTANDING_AFTER_ADVANCES = "/Facturae/Invoices[1]/Invoice[1]/InvoiceTotals[1]/TotalOutstandingAmount[1]"
+_POLICY = "participant/POLITICAS_CONTABLES.md"
 
 
 def _file_sha256(path):
@@ -115,6 +120,7 @@ class APInvoiceContext:
     diagnostics: tuple[str, ...]
     order_snapshot_sha256: str
     version: str = CONTEXT_VERSION
+    advance_applicable: Fact | None = None
 
 
 def _combined(sources):
@@ -193,6 +199,36 @@ def _reference_scope(financial, *, data, vendor, currency, invoice_date, diagnos
             company_facts.append(Fact(row["company"], Evidence("erp/purchase_orders.jsonl",
                 f"id={row['id']};vendor={vendor};currency={currency.value}.company")))
     return tuple(company_facts)
+
+
+def _po_references(financial):
+    return tuple(fact for source in financial for facts in (source.facts, *(line.facts for line in source.lines))
+                 for fact in facts.field("po_reference").candidates)
+
+
+def _unordered_company(financial, vendor, vendor_id, recipient):
+    """Without any order (PO-free vendor, no reference), the ordering company is
+    the recipient the vendor master serves, else the vendor's only company (#42)."""
+    companies = None if vendor is None else vendor.get("companies")
+    if (vendor is None or vendor.get("po_required") is not False or _po_references(financial)
+            or not isinstance(companies, list) or not companies):
+        return ()
+    proof = Evidence("erp/vendors.jsonl", f"id={vendor_id}.companies")
+    if recipient.status == "RESOLVED" and recipient.identity in companies:
+        return (*_facts(recipient.identity, recipient.evidence), Fact(recipient.identity, proof))
+    return (Fact(companies[0], proof),) if len(companies) == 1 else ()
+
+
+def _regime_codes(financial, data, vendor, vendor_id):
+    """Governing tax codes: every referenced PO item, else the vendor master default (policy §1)."""
+    references = {fact.value for fact in _po_references(financial)}
+    if references:
+        orders = {row["id"]: row for row in data.table("purchase_orders") if row["id"] in references}
+        if set(orders) != references or any(not item.get("tax_code") for row in orders.values() for item in row["items"]):
+            return ()
+        return tuple(Fact(item["tax_code"], Evidence("erp/purchase_orders.jsonl", f"id={po}.items[item={item['item']}].tax_code"))
+                     for po, row in sorted(orders.items()) for item in row["items"])
+    return _master_fact(vendor, vendor_id, "default_tax_code")
 
 
 def _line_field(line, primary, name, kind="text"):
@@ -285,8 +321,12 @@ async def resolve_ap_invoice_context(
     recipient_candidates = _identity_candidates(header.recipient_tax_id, diagnostics)
     identity = catalog.resolve(supplier_tax_ids=supplier_candidates,
                                recipient_tax_ids=recipient_candidates, expected_company=None)
+    vendor_id = identity.supplier.identity
+    vendor = data.get("vendors", vendor_id) if vendor_id else None
     referenced_companies = _reference_scope(financial, data=data, vendor=identity.supplier.identity,
         currency=header.currency, invoice_date=header.invoice_date, diagnostics=diagnostics)
+    if not referenced_companies:
+        referenced_companies = _unordered_company(financial, vendor, vendor_id, identity.recipient)
     observed_company = () if expected_company is None else (expected_company,)
     company_field = APFactSet({"company": (*observed_company, *referenced_companies)}).text("company")
     company_fact = _one(company_field)
@@ -339,8 +379,6 @@ async def resolve_ap_invoice_context(
     holds = {name: tuple(fields.fields.get(name, ())) for name in _HOLD_FLAGS}
     if identity.supplier.status in {"RESOLVED", "NOT_FOUND"}:
         holds["vendor_in_master"] += _facts(identity.supplier.status == "RESOLVED", identity.supplier.evidence)
-    vendor = data.get("vendors", identity.supplier.identity) if identity.supplier.identity else None
-    vendor_id = identity.supplier.identity
     withholding = _master_fact(vendor, vendor_id, "withholding")
     if withholding:
         if withholding[0].value is None or isinstance(withholding[0].value, str) and withholding[0].value.strip():
@@ -350,21 +388,56 @@ async def resolve_ap_invoice_context(
     for name in (*_REJECTION_FLAGS, *_HOLD_FLAGS):
         explicit = _master_fact(vendor, vendor_id, name)
         (rejection if name in _REJECTION_FLAGS else holds)[name] += explicit
+    guarantee_candidates = tuple(fields.fields.get("guarantee_applicable", ())) + _master_fact(vendor, vendor_id, "guarantee_applicable")
+    guarantee = _master_fact(vendor, vendor_id, "guarantee_retention_bp")
+    if guarantee and type(guarantee[0].value) is int and guarantee[0].value >= 0:
+        guarantee_candidates += (Fact(guarantee[0].value > 0, guarantee[0].evidence),)
+    elif vendor is not None and any("guarantee_retention_bp" in row for row in data.table("vendors")):
+        # The master models a works guarantee rate and this vendor's record has none (policy §1).
+        guarantee_candidates += (Fact(False, Evidence("erp/vendors.jsonl", f"id={vendor_id}.guarantee_retention_bp", quote="absent")),
+                                 Fact(False, Evidence(_POLICY, "1.vendor_master_governs")))
+    guarantee_fact = _bool_candidates(guarantee_candidates, "guarantee_applicable", diagnostics)
     construction_candidates = tuple(fields.fields.get("construction_subcontractor", ())) + _master_fact(vendor, vendor_id, "construction_subcontractor")
     # Only a positively identified construction reverse-charge regime proves this
-    # applicability. Other/missing codes are not evidence of non-construction.
+    # applicability; non-construction also needs the absence of a works guarantee.
     code = _master_fact(vendor, vendor_id, "default_tax_code")
     if code and code[0].value in {"SISP", "PAUT"}:
         works = (Fact(True, code[0].evidence),)
         construction_candidates += works
         rejection["isp_required"] += works
+    country = None
+    if company:
+        try:
+            country = Fact(data.get("companies", company)["country"], Evidence("erp/companies.json", f"code={company}.country"))
+        except KeyError:
+            pass
+    try:
+        catalogue = data.table("tax_codes")["tax_codes"]
+    except (KeyError, OSError, TypeError, ValueError):
+        catalogue = {}
+    regime = tax_regime_fields(_regime_codes(financial, data, vendor, vendor_id),
+                               None if country is None else country.value, catalogue, (fields.fields,))
+    # The master governs unless the document or order says otherwise (policy §1).
+    stated = {name for name in regime if rejection["vat_check_applicable" if name == "vat_lines" else name]}
+    for name, candidates in regime.items():
+        if name not in stated:
+            rejection[name] += tuple(candidates)
+    if (regime.get("isp_required") and not any(f.value for f in regime["isp_required"])
+            and guarantee_fact is not None and guarantee_fact.value is False):
+        construction_candidates += (*(Fact(False, f.evidence) for f in regime["isp_required"]), guarantee_fact)
     construction = _bool_candidates(construction_candidates, "construction_subcontractor", diagnostics)
-    guarantee_candidates = tuple(fields.fields.get("guarantee_applicable", ())) + _master_fact(vendor, vendor_id, "guarantee_applicable")
-    guarantee = _master_fact(vendor, vendor_id, "guarantee_retention_bp")
-    if guarantee and type(guarantee[0].value) is int and guarantee[0].value >= 0:
-        guarantee_candidates += (Fact(guarantee[0].value > 0, guarantee[0].evidence),)
-    guarantee_fact = _bool_candidates(guarantee_candidates, "guarantee_applicable", diagnostics)
-    basis = fields.text("source_payable_basis")
+    if country is not None and country.value != "MX" and not rejection["cfdi_applicable"]:
+        rejection["cfdi_applicable"] += (Fact(False, country.evidence),)
+    advance_candidates = tuple(fields.fields.get("advance_applicable", ()))
+    if vendor is not None and country is not None and vendor.get("country") == country.value:
+        # Advance requests come only from foreign suppliers (policy §2.1).
+        advance_candidates += (Fact(False, Evidence("erp/vendors.jsonl", f"id={vendor_id}.country")),
+            Fact(False, country.evidence), Fact(False, Evidence(_POLICY, "2.1.DOWN_PAYMENT_REQUEST")))
+    advance_field = APFactSet({"advance_applicable": advance_candidates}).field("advance_applicable")
+    advance_fact = _one(advance_field) if type(advance_field.value) is bool else None
+    basis = APFactSet({"source_payable_basis": (*fields.fields.get("source_payable_basis", ()),
+        *(Fact("AFTER_APPLIED_ADVANCES", f.evidence) for f in fields.fields.get("payable_cents", ())
+          if f.evidence.field == _OUTSTANDING_AFTER_ADVANCES))}).text("source_payable_basis")
     basis_fact = _one(basis) if basis.value in _BASIS else None
     if basis_fact is None:
         diagnostics.append("SOURCE_PAYABLE_BASIS_UNKNOWN")
@@ -377,6 +450,22 @@ async def resolve_ap_invoice_context(
             holds["bank_differs"] += _facts(different, (*iban.evidence, Evidence("erp/vendors.jsonl", f"id={vendor_id}.bank.iban")))
         except (TypeError, ValueError):
             diagnostics.append("BANK_ACCOUNT_COMPARISON_UNKNOWN")
+    accounts = [name for name in fields.fields if name == "iban" or name.startswith("payment.") and name.endswith(".iban")]
+    if not accounts and not holds["bank_differs"] and bridge.sources and all(any(name.startswith("raw.xml./") for name in source.facts.fields)
+                                               for source in bridge.sources):
+        # A deterministically parsed e-invoice without PaymentDetails states no account.
+        holds["bank_differs"] += tuple(Fact(False, Evidence(source.source_path, "PaymentDetails", quote="absent"))
+                                       for source in bridge.sources)
+    if holds["similar_domain"]:
+        pass
+    elif task.message.sender is None and "from" not in task.message.raw:
+        holds["similar_domain"] += (Fact(False, Evidence(task.message.path, "channel", quote=task.message.channel)),)
+    elif vendor is not None and isinstance(task.message.sender, str) and isinstance(vendor.get("email"), str):
+        sender, master = (value.rpartition("@")[2].strip().casefold() for value in (task.message.sender, vendor["email"]))
+        if sender and master:
+            lookalike = similar_domain(sender, master)
+            holds["similar_domain"] += (Fact(lookalike, Evidence(task.message.path, "from", quote=task.message.sender)),
+                                        Fact(lookalike, Evidence("erp/vendors.jsonl", f"id={vendor_id}.email")))
 
     # CFDI field views preserve independent observations; no twin is made up.
     if any(any(name.startswith("raw.xml./Comprobante") for name in s.facts.fields) for s in financial):
@@ -471,6 +560,14 @@ async def resolve_ap_invoice_context(
         fact = _master_fact(vendor, vendor_id, "po_required")
         holds["quantity_check_applicable"] += _facts(True, (fact[0].evidence,))
         holds["price_check_applicable"] += _facts(True, (fact[0].evidence,))
+    elif (vendor is not None and vendor.get("po_required") is False and not _po_references(financial)
+            and not any(row["vendor"] == vendor_id for row in data.table("purchase_orders"))):
+        # Receipt and price checks concern ordered lines (§2.2.3): none is required,
+        # referenced or even recorded for this vendor in the active ERP.
+        proof = (_master_fact(vendor, vendor_id, "po_required")[0].evidence,
+                 Evidence("erp/purchase_orders.jsonl", f"vendor={vendor_id}", quote="absent"))
+        holds["quantity_check_applicable"] += _facts(False, proof)
+        holds["price_check_applicable"] += _facts(False, proof)
 
     evidence = _proofs(*(tuple(f.evidence for candidates in source.facts.fields.values() for f in candidates) for source in financial),
         identity.supplier.evidence, identity.recipient.evidence,
@@ -503,4 +600,4 @@ async def resolve_ap_invoice_context(
     status = "UNSUPPORTED" if unsupported else "RESOLVED" if request is not None and not structural_notes else "UNKNOWN"
     return APInvoiceContext(status, bridge, financial, primary, fields, identity, scope, observation,
         received, invoice_date, company_fact, tuple(lines), rejection, holds, request, evidence,
-        tuple(dict.fromkeys(diagnostics)), orders.snapshot_sha256)
+        tuple(dict.fromkeys(diagnostics)), orders.snapshot_sha256, advance_applicable=advance_fact)
