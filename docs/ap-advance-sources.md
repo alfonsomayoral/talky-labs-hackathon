@@ -38,5 +38,10 @@ This completes the general counterpart-resolution interface and its policy
 checks. #140 must bind actual documentary approval statements and original
 advance classifications/balances to it. Remaining-original credit limits, advance
 restoration for a credit and final independent evaluation are not inferred here.
+An original invoice containing an applied advance (a nonzero 407 posting) cannot
+be credited through the ordinary invoice path: the builder abstains until advance
+restoration evidence is supported. This prevents reversing expense/payable while
+silently dropping the original advance and its historical carrying amount. The
+regression covers monetary and non-monetary advances without changing their state.
 The issue remains open until its outstanding integration/evaluation criteria have
 evidence; this helper does not declare the 305-document M1 delivery complete.

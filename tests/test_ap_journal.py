@@ -174,6 +174,25 @@ class APJournalTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.build(inputs=credit, document_type="CREDIT_NOTE", credit_references=refs)
 
+    def test_credit_of_invoice_with_applied_advance_requires_restoration_evidence(self):
+        rates = RateTable([{"currency": "USD", "date": "2026-07-31", "rate": 1}])
+        state = AdvanceState((self.advance(),))
+        for treatment in ("MONETARY", "NON_MONETARY"):
+            with self.subTest(treatment=treatment):
+                assignment = CostAssignment("1100", "21300000", "CC") if treatment == "NON_MONETARY" else None
+                original = self.build(inputs=self.inputs(currency="USD", rates=rates, net=500,
+                                      code="SEX", account="21300000"), state=state,
+                    invoice_orders=("PO-1",), order_bindings=[InvoiceLineOrder("L", "PO-1", 500, "BINDING")],
+                    advances=[AdvanceApplication("ADV-1", 100, treatment, "CONTRACT", assignment, "L")])
+                source = {**original.journal_entry, "id": "ORIGINAL-ADVANCE-INVOICE"}
+                credit = self.inputs(currency="USD", rates=rates, net=500, code="SEX",
+                                     account="21300000", doc_id="CN-ADVANCE")
+                with self.assertRaisesRegex(ValueError, "advance.*restoration"):
+                    self.build(inputs=credit, document_type="CREDIT_NOTE", state=original.state,
+                               credit_references=[CreditReference("L", source, 1)])
+                self.assertEqual(original.state.balances[0].used_doc, 100)
+                self.assertEqual(state.balances[0].used_doc, 0)
+
     def test_credit_missing_wrong_or_excessive_original_evidence_blocks(self):
         original = self.build(inputs=self.inputs(net=10000))
         source = {**original.journal_entry, "id": "ORIGINAL-1"}
