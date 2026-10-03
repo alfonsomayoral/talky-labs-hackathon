@@ -132,7 +132,7 @@ def normalize_value(field, value, *, unit=None, date_order="DMY"):
         return None
     if field == "document_type":
         return _type(value)
-    if tail.endswith("_date") or tail in {"valid_until"}:
+    if _date_field(tail):
         return _date(value, date_order)
     if tail.endswith("_rate"):
         result = _number(value, unit)
@@ -145,6 +145,11 @@ def normalize_value(field, value, *, unit=None, date_order="DMY"):
     if isinstance(value, str):
         return _text(value)
     return value
+
+
+def _date_field(tail):
+    return tail.endswith('_date') or tail.endswith(('_valid_until', '_valid_from')) or tail in {
+        'valid_until', 'valid_from', 'period_start', 'period_end', 'service_period_start', 'service_period_end'}
 
 
 def _source_path(path):
@@ -308,7 +313,7 @@ class SourceAudit:
 
 def _value_supported(observed, quote, label):
     value, field = observed["value"], observed["field"]
-    if field.endswith("_date") or field == "valid_until":
+    if _date_field(field.rsplit('.', 1)[-1]):
         for token in re.findall(r"\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{4}", str(quote)):
             try:
                 if _date(value, (label or {}).get("date_order", "DMY")) == _date(token, (label or {}).get("date_order", "DMY")):
@@ -325,7 +330,7 @@ def _value_supported(observed, quote, label):
                                           date_order=label.get("date_order", "DMY"))
         except (ValueError, InvalidOperation, TypeError):
             matches = False
-        if matches and (isinstance(value, bool) or field == "document_type" or "_date" in field or field == "valid_until"):
+        if matches and (isinstance(value, bool) or field == "document_type" or _date_field(field.rsplit('.', 1)[-1])):
             anchor = label["evidence"].get("quote")
             if anchor and (_text(anchor) in _text(quote) or _text(quote) in _text(anchor)):
                 return True

@@ -4,8 +4,9 @@ The user authorized integrating PR #196 after resolving the three additional
 transit findings and trying to maximize the score. Investigation found no source
 rule that supports dropping those invoices. PR #196 was squash-merged into
 `backend` as `4856b1810fbb517e82e822afe7ee07d9087b5ea9`. Implementation tasks
-#88–#94 and epics #18/#19 are complete. Reference acceptance and actual producer
-integration remain tracked separately under #239 and #159.
+#88–#94 and epics #18/#19 are complete. The user subsequently accepted the
+documented reference discrepancy in #239 and authorized proceeding under §6.
+Actual producer integration remains tracked separately under #159.
 
 ## Remaining score penalty is structural
 
@@ -98,15 +99,18 @@ pooling correction for `BL0005652` / `CP2607221200`, retained the original
 27,053,177-cent finding and emitted `adjustment: []`. AP remained a fixture, so
 this mixed run has `real_flow_verified=false` and does not satisfy #159.
 
-M5 remains open. #239 requires substantiated source/rule clarification or a
-corrected organizer reference, followed by a new frozen comparison. #159 requires
-complete real AP receipt/export and bank deliveries through the same interfaces,
-evaluation and replay without dependency fixtures. The disclosed IC score remains
-0.8615 until the reference discrepancy is resolved.
+M5 remains open for #159: complete real AP receipt/export and bank deliveries
+through the same interfaces, evaluation and replay without dependency fixtures.
+On 2026-10-03 the user accepted the source/reference disagreement as a known
+reference limitation and directed the project to proceed without exclusions.
+#239 is closed by that project decision; an organizer answer is no longer a
+project acceptance gate. The reference and scorer remain unchanged and the
+disclosed official IC score remains 0.8615. This decision does not improve the
+official score, establish an organizer correction or prove the real producer flow.
 
 The [subsequent #239 source audit](verification/m5-239.md) checked current official
 downloads and the newly available September history. The latter records receipt
 of the three invoices on August 3/4, corroborating nonreceipt at July close.
 Those later facts are diagnostic only and do not enter the July solver. No
-published general exclusion rule was found; the reference clarification remains
-pending and no improved official score is claimed.
+published general exclusion rule was found. The user accepted retaining all
+three findings under §6; no improved official score is claimed.

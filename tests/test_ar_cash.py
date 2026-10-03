@@ -326,29 +326,69 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
                          sum(line["credit"] for line in result.row["adjustment"]))
 
-    def test_ambiguous_group_with_multiple_exact_subsets_is_not_tie_broken(self):
-        self._jsonl("erp/ar_invoices.jsonl", [
-            self.invoice("INV-001", 26749500), self.invoice("INV-002", 26749500),
-            self.invoice("INV-003", 13374750), self.invoice("INV-004", 13374750),
-        ])
+    def _open_invoices(self, invoices, amount):
+        """Post each (id, payable, date) as an open receivable and receive ``amount`` on 2026-07-02."""
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice(i, p, date=d, due=d) for i, p, d in invoices])
         self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
             "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
-            "amount": 53499000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
+            "amount": amount, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
         }])
-        postings = []
-        for index, (invoice_id, amount) in enumerate((("INV-001", 26749500), ("INV-002", 26749500),
-                                                       ("INV-003", 13374750), ("INV-004", 13374750)), 1):
-            postings.append(self.entry(f"INVPOST{index}", f"2026-06-0{index}", [
-                self.line("43000000", amount, 0, "C1", invoice_id),
-                self.line("70500000", 0, amount),
-            ]))
-        postings.append(self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 53499000, 0),
-                                                                 self.line("55500000", 0, 53499000)]))
+        postings = [self.entry(f"INVPOST{n}", d, [self.line("43000000", p, 0, "C1", i),
+                                                  self.line("70500000", 0, p)])
+                    for n, (i, p, d) in enumerate(invoices, 1)]
+        postings.append(self.entry("CASHPOST", "2026-07-02", [self.line("57200001", amount, 0),
+                                                                 self.line("55500000", 0, amount)]))
         self._jsonl("erp/journal_entries.jsonl", postings)
+
+    def test_invoice_issued_by_this_months_billing_can_be_applied(self):
+        self._jsonl("erp/ar_invoices.jsonl", [])
+        self._jsonl("erp/journal_entries.jsonl", [self.entry("CASHPOST", "2026-07-20", [
+            self.line("57200001", 8000, 0), self.line("55500000", 0, 8000)])])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-20", "value_date": "2026-07-20",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA EN26-00013",
+        }])
+        billed = {"billing_item": "BILL-X", "expected": "INVOICE",
+                  "invoice": {"number": "EN26-00013", "date": "2026-07-03", "due_date": "2026-07-18",
+                              "payable": 8000, "currency": "EUR"},
+                  "journal_entry": {"company": "1100", "posting_date": "2026-07-03", "currency": "EUR",
+                                    "lines": [self.line("43000000", 8000, 0, "C1", "EN26-00013"),
+                                              self.line("70530000", 0, 8000)]}}
+        result = build_ar_cash(PhaseData(self.phase), billing=[billed]).results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "EN26-00013", "amount": 8000}])
+
+    def test_smallest_exact_group_wins_over_larger_combinations(self):
+        self._open_invoices([("INV-001", 26749500, "2026-06-01"), ("INV-002", 26749500, "2026-06-02"),
+                             ("INV-003", 13374750, "2026-06-03"), ("INV-004", 13374750, "2026-06-04")],
+                            53499000)
         result = self._run().results[0]
-        self.assertEqual(result.row["applications"], [])
-        self.assertEqual(result.row["adjustment"], [])
-        self.assertTrue(any("multiple exact invoice subsets" in item for item in result.diagnostics))
+        self.assertEqual(result.row["applications"], [
+            {"invoice": "INV-001", "amount": 26749500}, {"invoice": "INV-002", "amount": 26749500},
+        ])
+
+    def test_equal_size_groups_prefer_the_oldest_invoices(self):
+        self._open_invoices([("SU-43", 386348, "2026-03-04"), ("SU-44", 7448758, "2026-03-31"),
+                             ("SU-62", 7448758, "2026-04-30"), ("SU-79", 7448758, "2026-05-31")],
+                            386348 + 2 * 7448758)
+        result = self._run().results[0]
+        self.assertEqual(sorted(app["invoice"] for app in result.row["applications"]),
+                         ["SU-43", "SU-44", "SU-62"])
+        self.assertTrue(any(item.startswith("tie-break: 3 groups of 3") for item in result.diagnostics))
+
+    def test_partial_payment_by_ratio_applies_to_the_oldest_matching_open_invoice(self):
+        self._open_invoices([("SU-23", 17271972, "2026-02-28"), ("SU-30", 9000000, "2026-03-31"),
+                             ("SU-40", 9100000, "2026-04-30")], 12953979)
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "SU-23", "amount": 12953979}])
+        self.assertIn("partial payment by ratio 0.75; the rest stays open", result.diagnostics)
+        self.assertEqual(result.row["adjustment"][0], {"company": "1100", "account": "55500000",
+                                                       "debit": 12953979, "credit": 0})
+
+    def test_partial_ratio_truncates_to_the_cent(self):
+        self._open_invoices([("OB-25", 51500000, "2026-03-31"), ("OB-34", 36039724, "2026-04-30")],
+                            14415889)
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "OB-34", "amount": 14415889}])
 
     def test_matching_amount_does_not_override_company_or_currency(self):
         for invoice_company, invoice_currency in (("1200", "EUR"), ("1100", "USD")):

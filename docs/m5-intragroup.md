@@ -143,12 +143,14 @@ The reproduced checks and external-correction regression fix are recorded in
 `m5-independent-review.md`.
 See `m5-score-resolution.md` for the final investigation: expected journals already
 score 1.0; retaining all eight supported cause keys caps the unchanged IC scorer
-at 0.8615. Modular integration does not resolve the reference or real-flow gates.
+at 0.8615. The user accepted this reference limitation under #239; modular
+integration still does not demonstrate the real producer flow.
 
 PR #196 is integrated in upstream `backend` as `4856b18`. The original comparison
 and validation criteria of #88–#94 are complete; both epics permit explicitly
-documented differences and are closed. M5 stays open for #159, the full real
-AP → banks → IC run, and #239, the three source/reference discrepancies.
-Publication and unit tests do not substitute for those acceptance gates. PRs
+documented differences and are closed. The three source/reference discrepancies
+in #239 are accepted by the user, with all findings retained and official score
+0.8615 disclosed. M5 stays open for #159, the full real AP → banks → IC run.
+Publication and unit tests do not substitute for that acceptance gate. PRs
 target upstream backend with English text and Refs; review and checks precede
 any squash merge. See `m5-score-resolution.md` for the verified closure evidence.

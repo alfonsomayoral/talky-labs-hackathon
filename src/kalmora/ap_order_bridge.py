@@ -8,20 +8,23 @@ from dataclasses import asdict, dataclass, replace
 from hashlib import sha256
 import json
 from pathlib import Path
+from collections.abc import Sequence
 
-from .ap_allocation import ConsumptionState, InvoiceQuantityLine, OrderKey, OrderPortion, Receipt
+from .ap_allocation import (ConsumptionState, InvoiceQuantityLine, OrderKey, OrderLine,
+                            OrderPortion, Receipt, allocate_receipts)
 from .ap_erp import APERPBaseline, ERPSource
 from .ap_history import HistoricalReceiptSnapshot
-from .ap_orders import POCatalog, POQuery, POResolution
+from .ap_orders import POCatalog, POQuery, POQueryLine, POResolution, validate_query_lines
+from .ap_order_sources import order_queries_from_facts
 from .data import PhaseData
 from .documents.contracts import (
     Candidate, ParsedDocument, ResolutionRequest, ResolutionResult, SemanticResolver, fingerprint,
 )
 from .documents.replay import validate_resolution
-from .facts import Evidence
+from .facts import DocumentFacts, Evidence
 from .money import integer
 
-BRIDGE_VERSION = "ap-order-bridge-v1"
+BRIDGE_VERSION = "ap-order-bridge-v2"
 
 
 @dataclass(frozen=True)
@@ -32,6 +35,15 @@ class APOrderMatch:
     semantic_called: bool = False
     semantic_result: ResolutionResult | None = None
     request_sha256: str | None = None
+    diagnostics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class APOrderBatchMatch:
+    reference_status: str  # RESOLVED or UNKNOWN
+    quantity_status: str  # AVAILABLE, INSUFFICIENT, UNKNOWN
+    matches: tuple[APOrderMatch, ...]
+    quantity_lines: tuple[InvoiceQuantityLine, ...]
     diagnostics: tuple[str, ...] = ()
 
 
@@ -146,6 +158,65 @@ class APOrderBridge:
         return APOrderMatch(resolution, "AVAILABLE" if available >= query.quantity_milli else "INSUFFICIENT",
                             line, called, result, request_hash, diagnostics)
 
+    async def resolve_lines(self, lines: Sequence[POQueryLine], *, invoice_id: str,
+                            invoice_date: str, receipt_as_of: str | None = None,
+                            state: ConsumptionState | None = None, document: ParsedDocument | None = None,
+                            resolver: SemanticResolver | None = None, max_candidates: int = 20) -> APOrderBatchMatch:
+        """Resolve observed portions, then preview their *joint* receipt capacity.
+
+        No consumption state is returned or committed. The real allocator must
+        run again against the current snapshot before valuation/posting.
+        """
+        lines = validate_query_lines(lines)
+        state = self._state(state)
+        matches = tuple([await self.resolve(query, invoice_date=invoice_date,
+            receipt_as_of=receipt_as_of, state=state, document=document, resolver=resolver,
+            max_candidates=max_candidates) for line in lines for query in line.portions])
+        diagnostics = tuple(dict.fromkeys(d for match in matches for d in match.diagnostics))
+        if any(match.reference.status != "RESOLVED" or match.quantity_line is None for match in matches):
+            return APOrderBatchMatch("UNKNOWN" if any(m.reference.status != "RESOLVED" for m in matches)
+                else "RESOLVED", "UNKNOWN", matches, (), diagnostics)
+        quantity_lines, offset = [], 0
+        for line in lines:
+            row_matches = matches[offset:offset + len(line.portions)]
+            offset += len(line.portions)
+            portions = tuple(p for match in row_matches for p in match.quantity_line.portions)
+            quantity_lines.append(InvoiceQuantityLine(line.line_id, line.quantity_milli, line.uom, portions))
+        query = lines[0].portions[0]
+        preview = allocate_receipts(company=query.company, vendor=query.vendor, currency=query.currency,
+            invoice_id=invoice_id, lines=tuple(quantity_lines), state=state,
+            orders=tuple(OrderLine(key, row["uom"]) for key, row in self._items.items()),
+            receipts=tuple(c.receipt for c in self.history.certainties))
+        if preview.status == "ALLOCATED":
+            return APOrderBatchMatch("RESOLVED", "AVAILABLE", matches, tuple(quantity_lines), diagnostics)
+        codes = tuple(dict.fromkeys(d.code for d in preview.diagnostics))
+        unresolved_capacity = any(self._certainty[r.key].consumed_milli is None
+            for match in matches for candidate in match.reference.candidates
+            if candidate.order == match.reference.selected.order for r in candidate.receipts)
+        if any(code != "INSUFFICIENT_RECEIPTS" for code in codes) or unresolved_capacity:
+            return APOrderBatchMatch("RESOLVED", "UNKNOWN", matches, (),
+                (*diagnostics, *("BATCH:" + c for c in codes),
+                 *(("HISTORICAL_RECEIPT_CAPACITY_UNKNOWN",) if unresolved_capacity else ())))
+        return APOrderBatchMatch("RESOLVED", "INSUFFICIENT", matches, tuple(quantity_lines),
+                                (*diagnostics, *("BATCH:" + c for c in codes)))
+
+    async def resolve_facts(self, facts: DocumentFacts, *, company: str, vendor: str,
+                            currency: str, invoice_id: str, receipt_as_of: str | None = None,
+                            state: ConsumptionState | None = None, document: ParsedDocument | None = None,
+                            resolver: SemanticResolver | None = None, max_candidates: int = 20) -> APOrderBatchMatch:
+        """Connect existing extraction/normalization to this deterministic core."""
+        if document is not None and facts.source_sha256 != document.source_sha256:
+            raise ValueError("order facts and parsed source fingerprints disagree")
+        if document is not None and any(f.evidence.document != document.path
+                for candidates in facts.fields.values() for f in candidates):
+            raise ValueError("order facts belong to another parsed source")
+        observed = order_queries_from_facts(facts, company=company, vendor=vendor, currency=currency)
+        if observed.status != "READY":
+            return APOrderBatchMatch("UNKNOWN", "UNKNOWN", (), (), observed.diagnostics)
+        return await self.resolve_lines(observed.lines, invoice_id=invoice_id,
+            invoice_date=observed.invoice_date, receipt_as_of=receipt_as_of, state=state,
+            document=document, resolver=resolver, max_candidates=max_candidates)
+
     async def resolve(self, query: POQuery, *, invoice_date: str, receipt_as_of: str | None = None,
                       state: ConsumptionState | None = None, document: ParsedDocument | None = None,
                       resolver: SemanticResolver | None = None, max_candidates: int = 20) -> APOrderMatch:
@@ -210,5 +281,6 @@ class APOrderBridge:
                       for e in result.evidence)
         selected = replace(checked.selected, evidence=(*checked.selected.evidence, *proof))
         reference = POResolution(query, "RESOLVED", selected, pool.candidates,
-            selected.order.po != query.po_reference or selected.order.item != query.po_item)
+            selected.order.po != query.po_reference or selected.order.item != query.po_item,
+            discarded=pool.discarded)
         return self._finish(reference, state, called=True, result=result, request_hash=request.sha256)
