@@ -82,6 +82,7 @@ class _Context:
         self.advance_used: dict[tuple[str, str], int] = {}
         self.series: dict[str, int] = {}
         self._invoices: dict[str, list[dict[str, Any]]] = {}
+        self.revised_fees: dict[tuple[str, str, str], int] = {}
 
     def invoices(self, contract: str) -> list[dict[str, Any]]:
         if contract not in self._invoices:
@@ -164,6 +165,9 @@ def _decide_service(ctx: _Context, item: BillingItem, contract: Mapping[str, Any
     if ctx.strict and any(r["kind"] == "invoice" and r["date"][:7] == item.month
                           for r in ctx.invoices(item.contract)):
         raise _Blocked("a monthly service of this period is already invoiced")
+    revised = ctx.revised_fees.get((item.company, item.contract, item.month))
+    if revised is not None and facts.canon != revised:
+        raise _Blocked(f"service canon {facts.canon} differs from approved revision {revised}")
     lines = [InvoiceLine(f"{contract['name']} – servicio mensual {item.month}", facts.canon,
                          INCOME["SERVICE"], cost_center=contract["cc"])]
     draft = _Draft(item, Decision.INVOICE, day, evidence=facts.evidence)
@@ -316,7 +320,8 @@ def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mappi
     ctx = _Context(data, strict_duplicates)
     drafts: list[tuple[BillingItem, _Draft | _Blocked, Mapping[str, Any] | None]] = []
     coverage: set[tuple[str, str, BillingType, str]] = set()
-    for item in items:
+    # The decree is checked before monthly service, independent of task order.
+    for item in sorted(items, key=lambda i: i.type is not BillingType.PRICE_REVISION):
         try:
             contract = ctx.contract(item)
             expected, decide = _DECIDERS[item.type]
@@ -330,6 +335,8 @@ def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mappi
             drafts.append((item, draft, contract))
             if draft.decision is Decision.INVOICE:
                 coverage.add(covered)
+                if isinstance(found, RevisionFacts):
+                    ctx.revised_fees[(item.company, item.contract, item.month)] = found.new_fee
         except _Blocked as blocked:
             drafts.append((item, blocked, None))
         except (KeyError, ValueError, TypeError) as error:
