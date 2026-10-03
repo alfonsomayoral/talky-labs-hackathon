@@ -11,7 +11,7 @@ import { apCascade, PolicyCascade } from '@/features/item/kit'
 import { formatDate, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { DocumentPane } from './DocumentPane'
-import { actionDetails, DECISION_TONE, duplicateTarget, duplicatesOf, lineMatches, masterCompare, type CompareState, type LineState } from './model'
+import { actionDetails, DECISION_TONE, duplicateTarget, duplicatesOf, lineMatches, masterCompare, textDiff, type CompareState, type LineState } from './model'
 import { useDocContext } from './useDocContext'
 import styles from './Ap.module.css'
 
@@ -129,7 +129,7 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
                     return (
                       <tr key={f.id} className={clsx(f.state === 'mismatch' && styles.rowBad)}>
                         <td>{f.label}</td>
-                        <td className={styles.mono}>{f.document ?? '—'}</td>
+                        <td className={styles.mono}>{f.state === 'mismatch' && f.document && f.master ? <Changed text={f.document} reference={f.master} /> : (f.document ?? '—')}</td>
                         <td className={styles.mono}>
                           {f.master ?? '—'}
                           {f.note && <div className={styles.note}>{f.note}</div>}
@@ -308,5 +308,17 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
         </div>
       </div>
     </article>
+  )
+}
+
+/** A mismatching value with the part that differs from the master highlighted (a look-alike domain, a changed IBAN digit). */
+function Changed({ text, reference }: { text: string; reference: string }) {
+  const d = textDiff(text, reference)
+  return (
+    <>
+      {d.before}
+      {d.changed && <mark className={styles.changed}>{d.changed}</mark>}
+      {d.after}
+    </>
   )
 }

@@ -223,3 +223,12 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
+
+/* The characters that differ from the master; danger ink on a danger wash, readable at 12px. */
+.changed {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--danger-border);
+  color: var(--danger-ink);
+  font-weight: var(--weight-semibold);
+}
