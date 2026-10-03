@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager, nullcontext
+import fcntl
+import time
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +15,18 @@ from typing import Any, Callable
 
 from kalmora.facts import DocumentFacts, atomic_json, _encode_value, _decode_value
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint, valid_hash
+from .prompts import recording_prompt
+
+ABSENCE_MARKER = re.compile(r"\b(?:sin|ausente|ningun[ao]?|no\s+(?:indicado|indicada|consta|disponible|aplica)|not\s+(?:provided|available|applicable)|absent|none)\b", re.I)
+ABSENCE_ALIASES = {
+    "iban": ("iban", "cuenta bancaria"), "net": ("net", "neto", "subtotal", "base"),
+    "tax": ("tax", "iva", "impuesto", "taxamount"), "gross": ("gross", "total"),
+    "withholding": ("withholding", "retención", "retencion"),
+    "retention": ("retention", "garantía", "garantia", "retención", "retencion"),
+    "currency": ("currency", "moneda", "divisa"), "document_currency": ("currency", "moneda", "divisa"),
+    "supplier_tax_id": ("supplier tax id", "nif proveedor", "rfc emisor"),
+    "recipient_tax_id": ("recipient tax id", "nif destinatario", "nif receptor", "rfc receptor"),
+}
 
 SECRET_KEYS = {'authorization', 'api_key', 'openai_api_key', 'headers', 'access_token',
                'refresh_token', 'password', 'client_secret', 'x_api_key'}
@@ -45,9 +60,12 @@ def _cost(metadata: dict[str, Any]) -> str | None:
     value = metadata.get('capture_cost_usd')
     if value is None:
         return None
-    if isinstance(value, float):
+    if isinstance(value, (float, bool)):
         raise ValueError('Capture cost must be an exact decimal string/Decimal')
-    result = Decimal(value)
+    try:
+        result = Decimal(value)
+    except (InvalidOperation, TypeError) as error:
+        raise ValueError('Capture cost must be an exact finite decimal') from error
     if not result.is_finite() or result < 0:
         raise ValueError('Capture cost must be finite and nonnegative')
     return str(result)
@@ -113,7 +131,10 @@ def validate_facts(document: ParsedDocument, facts: DocumentFacts, extractor_ver
                     and any(block.source_field is not None and block.text == '' for block in blocks)):
                 continue
             if fact.value is None and isinstance(evidence.quote, str):
-                literal_ok = bool(re.search(r'(?i)\b(no|sin|not|missing|absent|ausente)\b', evidence.quote))
+                leaf = name.rsplit('.', 1)[-1]
+                aliases = ABSENCE_ALIASES.get(leaf, (leaf.replace('_', ' '),))
+                literal_ok = bool(ABSENCE_MARKER.search(evidence.quote)) and any(
+                    alias.casefold() in ' '.join(evidence.quote.split()).casefold() for alias in aliases)
             if (blocks and isinstance(evidence.quote, str) and evidence.quote.strip()
                     and literal_ok and any(' '.join(evidence.quote.split()) in ' '.join(block.text.split()) for block in blocks)):
                 continue
@@ -121,6 +142,16 @@ def validate_facts(document: ParsedDocument, facts: DocumentFacts, extractor_ver
             if images and literal_ok and isinstance(evidence.quote, str) and evidence.quote.strip() and any(evidence.field == f'image:{image.sha256}' for image in images):
                 continue
             raise ValueError('Evidence locator/quotation does not match the parsed source')
+
+
+def _candidate_value_matches(value, proof):
+    if isinstance(value, Decimal) and isinstance(proof, str):
+        try:
+            observed = Decimal(proof)
+        except InvalidOperation:
+            return False
+        return observed.is_finite() and value.is_finite() and observed == value
+    return fingerprint(value) == fingerprint(proof)
 
 
 def validate_resolution(request: ResolutionRequest, result: ResolutionResult) -> None:
@@ -141,7 +172,7 @@ def validate_resolution(request: ResolutionRequest, result: ResolutionResult) ->
         candidate = candidates.get(evidence.get('candidate_id'))
         attribute = evidence.get('candidate_attribute')
         if (candidate is None or candidate.id not in result.selected_ids or attribute not in candidate.attributes
-                or fingerprint(candidate.attributes[attribute]) != fingerprint(evidence.get('candidate_value'))):
+                or not _candidate_value_matches(candidate.attributes[attribute], evidence.get('candidate_value'))):
             raise ValueError('Candidate proof does not match current attributes')
         proved.add(candidate.id)
         locator, quote = evidence.get('block_id'), evidence.get('quote')
@@ -191,6 +222,10 @@ class RecordingConfig:
     def from_dict(cls, value):
         return cls(**value)
 
+    @classmethod
+    def from_adapter(cls, adapter, *, provider=None):
+        return cls.from_dict(adapter.recording_identity(provider=provider))
+
     @property
     def sha256(self):
         return fingerprint(self.to_dict())
@@ -222,6 +257,25 @@ class ResolutionCapture:
                 'request_metadata': self.request_metadata, 'provenance': self.provenance}
 
 
+def validate_capture_metadata(stage, source, config, metadata):
+    document = source.document if isinstance(source, ResolutionRequest) else source
+    expected = {'provider': config.provider, 'model': config.model,
+        'prompt_version': config.prompt_version,
+        'instructions_sha256': config.prompt_sha256,
+        'prompt_sha256': hashlib.sha256(recording_prompt(stage, source, config.parameters).encode()).hexdigest(),
+        'schema_sha256': config.schema_sha256, 'schema_version': config.schema_version,
+        'source_sha256': document.source_sha256, 'parser_version': document.parser_version,
+        'transformation_sha256': document.transformation_sha256}
+    if any(metadata.get(name) != value for name, value in expected.items()):
+        raise ValueError('Recorded capture lacks matching provider/model/prompt/schema/source provenance')
+    # The extraction layer's fingerprint uses typed canonical encoding; the client
+    # reports raw UTF-8 instruction SHA separately. Both must be accounted for.
+    if metadata.get('instruction_content_sha256') != config.prompt_sha256:
+        raise ValueError('Instruction provenance differs from fixed configuration')
+    if stage == 'resolve' and metadata.get('resolution_request_sha256') != source.sha256:
+        raise ValueError('Recorded resolution is not bound to current candidates/context')
+
+
 class RecordingStore:
     """Successful envelopes and error states are separate, checksum-verified JSON."""
     def __init__(self, directory: str | Path):
@@ -237,6 +291,26 @@ class RecordingStore:
                             'parser_version': document.parser_version,
                             'request_sha256': source.sha256 if isinstance(source, ResolutionRequest) else None,
                             'config': config.to_dict()})
+
+    @asynccontextmanager
+    async def capture_lock(self, key, *, timeout_seconds=60):
+        valid_hash(key)
+        path = self.directory / 'locks' / (key + '.lock')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        started = time.monotonic()
+        with path.open('a+b') as stream:
+            while True:
+                try:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() - started >= timeout_seconds:
+                        raise ReplayError('recording_lock_timeout', stage='lock', key=key)
+                    await asyncio.sleep(0.02)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
     def _path(self, key: str, *, failure=False) -> Path:
         valid_hash(key)
@@ -265,11 +339,8 @@ class RecordingStore:
         key = self.key(stage, source, config)
         _raw_success(artifact.raw_response)
         _cost(artifact.request_metadata)
-        expected_metadata = {'model': config.model, 'prompt_version': config.prompt_version,
-                             'prompt_sha256': config.prompt_sha256, 'schema_sha256': config.schema_sha256}
-        if any(name in artifact.request_metadata and artifact.request_metadata[name] != value
-               for name, value in expected_metadata.items()):
-            raise ValueError('Capture metadata does not match declared model/prompt/schema configuration')
+        if origin == 'recorded':
+            validate_capture_metadata(stage, source, config, artifact.request_metadata)
         self._write(key, {'status': 'accepted', 'stage': stage, 'origin': origin,
                          'config_sha256': config.sha256, 'config': config.to_dict(), 'accepted': accepted,
                          'raw_response': _sanitize(artifact.raw_response),
@@ -334,6 +405,8 @@ class RecordingStore:
                           'new_provider_cost_usd': '0',
                           'historical_capture_cost_usd': _cost(envelope['request_metadata'])}
             _raw_success(envelope['raw_response'])
+            if envelope['origin'] == 'recorded':
+                validate_capture_metadata(stage, source, config, envelope['request_metadata'])
             if stage == 'extract':
                 facts = DocumentFacts.from_dict(envelope['accepted'])
                 validate_facts(source, facts, config.extractor_version, envelope['artifact_provenance'])
@@ -379,7 +452,7 @@ class _RecordedBoundary:
 
     async def _run(self, source, *, regenerate=False):
         key = self.key(source)
-        async with self._locks.setdefault(key, asyncio.Lock()):
+        async with self._locks.setdefault(key, asyncio.Lock()), (self.store.capture_lock(key) if self.mode == 'record' else nullcontext()):
             if not regenerate or self.mode != 'record':
                 try:
                     return self.read(source)
@@ -392,6 +465,8 @@ class _RecordedBoundary:
                 self.capture_calls += 1
                 config_sha256 = self.config.sha256
                 artifact = await self.callback(source)
+                if self.key(source) != key:
+                    raise ValueError('Source/candidates/context changed during the request')
                 if self.config.sha256 != config_sha256:
                     raise ValueError('Recording configuration changed during the request')
                 self.store.save(self.stage, source, self.config, artifact)

@@ -11,16 +11,17 @@ import tempfile
 import threading
 import unittest
 
-from kalmora.documents.contracts import Candidate, PageImage, ParsedBlock, ParsedDocument, ResolutionRequest, ResolutionResult, digest
+from kalmora.documents.contracts import Candidate, PageImage, ParsedBlock, ParsedDocument, ResolutionRequest, ResolutionResult, digest, fingerprint
 from kalmora.documents.replay import (ExtractionCapture, RecordedExtractor, RecordedResolver,
     RecordingConfig, RecordingStore, ReplayError, ResolutionCapture)
 from kalmora.documents.runner import StageRunner
+from kalmora.documents.prompts import recording_prompt
 from kalmora.facts import DocumentFacts, Evidence, Fact
 
 
 def config():
     return RecordingConfig('openai', 'gpt-6-luna', 'extract-v1', 'prompt-v1', digest(b'prompt'),
-                           'schema-v1', digest(b'schema'), {'reasoning_effort': 'low'})
+                           'schema-v1', digest(b'schema'), {'reasoning_effort': 'low', 'prompt_extras': {}, 'max_selections': 1})
 
 
 def document(name='D1'):
@@ -28,12 +29,27 @@ def document(name='D1'):
                           'parser-v1', (ParsedBlock('p1', 'Invoice F-001 vendor ABC total 12.34 rate 0.923456789', 1),))
 
 
+def metadata(stage, source, *, cost):
+    cfg = config()
+    doc = source.document if isinstance(source, ResolutionRequest) else source
+    result = {'provider': cfg.provider, 'model': cfg.model, 'prompt_version': cfg.prompt_version,
+              'prompt_sha256': digest(recording_prompt(stage, source, cfg.parameters).encode()),
+              'instructions_sha256': cfg.prompt_sha256, 'instruction_content_sha256': cfg.prompt_sha256,
+              'schema_sha256': cfg.schema_sha256, 'schema_version': cfg.schema_version,
+              'source_sha256': doc.source_sha256, 'parser_version': doc.parser_version,
+              'transformation_sha256': doc.transformation_sha256,
+              'capture_cost_usd': cost, 'attempt_metrics': [{'attempt': 1}]}
+    if stage == 'resolve':
+        result['resolution_request_sha256'] = source.sha256
+    return result
+
+
 def capture(doc, *, cost='0.01'):
     facts = DocumentFacts(doc.source_sha256, 'extract-v1', {
         'document_number': [Fact('F-001', Evidence(doc.path, 'p1', 1, 'F-001'))],
         'rate': [Fact(Decimal('0.923456789'), Evidence(doc.path, 'p1', 1, '0.923456789'))]})
     return ExtractionCapture(facts, {'status': 'completed', 'api_key': 'sk-secret', 'text': 'Bearer token'},
-                             {'capture_cost_usd': cost, 'attempt_metrics': [{'attempt': 1}]},
+                             metadata('extract', doc, cost=cost),
                              unknowns=({'field': 'recipient_tax_id', 'status': 'MISSING'},))
 
 
@@ -46,7 +62,7 @@ def selection(req):
     result = ResolutionResult('SELECTED', ('V1',), ({'candidate_id': 'V1', 'candidate_attribute': 'name',
         'candidate_value': 'ABC', 'source_value': 'ABC', 'block_id': 'p1', 'quote': 'ABC',
         'image_page': None, 'image_sha256': None, 'source_sha256': req.document.source_sha256},), 'literal name')
-    return ResolutionCapture(result, {'status': 'completed'}, {'capture_cost_usd': '0.02', 'attempt_metrics': [{}, {}]})
+    return ResolutionCapture(result, {'status': 'completed'}, {**metadata('resolve', req, cost='0.02'), 'attempt_metrics': [{}, {}]})
 
 
 class ReplayTests(unittest.IsolatedAsyncioTestCase):
@@ -77,6 +93,45 @@ class ReplayTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError): RecordedExtractor(self.store, self.cfg, mode='replay', callback=call)
         with self.assertRaises(ValueError): RecordedExtractor(self.store, self.cfg, mode='record', callback=call)
 
+    async def test_recorded_requires_actual_metadata_but_synthetic_does_not(self):
+        artifact = capture(self.doc)
+        missing = replace(artifact, request_metadata={})
+        with self.assertRaises(ValueError):
+            self.store.save('extract', self.doc, self.cfg, missing)
+        self.store.save('extract', self.doc, self.cfg, missing, origin='synthetic')
+        with self.assertRaises(ReplayError):
+            self.store.load('extract', self.doc, self.cfg, mode='replay')
+        changed = replace(artifact, request_metadata={**artifact.request_metadata, 'prompt_sha256': digest(b'wrong actual payload')})
+        with self.assertRaises(ValueError):
+            self.store.save('extract', self.doc, self.cfg, changed)
+        other = document('D2')
+        self.assertNotEqual(metadata('extract', self.doc, cost=None)['prompt_sha256'],
+                            metadata('extract', other, cost=None)['prompt_sha256'])
+        self.assertEqual(metadata('extract', self.doc, cost=None)['instructions_sha256'],
+                         metadata('extract', other, cost=None)['instructions_sha256'])
+
+    async def test_separate_boundaries_deduplicate_capture_under_posix_lock(self):
+        calls = []
+        async def call(doc):
+            calls.append(doc.path)
+            await asyncio.sleep(0.04)
+            return capture(doc)
+        first = RecordedExtractor(self.store, self.cfg, mode='record', callback=call, budget_usd=Decimal('1'))
+        second = RecordedExtractor(self.store, self.cfg, mode='record', callback=call, budget_usd=Decimal('1'))
+        outputs = await asyncio.gather(first.extract_with_response(self.doc), second.extract_with_response(self.doc))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(sum(x.provenance['cache_hit'] for x in outputs), 1)
+
+    async def test_absence_must_name_the_same_field(self):
+        doc = replace(self.doc, blocks=(ParsedBlock('p1', 'IBAN no disponible. Purchase order reference not provided.', 1),))
+        unrelated = DocumentFacts(doc.source_sha256, 'extract-v1', {'iban': [Fact(None,
+            Evidence(doc.path, 'p1', 1, 'Purchase order reference not provided.'))]})
+        with self.assertRaises(ValueError):
+            self.store.save('extract', doc, self.cfg, ExtractionCapture(unrelated, {}, {}), origin='synthetic')
+        supported = DocumentFacts(doc.source_sha256, 'extract-v1', {'iban': [Fact(None,
+            Evidence(doc.path, 'p1', 1, 'IBAN no disponible.'))]})
+        self.store.save('extract', doc, self.cfg, ExtractionCapture(supported, {}, {}), origin='synthetic')
+
     async def test_keys_invalidate_source_parser_transform_model_prompt_schema_parameters(self):
         self.store.save('extract', self.doc, self.cfg, capture(self.doc))
         variants = [replace(self.doc, source_sha256=digest(b'new')), replace(self.doc, parser_version='v2'),
@@ -103,6 +158,18 @@ class ReplayTests(unittest.IsolatedAsyncioTestCase):
         envelope['accepted']['evidence'][0]['candidate_value'] = 'fabricated'
         self.store._write(key, envelope)
         with self.assertRaises(ReplayError): await adapter.resolve(req)
+
+    async def test_decimal_candidate_proof_matches_exactly_without_float(self):
+        req = ResolutionRequest(self.doc, (Candidate('V1', {'rate': Decimal('0.923456789')}),))
+        proof = {'candidate_id': 'V1', 'candidate_attribute': 'rate', 'candidate_value': '0.923456789',
+                 'source_value': '0.923456789', 'block_id': 'p1', 'quote': '0.923456789',
+                 'source_sha256': self.doc.source_sha256}
+        result = ResolutionResult('SELECTED', ('V1',), (proof,), 'exact original rate')
+        self.store.save('resolve', req, self.cfg, ResolutionCapture(result, {}, {}), origin='synthetic')
+        for bad in ['NaN', 'not a decimal', '0.923456780']:
+            wrong = replace(result, evidence=({**proof, 'candidate_value': bad},))
+            with self.assertRaises(ValueError):
+                self.store.save('resolve', req, self.cfg, ResolutionCapture(wrong, {}, {}), origin='synthetic')
 
     async def test_checksum_and_accepted_value_tampering_fail_without_fallback(self):
         self.store.save('extract', self.doc, self.cfg, capture(self.doc))
@@ -197,6 +264,7 @@ socket.socket.connect=lambda *a,**k: (_ for _ in ()).throw(AssertionError('netwo
 socket.socket.connect_ex=socket.socket.connect
 from kalmora.documents.replay import RecordingConfig, RecordingStore, RecordedExtractor
 from kalmora.documents.runner import StageRunner
+from kalmora.documents.prompts import recording_prompt
 from kalmora.documents.contracts import digest, ParsedDocument
 from kalmora.documents.replay import ExtractionCapture
 from kalmora.facts import DocumentFacts
