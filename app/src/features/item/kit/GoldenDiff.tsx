@@ -83,6 +83,7 @@ export function GoldenDiff({ score, currency = 'EUR', title, className }: Golden
 
 function DiffBody({ diff, currency }: { diff: FieldDiff; currency: string }) {
   const { expected, actual } = diff
+  const money = diff.path === 'amount' || diff.path.endsWith('.amount')
   if ((isLineList(expected) || expected === null) && (isLineList(actual) || actual === null) && (isLineList(expected) || isLineList(actual))) {
     return <LineTables expected={(expected as Line[] | null) ?? []} actual={(actual as Line[] | null) ?? []} currency={currency} />
   }
@@ -98,18 +99,19 @@ function DiffBody({ diff, currency }: { diff: FieldDiff; currency: string }) {
     <div className={styles.columns}>
       <div className={styles.side}>
         <span className={styles.sideTitle}>Referencia</span>
-        <Value value={expected} />
+        <Value value={expected} money={money} currency={currency} />
       </div>
       <div className={clsx(styles.side, styles.actual)}>
         <span className={styles.sideTitle}>Entrega</span>
-        <Value value={actual} />
+        <Value value={actual} money={money} currency={currency} />
       </div>
     </div>
   )
 }
 
-function Value({ value }: { value: unknown }) {
+function Value({ value, money, currency }: { value: unknown; money: boolean; currency: string }) {
   if (value === null || value === undefined) return <span className={styles.none}>—</span>
+  if (money && typeof value === 'number') return <Amount cents={value} currency={currency} />
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return <Mono>{String(value)}</Mono>
   if (Array.isArray(value) && value.every((v) => typeof v !== 'object')) return <Mono>{value.length ? value.join(', ') : '[]'}</Mono>
   return <code className={styles.code}>{JSON.stringify(value)}</code>

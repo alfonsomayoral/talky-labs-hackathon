@@ -85,9 +85,14 @@ En `app/` **el plan sí exige** pruebas con vitest y las comprobaciones de puert
 
 ## 8. Git y estado
 
-- Cada sesión trabaja en su rama `fe/<paquete>`, en su worktree. **Sin push.**
+- Cada sesión trabaja en su rama `fe/<paquete>`, en su worktree.
 - Commits con asunto `type: subject` (por ejemplo, `feat: add bank reconciliation view`), sin ámbito entre paréntesis y sin atribución. Un commit por cambio lógico.
-- Solo la coordinadora integra en `hackathon/frontend`, con `git merge --no-ff`, y hace push al cerrar cada puerta.
+- **Al terminar un paquete o un cambio**, con las comprobaciones de §6 en verde y el estado commiteado:
+  1. `git fetch && git merge origin/hackathon/frontend` (resuelve aquí los conflictos, no en la PR);
+  2. `git push -u origin <rama>`;
+  3. `gh pr create --base hackathon/frontend --head <rama> --title "<type: subject>" --body-file app/status/<rama>.md`. Título en formato de commit; el cuerpo es tu informe de §9; sin atribución ni emojis;
+  4. avisa a la coordinadora con el enlace de la PR.
+- Solo la coordinadora integra en `hackathon/frontend`: revisa la PR y la fusiona con merge commit (equivale a `git merge --no-ff`). Hace push de `hackathon/frontend` al cerrar cada puerta y cuando hace falta para que las PRs salgan limpias.
 - Cada sesión escribe su estado y sus peticiones **solo** en `app/status/<rama>.md`, con `/` sustituida por `-` (por ejemplo, `app/status/fe-activity.md`). Nunca en ficheros compartidos.
 
 ## 9. Informe final de cada sesión
