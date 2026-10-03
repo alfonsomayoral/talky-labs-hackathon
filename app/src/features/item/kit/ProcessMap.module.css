@@ -72,8 +72,8 @@
   position: absolute;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--tone);
+  /* The tone tints the whole hairline: it matches the node's bands without a side stripe. */
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, var(--line));
   border-radius: var(--radius-md);
   background: var(--bg);
   overflow: hidden;
@@ -97,13 +97,11 @@
 
 .node.selected {
   border-color: var(--brand-line);
-  border-left-color: var(--brand-line);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
 .empty {
   border-style: dashed;
-  border-left-style: solid;
   background: var(--bg-subtle);
 }
 
