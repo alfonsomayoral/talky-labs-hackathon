@@ -141,6 +141,9 @@ entries and scores 0.8615; **exact acceptance is not proven**. The extra rows
 are not suppressed using the reference answer. See `m5-review.md`.
 The reproduced checks and external-correction regression fix are recorded in
 `m5-independent-review.md`.
+See `m5-score-resolution.md` for the final investigation: expected journals already
+score 1.0; retaining all eight supported cause keys caps the unchanged IC scorer
+at 0.8615. Modular integration does not resolve the reference or real-flow gates.
 
 M5, both epics and #159 stay open. Real AP receipt coverage, real bank correction
 ownership and the real end-to-end run remain separate gates. Publication and

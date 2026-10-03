@@ -3,6 +3,8 @@
 PR [#196](https://github.com/alfonsomayoral/talky-labs-hackathon/pull/196)
 targets `backend`. This review reproduces the producer's delivery and fixes a
 projection defect. It does not constitute a GitHub approval or milestone closure.
+See [score resolution and modular integration](m5-score-resolution.md) for the
+subsequent user-authorized merge scope, current-backend checks and score ceiling.
 
 ## Reviewed source and correction
 
@@ -106,4 +108,5 @@ M5 and its epics remain open. #94 retains the reference disagreement; #159 still
 requires actual AP #55 and bank #73/#75 outputs through the same contracts,
 ownership checks and full evaluation. All reviewed dependency runs here are
 **simulated**. Neither a passing modular run nor matching five reference rows
-proves the real AP → banks → IC flow. The PR remains a draft pending acceptance.
+proves the real AP → banks → IC flow. The module can be integrated under the
+subsequent authorized scope; milestone acceptance remains open.
