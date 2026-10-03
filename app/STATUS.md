@@ -28,6 +28,27 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 5 — PRs de QA y «terminado» de §0 | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 5.A–5.C | Revisa y fusiona las PRs |
 | 6.A–6.B Asistente | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 2.C, 2.D | `/asistente` y panel ⌘J; proveedor local y SSE |
 
+## «Terminado» de `PLAN.md` §0
+
+Comprobado por la coordinadora el 03/10/2026 sobre `hackathon/frontend`.
+
+| # | Punto | Estado | Evidencia |
+| --- | --- | --- | --- |
+| 1 | Julio carga, crea la referencia y su nota en la app es 100,00, igual que `score.py` | Cumple | `/dev/data` con `phase_dev`: nota 100. Paridad con `score.py` en `src/engine/score/parity.test.ts` |
+| 2 | El zip de Entregables, pasado por `score.py`, saca la misma nota que la app | Cumple | Zip descargado del navegador → `score.py`: 100,00, todas las subnotas a 1,0. Con entregas alteradas, la paridad del motor la cubre `parity.test.ts` |
+| 3 | Importar unas 6 JSONL cualesquiera (septiembre) llena todas las pantallas sin tocar código | Cumple, con la QA de fase 5 en curso | `phase_test-research-qa`: 6/6 entregas, 719 partidas, «Lista», cero errores de consola en todas las rutas. Sin fichero, la vista de tarea lo dice (`MissingTaskFile`). Aún no hay ninguna entrega del backend, que sigue en M0 |
+| 4 | Cada partida de las 6 tareas abre con asiento cuadrado, regla, evidencia enlazada y comparación con golden | Cumple | `src/engine/derive/doneCheck.test.ts`, sobre las 726 partidas de julio. Destapó 4 partidas de cierre sin evidencia, corregidas en `df39c16` |
+| 5 | `typecheck`, `lint`, `test` y `build` en verde | Cumple | 354 tests en `3c980fe` |
+| 6 | El Asistente responde las 4 preguntas con cifras iguales a Resumen y Atención, y las partidas citadas abren el panel | Cumple | Navegador con julio: 56 pendientes, 11,6 M€, hueco de 69,8 M€ a 0 €. Tests en `src/features/assistant/engine/local.test.ts` |
+| 7 | El recorrido de demo se hace sin errores en consola | Cumple | Los 7 pasos del «Recorrido de demo» de `app/README.md` sobre julio, sin errores ni avisos |
+
+Repetido sobre `5caa8e8`, que ya lleva las PRs #153, #154, #157, #158, #161 y #162:
+- **3:** septiembre sin golden, 21 rutas y paneles, cero errores y cero avisos de consola;
+- **5:** 360 tests y build en verde;
+- **7:** el recorrido de demo de julio, sin errores.
+
+Pendiente para cerrar las puertas 5 y 6: la segunda PR de `fe/qa-core` (contraste y fecha en `MasterCompare`) y una última pasada de 3, 5 y 7.
+
 ## Datos para la QA
 
 - Julio: `participant/phase_dev` con su referencia golden.

@@ -30,6 +30,20 @@ describe('formatMoney', () => {
     expect(formatMoney(0, 'EUR', { signed: true })).toBe(nb('0,00 €'))
   })
 
+  it('never writes a minus on zero, even negative zero or a negative that rounds to zero', () => {
+    expect(formatMoney(-0)).toBe(nb('0,00 €'))
+    expect(formatMoney(-0, 'EUR', { signed: true })).toBe(nb('0,00 €'))
+    expect(formatMoney(-40, 'EUR', { decimals: 0 })).toBe(nb('0 €'))
+    expect(formatMoney(-40, 'EUR', { compact: true })).toBe(nb('0 €'))
+    expect(formatMoney(-0, 'EUR', { currencyDisplay: 'none' })).toBe('0,00')
+  })
+
+  it('keeps the minus on negatives and no plus on positives unless signed', () => {
+    expect(formatMoney(-60, 'EUR', { decimals: 0 })).toBe(nb('-1 €'))
+    expect(formatMoney(-1)).toBe(nb('-0,01 €'))
+    expect(formatMoney(1)).toBe(nb('0,01 €'))
+  })
+
   it('can drop decimals and the currency symbol', () => {
     expect(formatMoney(123456, 'EUR', { decimals: 0 })).toBe(nb('1.235 €'))
     expect(formatMoney(4202872, 'EUR', { currencyDisplay: 'none' })).toBe('42.028,72')
