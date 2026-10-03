@@ -91,7 +91,7 @@ La app la usa si `VITE_API_URL` está definida. Mientras no exista, se importan 
 | `GET /api/datasets` | Lista los datasets disponibles (incluidos los locales del servidor) | `[{"dataset_id", "name", "month", "has_golden"}]` |
 | `POST /api/runs` | Lanza el cierre: `{"dataset_id": "…", "options": {…}}` | `{"run_id": "…"}` |
 | `GET /api/runs?dataset_id=…` | Lista ejecuciones | `[manifest]` |
-| `GET /api/runs/{id}` | Estado: `{"state": "queued|running|done|failed", "tasks": {"ap": {"state", "done", "total"}, …}, "manifest": {…}}` | JSON |
+| `GET /api/runs/{id}` | Estado: `{"state": "queued|running|done|failed", "tasks": {"ap": {"state", "done", "total"}, …}, "manifest": {…}, "files": ["deliverables/ap.jsonl", …]}`. `files` es opcional: si viene, la app solo pide esos ficheros y no deja 404 en consola por `trace/` ausente | JSON |
 | `GET /api/runs/{id}/events` | Eventos en vivo por **SSE**: cada mensaje es un evento de §1.2; al final, `event: done` | `text/event-stream` |
 | `GET /api/runs/{id}/files/{ruta}` | Cualquier fichero del paquete (`deliverables/ap.jsonl`, `trace/events.jsonl`…) | El fichero |
 | `POST /api/chat` | Pregunta al Asistente: `{"run_id", "dataset_id", "messages": [{"role", "content"}], "mode": "fast|deep"}` | SSE: `event: delta` con texto, `event: card` con una tarjeta (`{"type": "items|table|reasoning|metric", …}`), `event: citation` con `{"item"}` o `{"policy_ref"}`, y `event: done` |
