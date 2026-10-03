@@ -244,8 +244,8 @@ def compare_ar_cash(S: ModuleType, gold: Rows, sub: Rows) -> Result:
         sr = Counter((r.get("type"), int(r.get("amount") or 0)) for r in s.get("residuals", []))
         diffs += _counter_diffs("residuals", gr, sr)
         diffs += entry_diffs("adjustment", explain_lines(S, g["adjustment"], s.get("adjustment") or [], g["company"]))
-        unscored = _unscored([("residuals.invoice", _multiset([(r["type"], r.get("invoice")) for r in g["residuals"]]),
-                               _multiset([(r.get("type"), r.get("invoice")) for r in s.get("residuals", [])]))])
+        unscored = _unscored([("residuals.invoice", _multiset([(r["type"], r.get("invoice"), r["amount"]) for r in g["residuals"]]),
+                               _multiset([(r.get("type"), r.get("invoice"), r.get("amount")) for r in s.get("residuals", [])]))])
         entities.append(_entity("ar_cash", g["bank_line"], score, status_of(score), diffs, unscored=unscored))
     gold_ids = {g["bank_line"] for g in gold}
     extras = [r.get("bank_line") for r in sub if r.get("bank_line") not in gold_ids]
