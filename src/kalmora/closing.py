@@ -3,16 +3,20 @@
 ``kalmora close PHASE --out OUT`` writes ``OUT/deliverables/<module>.jsonl``, ``OUT/trace/events.jsonl``
 and merges ``tasks`` into ``OUT/manifest.json``. It is what ``kalmora serve --close-command`` launches.
 
-A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl`` produced elsewhere,
-for example by AP tooling), or it is *unavailable*. Unavailable is not a failure: the web app scores a
+Modules run in dependency order and feed each other: bank rec reads this run's AP, AR cash reads this run's
+billing, and close (the M6 engine, when integrated) reads every delivery. AP and AR billing use the v0 rule
+engines (``kalmora.v0``). A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl``
+produced elsewhere), or it is *unavailable*. Unavailable is not a failure: the web app scores a
 missing file as absent. Events are one per delivered row with ``result: INFO``; no engine reports a policy
 reference, evidence or confidence, so those stay ``null``.
 """
+import importlib.util
 import json
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +25,8 @@ from typing import Any
 from . import __version__
 from .facts import atomic_json
 
-MODULES = ("ap", "ar_billing", "ar_cash", "bank_rec", "ic", "close")
+# Dependency order: bank rec needs AP, AR cash needs billing, close needs all of them.
+MODULES = ("ap", "ar_billing", "bank_rec", "ar_cash", "ic", "close")
 Row = dict[str, Any]
 
 
@@ -34,12 +39,33 @@ def read_rows(path: Path) -> list[Row]:
 
 
 # ---------------------------------------------------------------- engines
+def _delivered(target: Path, module: str) -> list[Row] | None:
+    """Rows this run already delivered for ``module`` (an upstream input), or None."""
+    path = target.parent / f"{module}.jsonl"
+    return read_rows(path) if path.is_file() else None
+
+
+def _ap(phase: Path, target: Path, _work: Path) -> dict[str, Any]:
+    from .v0.solve import solve_ap, write_jsonl
+    rows, errors = solve_ap(phase)
+    write_jsonl(target, rows)
+    return {"coding_errors": errors}
+
+
+def _ar_billing(phase: Path, target: Path, _work: Path) -> dict[str, Any]:
+    from .v0.solve import solve_billing, write_jsonl
+    rows, pending = solve_billing(phase)
+    write_jsonl(target, rows)
+    return {"pending_wip": len(pending)}
+
+
 def _ar_cash(phase: Path, target: Path, _work: Path) -> dict[str, Any]:
     from .ar_cash import build_ar_cash
     from .ar_cash.io import write_ar_cash
     from .data import PhaseData
-    write_ar_cash(build_ar_cash(PhaseData(phase)), target)
-    return {}
+    billing = _delivered(target, "ar_billing")
+    write_ar_cash(build_ar_cash(PhaseData(phase), billing=billing or []), target)
+    return {"billing_input": billing is not None}
 
 
 def _bank_rec(phase: Path, target: Path, _work: Path) -> dict[str, Any]:
@@ -47,13 +73,14 @@ def _bank_rec(phase: Path, target: Path, _work: Path) -> dict[str, Any]:
     from .bankrec.io import write_bank_rec
     from .data import PhaseData
     data = PhaseData(phase)
-    run = build_bank_rec(data)
+    ap_rows = _delivered(target, "ap")
+    run = build_bank_rec(data, ap_rows=ap_rows)
     if run.unresolved:
         raise ValueError("unresolved accounts: " + "; ".join(f"{i.account}: {', '.join(i.reasons)}" for i in run.unresolved))
     if [r.account.id for r in run.results] != list(data.table("tasks/bank_accounts")):
         raise ValueError("did not resolve every task account")
     write_bank_rec(run, target)
-    return {}
+    return {"ap_input": ap_rows is not None}
 
 
 def _commit() -> str:
@@ -77,7 +104,16 @@ def _ic(phase: Path, target: Path, work: Path) -> dict[str, Any]:
     return {"integration": "recorded_only", "complete": done.returncode == 0}
 
 
-ENGINES: dict[str, Callable[[Path, Path, Path], dict[str, Any]]] = {"ar_cash": _ar_cash, "bank_rec": _bank_rec, "ic": _ic}
+def _close(phase: Path, target: Path, work: Path) -> dict[str, Any]:
+    from .v0.close_handoff import run_close as close_from_deliveries
+    shutil.copyfile(close_from_deliveries(phase, target.parent, work / "close"), target)
+    return {"integration": "real_upstream"}
+
+
+ENGINES: dict[str, Callable[[Path, Path, Path], dict[str, Any]]] = {
+    "ap": _ap, "ar_billing": _ar_billing, "ar_cash": _ar_cash, "bank_rec": _bank_rec, "ic": _ic}
+if importlib.util.find_spec("kalmora.close") is not None:  # the M6 engine (PR #197), once integrated
+    ENGINES["close"] = _close
 
 
 # ---------------------------------------------------------------- events
@@ -159,6 +195,7 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
     trace.parent.mkdir(parents=True, exist_ok=True)
     trace.write_text("", encoding="utf-8")
     counter = iter(range(1, 10**9))
+    began = time.monotonic()
     tasks: dict[str, dict[str, Any]] = {}
     with tempfile.TemporaryDirectory(prefix="kalmora-close-") as scratch:
         for module in selected:
@@ -190,6 +227,8 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         manifest = {}
-    manifest.update(agent_version=__version__, tasks=tasks, models=manifest.get("models", []), human_overrides=0)
+    manifest.update(agent_version=__version__, tasks=tasks, models=manifest.get("models", []), human_overrides=0,
+                    runtime_s=manifest.get("runtime_s") or round(time.monotonic() - began, 3),
+                    cost_usd_total=manifest.get("cost_usd_total", 0))
     atomic_json(manifest_path, manifest)
     return {"ok": not any(t.get("state") == "failed" for t in tasks.values()), "tasks": tasks}

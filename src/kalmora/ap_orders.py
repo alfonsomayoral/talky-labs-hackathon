@@ -52,6 +52,44 @@ class POResolution:
     candidates: tuple[POCandidate, ...]
     reference_recovered: bool
     diagnostics: tuple[str, ...] = ()
+    discarded: tuple["PODiscard", ...] = ()
+
+
+@dataclass(frozen=True)
+class PODiscard:
+    order: OrderKey
+    reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class POQueryLine:
+    """One observed invoice row, including only its stated PO quantities."""
+    line_id: str
+    quantity_milli: int
+    uom: str
+    portions: tuple[POQuery, ...]
+
+
+def validate_query_lines(lines: Sequence[POQueryLine]) -> tuple[POQueryLine, ...]:
+    lines = tuple(lines)
+    if not lines or len({line.line_id for line in lines}) != len(lines):
+        raise ValueError("unique observed invoice lines required")
+    scopes = set()
+    for line in lines:
+        if (not isinstance(line.line_id, str) or not line.line_id or not line.uom
+                or integer(line.quantity_milli, "line quantity") <= 0 or not line.portions):
+            raise ValueError("observed positive line quantities and portions required")
+        if len({q.portion_id for q in line.portions}) != len(line.portions):
+            raise ValueError("unique observed portion ids required")
+        if any(q.line_id != line.line_id or q.uom != line.uom
+               or integer(q.quantity_milli, "portion quantity") <= 0 for q in line.portions):
+            raise ValueError("portions must preserve invoice line identity/unit")
+        if sum(q.quantity_milli for q in line.portions) != line.quantity_milli:
+            raise ValueError("observed portions must conserve the invoice line quantity")
+        scopes.update((q.company, q.vendor, q.currency) for q in line.portions)
+    if len(scopes) != 1:
+        raise ValueError("invoice portions must share resolved company/vendor/currency")
+    return lines
 
 
 def _concept(value: str) -> str:
@@ -130,6 +168,8 @@ class POCatalog:
                   and (query.project is None or self._items[k][1] == query.project)
                   and (query.po_item is None or k.item == query.po_item)]
         explicit_order = [k for k in scope if k.po == query.po_reference]
+        existing_reference = any(k.po == query.po_reference for k in self._items)
+        future_reference = False
         reference_orders = None
         diagnostics = []
         for reference in query.receipt_references:
@@ -143,16 +183,35 @@ class POCatalog:
             item = self._items[key][2]
             return ((query.material is None or item.get("material") == query.material)
                     and (query.description is None or _concept(item.get("description", "")) == _concept(query.description)))
-        if explicit_order:
-            keys = [k for k in explicit_order if k in scoped and matches(k)]
+        # Exact PO/item, material and observed delivery associations are
+        # stronger than wording differences. A description can disambiguate
+        # several anchored positions, but cannot force a model call when the
+        # single position is already proven by an exact structural reference.
+        def anchored(keys):
+            keys = [k for k in keys if query.material is None
+                    or self._items[k][2].get("material") == query.material]
             if reference_orders is not None:
                 keys = [k for k in keys if k in reference_orders]
+            exact_description = [k for k in keys if matches(k)]
+            return exact_description if exact_description else keys
+        if explicit_order:
+            base = [k for k in explicit_order if k in scoped]
+            keys = (anchored(base) if query.po_item is not None or query.material or reference_orders is not None
+                    else [k for k in base if matches(k)])
             conflict = not keys
             confirmed = True
+        elif existing_reference:
+            # An in-scope PO not yet created was absent on the invoice date.
+            # Neither that absence nor a scope contradiction permits fallback.
+            future_reference = any(k.po == query.po_reference
+                and (k.company, k.vendor, k.currency) == (query.company, query.vendor, query.currency)
+                for k in self._items)
+            keys, confirmed, conflict = [], False, not future_reference
+            diagnostics.append("PO_REFERENCE_AFTER_INVOICE" if future_reference
+                               else "PO_REFERENCE_SCOPE_OR_DATE_CONFLICT")
         else:
-            keys = [k for k in scoped if matches(k)]
-            if reference_orders is not None:
-                keys = [k for k in keys if k in reference_orders]
+            keys = (anchored(scoped) if query.material or reference_orders is not None
+                    else [k for k in scoped if matches(k)])
             confirmed = bool(query.material or query.description or reference_orders)
             conflict = reference_orders == set() and not diagnostics
         candidates = []
@@ -173,11 +232,37 @@ class POCatalog:
             candidates.append(POCandidate(key, query.uom, self._items[key][3],
                 sum(r.quantity_milli - used.get(r.key, 0) for r in visible), visible, evidence))
         selected = candidates[0] if confirmed and len(candidates) == 1 and not diagnostics and not conflict else None
-        status = ("CONFLICT" if conflict else "UNKNOWN" if diagnostics else "NOT_FOUND" if not candidates else
+        status = ("CONFLICT" if conflict else "NOT_FOUND" if future_reference else
+                  "UNKNOWN" if diagnostics else "NOT_FOUND" if not candidates else
                   "UNCONFIRMED" if not confirmed else "RESOLVED" if selected else "AMBIGUOUS")
+        discarded = []
+        for key, (created, project, item, _) in sorted(self._items.items()):
+            if key in keys:
+                continue
+            reasons = []
+            for field in ("company", "vendor", "currency"):
+                if getattr(key, field) != getattr(query, field):
+                    reasons.append(field.upper() + "_MISMATCH")
+            if created > invoice_date:
+                reasons.append("PO_AFTER_INVOICE")
+            if item["uom"] != query.uom:
+                reasons.append("UNIT_MISMATCH")
+            if query.project is not None and project != query.project:
+                reasons.append("PROJECT_MISMATCH")
+            if query.po_item is not None and key.item != query.po_item:
+                reasons.append("POSITION_MISMATCH")
+            if explicit_order and key.po != query.po_reference:
+                reasons.append("EXACT_PO_CONSTRAINT")
+            if query.material is not None and item.get("material") != query.material:
+                reasons.append("MATERIAL_MISMATCH")
+            if query.description is not None and _concept(item.get("description", "")) != _concept(query.description):
+                reasons.append("CONCEPT_MISMATCH")
+            if reference_orders is not None and key not in reference_orders:
+                reasons.append("RECEIPT_REFERENCE_MISMATCH")
+            discarded.append(PODiscard(key, tuple(reasons or ("REFERENCE_CONFLICT",))))
         return POResolution(query, status, selected, tuple(candidates),
                             bool(selected and (selected.order.po != query.po_reference
-                                               or selected.order.item != query.po_item)), tuple(diagnostics))
+                                               or selected.order.item != query.po_item)), tuple(diagnostics), tuple(discarded))
 
     def resolve_lines(self, queries: Sequence[POQuery], *, invoice_date: str, receipt_as_of: str | None = None,
                       state: ConsumptionState = ConsumptionState()) -> tuple[POResolution, ...]:

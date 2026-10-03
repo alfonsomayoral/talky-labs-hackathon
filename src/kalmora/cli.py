@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from ERP and bank evidence")
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
+    ar_cash.add_argument("--billing", type=Path, help="This month's ar_billing.jsonl: its invoices can be applied")
     ap_prepare = commands.add_parser("prepare-ap", help="Prepare AP source facts; does not post or export AP decisions")
     ap_prepare.add_argument("phase", type=Path)
     ap_prepare.add_argument("--state-dir", type=Path, required=True, help="Source state outside the original phase")
@@ -48,6 +49,13 @@ def main(argv: list[str] | None = None) -> int:
     bank_rec = commands.add_parser("solve-bank-rec", help="Reconcile bank statements and journal entries")
     bank_rec.add_argument("phase", type=Path)
     bank_rec.add_argument("--output", type=Path, required=True, help="Destination bank_rec.jsonl")
+    bank_rec.add_argument("--ap", type=Path, help="This month's ap.jsonl: direct debits post only for posted invoices")
+    solve_ap = commands.add_parser("solve-ap", help="Decide, code and post every AP task (v0 rules)")
+    solve_ap.add_argument("phase", type=Path)
+    solve_ap.add_argument("--output", type=Path, required=True, help="Destination ap.jsonl")
+    solve_billing = commands.add_parser("solve-ar-billing", help="Invoice every AR billing item from its documents (v0 rules)")
+    solve_billing.add_argument("phase", type=Path)
+    solve_billing.add_argument("--output", type=Path, required=True, help="Destination ar_billing.jsonl")
     close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
     close.add_argument("phase", type=Path)
     close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
@@ -236,8 +244,10 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
             output = args.output.expanduser().resolve()
             if output.is_relative_to(phase):
                 raise ValueError("AR cash output must be outside the read-only phase directory")
+            billing = ([json.loads(line) for line in args.billing.read_text(encoding="utf-8").splitlines() if line.strip()]
+                       if args.billing else [])
             run = build_ar_cash(PhaseData(phase), use_preparsed=args.use_preparsed,
-                                normalized_dir=args.normalized_dir)
+                                normalized_dir=args.normalized_dir, billing=billing)
             written = write_ar_cash(run, output)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
@@ -249,6 +259,22 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "unresolved": len(run.results) - resolved,
                           "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
         return 0
+    if args.command in ("solve-ap", "solve-ar-billing"):
+        from .v0.solve import solve_ap, solve_billing, write_jsonl
+        phase, output = args.phase.resolve(), args.output.expanduser().resolve()
+        if output.is_relative_to(phase):
+            print(json.dumps({"error": "output must be outside the read-only phase directory"}), file=sys.stderr)
+            return 1
+        if args.command == "solve-ap":
+            rows, errors = solve_ap(phase)
+            write_jsonl(output, rows)
+            print(json.dumps({"output": str(output), "rows": len(rows), "coding_errors": errors}))
+            return 0
+        rows, pending = solve_billing(phase)
+        write_jsonl(output, rows)
+        write_jsonl(output.with_name("pending_wip.jsonl"), pending)
+        print(json.dumps({"output": str(output), "rows": len(rows), "pending_wip": len(pending)}))
+        return 0
     if args.command == "solve-bank-rec":
         from .bankrec import build_bank_rec
         from .bankrec.io import write_bank_rec
@@ -259,7 +285,9 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
             if output.is_relative_to(phase):
                 raise ValueError("bank reconciliation output must be outside the read-only phase directory")
             data = PhaseData(phase)
-            run = build_bank_rec(data)
+            ap_rows = ([json.loads(line) for line in args.ap.read_text(encoding="utf-8").splitlines() if line.strip()]
+                       if args.ap else None)
+            run = build_bank_rec(data, ap_rows=ap_rows)
             if run.unresolved:
                 details = "; ".join(f"{item.account}: {', '.join(item.reasons)}"
                                      for item in run.unresolved)
