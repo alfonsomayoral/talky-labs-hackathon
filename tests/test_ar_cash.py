@@ -173,6 +173,38 @@ class ArCashTests(unittest.TestCase):
                                                       "invoice": "INV-1", "amount": 10000}])
         self.assertEqual(second.row["adjustment"][1]["account"], "43800000")
 
+    def test_receivable_posted_after_receipt_is_not_available_as_of_that_date(self):
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA INV-001",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-07-03", [self.line("43000000", 10000, 0, "C1", "INV-001"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["customer"], "C1")
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
+    def test_explicit_reference_uses_an_open_item_from_dated_journal(self):
+        self._jsonl("erp/ar_invoices.jsonl", [])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-001"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA INV-001",
+        }])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-001", "amount": 8000}])
+        self.assertTrue(any("dated ERP open item" in message for message in result.diagnostics))
+
     def test_non_customer_tax_refund_uses_structured_bank_description(self):
         self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
             "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",

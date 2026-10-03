@@ -68,6 +68,7 @@ class _ReceivableTimeline:
 
     def __init__(self, entries: Iterable[JournalEntry]) -> None:
         events: list[tuple[str, str, str, str | None, str | None, int]] = []
+        self.item_metadata: defaultdict[tuple[str, str, str | None, str | None], list[tuple[str, str]]] = defaultdict(list)
         for entry in entries:
             posting_date = entry.get("posting_date")
             if not posting_date:
@@ -80,13 +81,18 @@ class _ReceivableTimeline:
                 if amount:
                     events.append((posting_date, str(entry["company"]), account,
                                    line.get("partner"), line.get("assignment"), amount))
+                    self.item_metadata[(str(entry["company"]), account, line.get("partner"),
+                                        line.get("assignment"))].append(
+                                            (posting_date, str(line.get("currency") or entry.get("currency") or "")))
         events.sort(key=lambda x: x[0])
         self.events = events
         self.cursor = 0
+        self.as_of = ""
         self.balances: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
         self.projected: defaultdict[tuple[str, str, str | None, str | None], int] = defaultdict(int)
 
     def advance(self, through: str) -> None:
+        self.as_of = through
         while self.cursor < len(self.events) and self.events[self.cursor][0] <= through:
             _, company, account, partner, assignment, amount = self.events[self.cursor]
             self.balances[(company, account, partner, assignment)] += amount
@@ -110,6 +116,24 @@ class _ReceivableTimeline:
     def apply_open_item(self, company: str, account: str, partner: str,
                         assignment: str, amount: int) -> None:
         self.projected[(company, account, partner, assignment)] += amount
+
+    def referenced_candidate(self, reference: str, company: str, customer: str,
+                             currency: str) -> _Candidate | None:
+        """Resolve an explicit bank reference against a positive, as-of ERP open item."""
+        options = []
+        for assignment in (reference, f"FT {reference}"):
+            key = (company, "43000000", customer, assignment)
+            balance = self.balance(*key)
+            metadata = [(posted, item_currency) for posted, item_currency in self.item_metadata.get(key, [])
+                        if posted <= self.as_of]
+            currencies = {item_currency for _, item_currency in metadata if item_currency}
+            if balance <= 0 or len(currencies) > 1 or (currencies and currency not in currencies):
+                continue
+            invoice_date = min((posted for posted, _ in metadata), default="")
+            invoice = _Invoice(reference, company, customer, invoice_date, "", currency,
+                               assignment.startswith("FT "))
+            options.append(_Candidate(invoice, "43000000", balance))
+        return options[0] if len(options) == 1 else None
 
     def candidates(self, invoices: dict[str, _Invoice], company: str, customer: str,
                    through: str) -> list[_Candidate]:
@@ -526,7 +550,21 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
         adjustments: list[JournalLine] = []
         chosen: list[_Candidate] | None = None
         ref = _invoice_reference(str(bank_line.get("text", "")), invoices)
-        if ref and invoices[ref].company == company:
+        ledger_ref_candidate = None
+        if ref is None and customer is not None:
+            ledger_references = {}
+            for match in _INVOICE_REF.finditer(str(bank_line.get("text", ""))):
+                token = match.group(0).strip().upper()
+                candidate = timeline.referenced_candidate(token, company, customer,
+                                                          str(bank_line.get("currency", "")))
+                if candidate is not None:
+                    ledger_references[token] = candidate
+            if len(ledger_references) == 1:
+                ref, ledger_ref_candidate = next(iter(ledger_references.items()))
+                diagnostics.append(f"explicit bank reference resolved from dated ERP open item {ref}")
+            elif len(ledger_references) > 1:
+                diagnostics.append("multiple explicit references have open ERP balances; left unresolved")
+        if ref and ref in invoices and invoices[ref].company == company:
             referenced_customer = invoices[ref].customer
             if customer is None and notice_issue is None and not notice_file:
                 customer = referenced_customer
@@ -571,6 +609,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
         else:
             candidates = [c for c in timeline.candidates(invoices, company, customer, receipt_date)
                           if c.invoice.currency in ("", str(bank_line.get("currency")))]
+            if ledger_ref_candidate is not None:
+                candidates.append(ledger_ref_candidate)
             all_candidates = candidates
             observed = None
             source_conflict = False
