@@ -7,6 +7,23 @@
     "passed": 1203,
     "skipped": 43
   },
+  "current_backend_validation": {
+    "base_commit": "c59414c5da82094fb921c33b3fa87410cb822d60",
+    "ci_conclusion": "success",
+    "ci_log_sha256": "47b7b9984e3a6982e3b6876499ed180dd40b5316c28baa3925d2327481289a32",
+    "ci_python_versions": [
+      "3.12",
+      "3.13"
+    ],
+    "ci_run": "https://github.com/alfonsomayoral/talky-labs-hackathon/actions/runs/37137001338",
+    "discovered": 1255,
+    "failed": 0,
+    "head_commit": "04b6946",
+    "local_python": "3.12.2",
+    "log_sha256": "c789dfeaf7d7a5cd5e60e06b4b4595b87fc4e00009ceba6db21d31e14ef69924",
+    "passed": 1212,
+    "skipped": 43
+  },
   "ic_replay": {
     "audit_sha256": "9d2bc0e7aa65e07baf6de2a448d9feee37408ac12b162966e89c95101565e0f8",
     "complete": true,

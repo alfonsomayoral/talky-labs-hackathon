@@ -59,11 +59,19 @@ is recorded separately; real delivery lines now carry that required vendor.
 September passes shared structure validation with no diagnostics. No September
 golden or official score is claimed.
 
-Current-backend suite: **1,246 discovered; 1,203 passed; 43 optional-data/service
-skips; zero failures** on Python 3.12.2. Compile, doctor and diff checks passed.
+Accounting-snapshot suite: **1,246 discovered; 1,203 passed; 43 optional-data/service
+skips; zero failures** on Python 3.12.2. After the subsequent #286 merge,
+the branch was rebased on `c59414c5da82094fb921c33b3fa87410cb822d60`;
+the current suite has **1,255 discovered; 1,212 passed; 43 skips; zero failures**.
+GitHub CI passes on Python 3.12 and 3.13:
+[run 37137001338](https://github.com/alfonsomayoral/talky-labs-hackathon/actions/runs/37137001338).
+Compile, doctor and diff checks passed.
 The M5 CI workflow now installs that locked backend runtime before its full
 suite; its previous core-only install failed current document tests with
 missing pydantic/pypdf dependencies.
+The incoming XML contract keeps InvoiceTotal as a fiscal total and reads the
+payable amount only from TotalOutstandingAmount. The prepared-source regression
+assertion now checks that distinction without inventing an amount to pay.
 IC replay on the corrected projection retains the exact corrected ledger hash,
 eight findings and zero new adjustment lines. Four negative probes reject an
 incomplete audit, missing pair, empty IC output and changed AP delivery.
