@@ -1,8 +1,11 @@
 # M6 issue-by-issue status
 
-All listed issues remain **OPEN**. This file reports development evidence, not
-issue closure, independent approval or real-flow acceptance. Existing PR #197
-remains a draft pending review and unresolved accounting acceptance.
+Implementation tracking #20–#23 and #95–#104 is **CLOSED** at the user's request.
+The unresolved accounting work is consolidated in **#251 (OPEN)**; final real-flow
+execution outside golden, including September, is **#171 (OPEN)**. Existing PR
+#197 remains a draft. Closure of the modular tracking is not real-flow acceptance.
+The table below preserves the original delivery evidence and its remaining work;
+current score evidence is in `SCORE_INVESTIGATION.md`.
 
 | Issue | Delivered modular implementation/evidence | Remaining evidence or acceptance |
 |---|---|---|
@@ -19,6 +22,8 @@ remains a draft pending review and unresolved accounting acceptance.
 | #171 M6-11 | Explicit real-compatible contract and mock/real substitution tests | Actual M1–M5-to-M6 execution with no golden_fixture dependencies, producer versions, positive coverage and reviewed output: NOT RUN |
 
 Epics #20 (accruals), #21 (prepaids/WIP), #22 (FX/customers), #23 (export/validation)
-and milestone 7 remain open. No automatic closing keywords are used in this PR.
+are closed; milestone 7 remains open with #171 and #251. Issues #20, #22,
+#95–#97 and #100 were closed as superseded, with their unresolved scope transferred
+to those issues; the other modular tracking issues were closed as completed.
 CI proves tested code behavior; it does not replace the missing accounting or
 real-flow acceptance evidence.

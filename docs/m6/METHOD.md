@@ -36,8 +36,14 @@ Contradictory representations fail rather than being added twice.
 - ACCRUAL: comparable supplier/service/cost-object history, last three distinct
   observed periods, median daily rate times uncovered days. Coverage is a union.
   Previous unbilled periods persist only when their linked invoice has not arrived.
-  For discrete professionals, recurring monthly historical unbilled exposure is
-  a separate estimator; a one-day service is never multiplied by every month day.
+  Posted invoice costs are additive within the same observed period and replace
+  same-period close estimates. Reissued historical estimates retain the latest
+  closing per obligation reference and interval before distinct obligations sum.
+  For professionals, recurring monthly historical
+  unbilled exposure requires repeated full-month observed coverage; isolated jobs
+  do not prove a new month's consumption. A one-day service is never multiplied
+  by every month day.
+  The repeated-month evidence threshold is a conservative engineering assumption.
   Additional discrete consumption without evidence remains unknown. History is
   not posted again, unreversed accrual is deducted, and PO/GR-IR/IC ownership excludes
   the service. Min/max sampled rates are sensitivity bounds, not confidence limits.
@@ -74,4 +80,6 @@ replaying against the already-adjusted ledger creates no second adjustment.
 5. Report unrounded balance discrepancies by company and account; never add EUR and
    MXN into one monetary total. Keep estimations, missing evidence and stage ownership
    separate from scorer tolerance. An aggregate pass is not a detail/assignment pass.
-6. Keep #20–#23, #95–#104, M6 and #171 open pending their remaining evidence/review.
+6. Modular tracking #20–#23 and #95–#104 is closed by user instruction. Keep M6,
+   #251 (accounting/score work) and #171 (real execution outside golden and September)
+   open pending their remaining evidence/review.
