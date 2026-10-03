@@ -2,4 +2,6 @@
 
 from .engine import ArCashResult, ArCashRun, build_ar_cash, to_row
 
-__all__ = ["ArCashResult", "ArCashRun", "build_ar_cash", "to_row"]
+__all__ = ["ArCashResult", "ArCashRun", "build_ar_cash", "to_row", "journal_entries"]
+
+from .journal import journal_entries
