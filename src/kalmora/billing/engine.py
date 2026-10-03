@@ -277,8 +277,6 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
             advance_available=ctx.advance_available(*key, draft.date) if advance_bp else 0)
     except ValueError as error:
         raise _Blocked(f"amounts: {error}") from None
-    if ctx.strict:  # a replay already finds earlier amortizations in the history
-        ctx.advance_used[key] = ctx.advance_used.get(key, 0) + amounts.advance
     deductions = tuple(Deduction(c, a, acc) for c, a, acc in
                        (("MX5MILL", amounts.levy, "63100000"), ("ADV_AMORT", amounts.advance, "43800000")) if a)
     due = (date.fromisoformat(draft.date) + timedelta(days=contract["terms_days"])).isoformat()
@@ -295,6 +293,8 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
     problems = validate_entry(entry, context)
     if problems:
         raise _Blocked(*problems)
+    if ctx.strict:  # consume only after the invoice and journal entry validate
+        ctx.advance_used[key] = ctx.advance_used.get(key, 0) + amounts.advance
     return BillingResult(item, Decision.INVOICE, invoice, entry, draft.evidence, tuple(draft.notes))
 
 
