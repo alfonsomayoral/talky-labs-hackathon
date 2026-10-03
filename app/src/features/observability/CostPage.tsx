@@ -6,7 +6,8 @@ import type { DerivedRun, RunBundle } from '@/domain/types'
 import { useActiveRun, useDerivedRun } from '@/engine'
 import { formatDateTime, formatDuration, formatMoney, formatNumber, formatPercent } from '@/lib/format'
 import { Calibration } from './Calibration'
-import { costSummary, taskTimeline, TASK_LABEL, type CostSummary, type Timeline } from './model'
+import { TASK_LABEL } from '@/domain/catalog/labels'
+import { costSummary, taskTimeline, type CostSummary, type Timeline } from './model'
 import styles from './CostPage.module.css'
 
 const usd = (value: number | null | undefined) => (value == null ? '—' : formatMoney(Math.round(value * 100), 'USD'))

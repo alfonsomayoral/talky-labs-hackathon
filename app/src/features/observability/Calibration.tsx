@@ -5,7 +5,8 @@ import { CONFIDENCE_THRESHOLDS, EmptyState, Metric, Mono, Section } from '@/comp
 import type { DerivedRun, RunBundle } from '@/domain/types'
 import { formatNumber, formatPercent } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
-import { confidencePoints, expectedCalibrationError, reliabilityBins, thresholdStats, TASK_LABEL, type ConfidencePoint, type ReliabilityBin } from './model'
+import { TASK_LABEL } from '@/domain/catalog/labels'
+import { confidencePoints, expectedCalibrationError, reliabilityBins, thresholdStats, type ConfidencePoint, type ReliabilityBin } from './model'
 import styles from './CostPage.module.css'
 
 const LEAK_LIMIT = 8

@@ -4,15 +4,6 @@ import type { AgentEvent, ItemId, ItemScore, ModelUsage, RunManifest, TaskKey, W
 import { TASK_KEYS } from '@/domain/types'
 import { parseItemId } from '@/engine'
 
-export const TASK_LABEL: Record<TaskKey, string> = {
-  ap: 'Bandeja AP',
-  ar_billing: 'Facturación',
-  ar_cash: 'Cobros',
-  bank_rec: 'Bancos',
-  ic: 'Intragrupo',
-  close: 'Cierre',
-}
-
 // ---------------------------------------------------------------- cost
 
 export interface CostSummary {
