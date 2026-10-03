@@ -10,6 +10,7 @@ from kalmora.ap_journal import (
     AdvanceApplication, AdvanceBalance, AdvanceState, ApprovedAdvanceOrder,
     CreditReference, InvoiceLineOrder, build_ap_journal, build_down_payment_request,
 )
+from kalmora.ap_credit_state import CreditBalance
 from kalmora.ap_tax import TaxCatalog, TaxLine, calculate_ap_tax
 from kalmora.ap_valuation import CostAssignment, ValuationLine, value_ap_lines
 from kalmora.ap_withholding import ContractGuarantee, WithholdingBase, WithholdingCatalog, calculate_ap_withholdings
@@ -173,6 +174,115 @@ class APJournalTests(unittest.TestCase):
             else:
                 with self.assertRaises(ValueError):
                     self.build(inputs=credit, document_type="CREDIT_NOTE", credit_references=refs)
+
+    def test_cumulative_credit_base_limits_and_exact_exhaustion_are_tentative(self):
+        source = {**self.build(inputs=self.inputs(net=100)).journal_entry, "id": "ORIGINAL-1"}
+        def credit(amount, ident, state=AdvanceState(), context=None):
+            return self.build(inputs=self.inputs(net=amount, doc_id=ident), document_type="CREDIT_NOTE",
+                              state=state, credit_references=[CreditReference("L", source, 1)], context=context)
+        first = credit(60, "CN-A")
+        saved = AdvanceState(events=first.state.events,
+                             credits=tuple(CreditBalance(**vars(b)) for b in first.state.credits))
+        with self.assertRaisesRegex(ValueError, "remaining original line"):
+            credit(50, "CN-B", saved)
+        with self.assertRaises(ValueError):
+            credit(40, "CN-B", saved, {"accounts": {"UNKNOWN"}})
+        self.assertEqual(saved, first.state)
+        second = credit(40, "CN-B", saved)
+        self.assert_balanced(second)
+        base = next(b for b in second.state.credits if b.bucket == "line:1")
+        self.assertEqual((base.capacity_doc, base.used_doc), (100, 100))
+        with self.assertRaisesRegex(ValueError, "already posted"):
+            credit(40, "CN-B", second.state)
+        with self.assertRaisesRegex(ValueError, "remaining original line"):
+            credit(1, "CN-C", second.state)
+
+    def test_cumulative_vat_rounding_cannot_refund_more_than_original_quota(self):
+        source = {**self.build(inputs=self.inputs(net=6)).journal_entry, "id": "ORIGINAL-VAT"}
+        first = self.build(inputs=self.inputs(net=3, doc_id="CN-A"), document_type="CREDIT_NOTE",
+                           credit_references=[CreditReference("L", source, 1)])
+        with self.assertRaisesRegex(ValueError, "remaining original vat"):
+            self.build(inputs=self.inputs(net=3, doc_id="CN-B"), document_type="CREDIT_NOTE",
+                       state=first.state, credit_references=[CreditReference("L", source, 1)])
+
+    def test_cumulative_supplier_limit_retains_original_guarantee_rounding(self):
+        original = self.inputs(net=10, codes=("IRPF15",), guarantee=ContractGuarantee(10, "C"))
+        source = {**self.build(inputs=original).journal_entry, "id": "ORIGINAL-SUPPLIER"}
+        first = self.build(inputs=self.inputs(net=5, doc_id="CN-A", codes=("IRPF15",),
+                           guarantee=ContractGuarantee(5, "C")), document_type="CREDIT_NOTE",
+                           credit_references=[CreditReference("L", source, 1)])
+        with self.assertRaisesRegex(ValueError, "remaining original supplier"):
+            self.build(inputs=self.inputs(net=5, doc_id="CN-B", codes=("IRPF15",),
+                       guarantee=ContractGuarantee(5, "C")), document_type="CREDIT_NOTE", state=first.state,
+                       credit_references=[CreditReference("L", source, 1)])
+
+    def test_multiline_original_withholding_and_deduction_caps_are_grouped_by_treatment(self):
+        original = self.multi_inputs((4000, 6000))
+        original["withholding"] = calculate_ap_withholdings(company="1100", country="ES", vendor="V1",
+            currency="EUR", invoice_id="MULTI", invoice_number="INV-1", invoice_date="2026-07-31", decision="POST",
+            bases=[WithholdingBase("0", 4000, ("IRPF15",)), WithholdingBase("1", 6000, ("IRPF15",))],
+            catalog=WithholdingCatalog(withholding_source()))
+        source = {**self.build(inputs=original).journal_entry, "id": "ORIGINAL-MULTILINE"}
+        state = AdvanceState()
+        for amount, ident, original_line in ((4000, "CN-A", 1), (6000, "CN-B", 2)):
+            result = self.build(inputs=self.inputs(net=amount, doc_id=ident, codes=("IRPF15",)),
+                document_type="CREDIT_NOTE", state=state, credit_references=[CreditReference("L", source, original_line)])
+            self.assert_balanced(result)
+            state = result.state
+        quota = next(b for b in state.credits if b.bucket == "withholding:IRPF15")
+        self.assertEqual((quota.capacity_doc, quota.used_doc), (1500, 1500))
+        self.assertEqual(next(b.used_doc for b in state.credits if b.bucket == "supplier"), 10600)
+
+    def test_partial_credit_of_negative_non_deductible_cost_preserves_direction(self):
+        source = {"id": "ORIGINAL-ND", "company": "1100", "currency": "EUR", "doc_type": "KR",
+            "document_date": "2026-06-01", "posting_date": "2026-06-01", "reference": "OLD", "source": "AP",
+            "lines": [{"account": "40090000", "partner": "V1", "debit": 15000, "credit": 0, "amount_doc": 15000},
+                      {"account": "62300000", "cost_center": "CC", "tax_code": "SND", "debit": 0, "credit": 5000, "amount_doc": 5000},
+                      {"account": "62300000", "cost_center": "CC", "tax_code": "SND", "debit": 2100, "credit": 0, "amount_doc": 2100},
+                      {"account": "41000000", "partner": "V1", "debit": 0, "credit": 12100, "amount_doc": 12100}]}
+        self.assertEqual(validate_entry(source), [])
+        state = AdvanceState()
+        for ident in ("CN-A", "CN-B"):
+            data = self.inputs(net=5000, doc_id=ident, code="SND")
+            component = data["valuation"].components[0]
+            data["valuation"] = replace(data["valuation"], components=(
+                replace(component, kind="GR_IR", account="40090000", partner="V1", cost_center=None,
+                        amount_doc=7500, amount_local=7500),
+                replace(component, amount_doc=-2500, amount_local=-2500)))
+            result = self.build(inputs=data, document_type="CREDIT_NOTE", state=state,
+                credit_references=[CreditReference("L", source, 1), CreditReference("L", source, 2)])
+            self.assert_balanced(result)
+            state = result.state
+        cost = next(b for b in state.credits if b.bucket.startswith("cost:"))
+        self.assertEqual((cost.capacity_doc, cost.used_doc), (2900, 2900))
+
+    def test_credit_snapshot_and_malformed_saved_balances_never_change_committed_state(self):
+        source = {**self.build(inputs=self.inputs(net=100)).journal_entry, "id": "ORIGINAL-1"}
+        first = self.build(inputs=self.inputs(net=40, doc_id="CN-A"), document_type="CREDIT_NOTE",
+                           credit_references=[CreditReference("L", source, 1)])
+        changed = {**source, "reference": "ANOTHER-INVOICE"}
+        with self.assertRaisesRegex(ValueError, "scope/snapshot"):
+            self.build(inputs=self.inputs(net=40, doc_id="CN-B"), document_type="CREDIT_NOTE",
+                       state=first.state, credit_references=[CreditReference("L", changed, 1)])
+        balance = first.state.credits[0]
+        malformed = ([balance], (balance, balance), (replace(balance, used_doc=True),),
+                     (replace(balance, used_doc=balance.capacity_doc + 1),),
+                     (replace(balance, capacity_doc=-1),), (replace(balance, original_sha256="invalid"),))
+        for credits in malformed:
+            with self.subTest(credits=credits), self.assertRaises((TypeError, ValueError)):
+                self.build(inputs=self.inputs(doc_id="INVOICE-NEW"), state=replace(first.state, credits=credits))
+        other = self.build(inputs=self.inputs(doc_id="INVOICE-NEW"), state=first.state)
+        self.assertEqual(other.state.credits, first.state.credits)
+        self.assertEqual(first.state.events, (("1100", "V1", "EUR", "CN-A"),))
+
+    def test_foreign_original_missing_document_amount_never_uses_local_cents_as_document_cents(self):
+        rates = RateTable([{"currency": "USD", "date": "2026-07-31", "rate": "1.2"}])
+        source = {**self.build(inputs=self.inputs(currency="USD", rates=rates)).journal_entry, "id": "ORIGINAL-FOREIGN"}
+        source["lines"] = [dict(line) for line in source["lines"]]
+        source["lines"][0].pop("amount_doc")
+        with self.assertRaisesRegex(ValueError, "original.*(document|journal)"):
+            self.build(inputs=self.inputs(currency="USD", rates=rates, net=5000, doc_id="CN-FOREIGN"),
+                       document_type="CREDIT_NOTE", credit_references=[CreditReference("L", source, 1)])
 
     def test_credit_of_invoice_with_applied_advance_requires_restoration_evidence(self):
         rates = RateTable([{"currency": "USD", "date": "2026-07-31", "rate": 1}])

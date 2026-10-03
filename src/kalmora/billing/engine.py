@@ -21,7 +21,7 @@ from .inputs import (BillingFacts, CertificationFacts, PpaFacts, RevisionFacts, 
                      SettlementFacts)
 from .journal import build_entry
 from .model import (BillingItem, BillingResult, BillingRun, BillingType, Decision, Deduction, Face,
-                    Invoice, InvoiceLine, Unresolved)
+                    Invoice, InvoiceLine, PendingWip, Unresolved)
 
 INCOME = {"OBRA": "70510000", "SERVICE": "70500000", "REVISION": "70520000", "ENERGY": "70530000"}
 ENERGY_INVOICE_DAY = {BillingType.PPA: 3, BillingType.MARKET_SETTLEMENT: 6}
@@ -82,6 +82,7 @@ class _Context:
         self.advance_used: dict[tuple[str, str], int] = {}
         self.series: dict[str, int] = {}
         self._invoices: dict[str, list[dict[str, Any]]] = {}
+        self.revised_fees: dict[tuple[str, str, str], int] = {}
 
     def invoices(self, contract: str) -> list[dict[str, Any]]:
         if contract not in self._invoices:
@@ -118,14 +119,25 @@ class _Context:
 
 def _decide_certification(ctx: _Context, item: BillingItem, contract: Mapping[str, Any],
                           facts: CertificationFacts) -> _Draft:
+    if type(facts.approved) is not bool:
+        raise _Blocked("certification approval must be an observed boolean")
     if facts.month != item.month:
         raise _Blocked(f"certification month {facts.month} differs from item month {item.month}")
-    if not facts.approved:
-        return _Draft(item, Decision.SKIP_PENDING_APPROVAL, evidence=facts.evidence)
     if sum(c.amount for c in facts.chapters) != facts.current:
         raise _Blocked("chapters do not add up to the current certification")
     if facts.cumulative - facts.previous != facts.current:
         raise _Blocked("current certification differs from cumulative minus previous")
+    if facts.current < 0:
+        raise _Blocked("negative certifications are not invoice decisions")
+    project = ctx.data.get("projects", contract["project"])["wbs"]
+    lines = []
+    for chapter in facts.chapters:
+        if not 1 <= chapter.number <= len(project):
+            raise _Blocked(f"chapter {chapter.number} has no WBS element in {contract['project']}")
+        lines.append(InvoiceLine(chapter.description, chapter.amount, INCOME["OBRA"],
+                                 wbs=project[chapter.number - 1]["id"]))
+    if not facts.approved:
+        return _Draft(item, Decision.SKIP_PENDING_APPROVAL, lines=tuple(lines), evidence=facts.evidence)
     year, month = int(item.month[:4]), int(item.month[5:])
     day = last_day_of_month(year, month).isoformat()
     notes: list[Diagnostic] = []
@@ -142,13 +154,6 @@ def _decide_certification(ctx: _Context, item: BillingItem, contract: Mapping[st
         notes.append("previous certified not verifiable: the contract has no earlier certification in the history")
     if ctx.strict and any(r["kind"] == "invoice" and r["date"] >= day for r in ctx.invoices(item.contract)):
         raise _Blocked("a certification of this month or later is already invoiced")
-    project = ctx.data.get("projects", contract["project"])["wbs"]
-    lines = []
-    for chapter in facts.chapters:
-        if not 1 <= chapter.number <= len(project):
-            raise _Blocked(f"chapter {chapter.number} has no WBS element in {contract['project']}")
-        lines.append(InvoiceLine(chapter.description, chapter.amount, INCOME["OBRA"],
-                                 wbs=project[chapter.number - 1]["id"]))
     return _Draft(item, Decision.INVOICE, day, tuple(lines), notes, facts.evidence)
 
 
@@ -157,10 +162,18 @@ def _decide_service(ctx: _Context, item: BillingItem, contract: Mapping[str, Any
     if facts.month != item.month:
         raise _Blocked(f"service month {facts.month} differs from item month {item.month}")
     day = last_day_of_month(int(item.month[:4]), int(item.month[5:])).isoformat()
+    if ctx.strict and any(r["kind"] == "invoice" and r["date"][:7] == item.month
+                          for r in ctx.invoices(item.contract)):
+        raise _Blocked("a monthly service of this period is already invoiced")
+    revised = ctx.revised_fees.get((item.company, item.contract, item.month))
+    if revised is not None and facts.canon != revised:
+        raise _Blocked(f"service canon {facts.canon} differs from approved revision {revised}")
     lines = [InvoiceLine(f"{contract['name']} – servicio mensual {item.month}", facts.canon,
                          INCOME["SERVICE"], cost_center=contract["cc"])]
     draft = _Draft(item, Decision.INVOICE, day, evidence=facts.evidence)
     for extra in facts.extras:
+        if type(extra.approved) is not bool:
+            raise _Blocked("extra service conformity must be an observed boolean")
         if extra.approved:
             lines.append(InvoiceLine(extra.description, extra.amount, INCOME["SERVICE"],
                                      cost_center=contract["cc"]))
@@ -277,12 +290,13 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
             advance_available=ctx.advance_available(*key, draft.date) if advance_bp else 0)
     except ValueError as error:
         raise _Blocked(f"amounts: {error}") from None
-    if ctx.strict:  # a replay already finds earlier amortizations in the history
-        ctx.advance_used[key] = ctx.advance_used.get(key, 0) + amounts.advance
     deductions = tuple(Deduction(c, a, acc) for c, a, acc in
                        (("MX5MILL", amounts.levy, "63100000"), ("ADV_AMORT", amounts.advance, "43800000")) if a)
     due = (date.fromisoformat(draft.date) + timedelta(days=contract["terms_days"])).isoformat()
     dir3 = customer.get("dir3")
+    if customer["kind"] == "public" and customer["country"] == "ES" and (
+            not dir3 or any(not dir3.get(k) for k in ("oficina_contable", "organo_gestor", "unidad_tramitadora"))):
+        raise _Blocked("public Spanish customer is missing required DIR3 codes")
     face = Face(**{k: dir3[k] for k in ("oficina_contable", "organo_gestor", "unidad_tramitadora")}) \
         if customer["kind"] == "public" and customer["country"] == "ES" and dir3 else None
     invoice = Invoice(_next_number(ctx, item, draft.date), draft.date, due, code, amounts.net, amounts.tax,
@@ -295,6 +309,9 @@ def _finish(ctx: _Context, draft: _Draft, contract: Mapping[str, Any]) -> Billin
     problems = validate_entry(entry, context)
     if problems:
         raise _Blocked(*problems)
+    if ctx.strict:  # consume only after the invoice and journal entry validate
+        ctx.advance_used[key] = ctx.advance_used.get(key, 0) + amounts.advance
+    entry["provenance"] = {"event_id": item.id, "stage": "ar_billing"}
     return BillingResult(item, Decision.INVOICE, invoice, entry, draft.evidence, tuple(draft.notes))
 
 
@@ -302,18 +319,32 @@ def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mappi
                      *, strict_duplicates: bool = True) -> BillingRun:
     """Resolve every item that has facts. ``strict_duplicates=False`` replays past months
     (invoices on or after the item's date are ignored instead of rejected)."""
+    if len({i.id for i in items}) != len(items):
+        raise ValueError("billing item IDs must be unique")
     ctx = _Context(data, strict_duplicates)
     drafts: list[tuple[BillingItem, _Draft | _Blocked, Mapping[str, Any] | None]] = []
-    for item in items:
+    coverage: set[tuple[str, str, BillingType, str]] = set()
+    # The decree is checked before monthly service, independent of task order.
+    for item in sorted(items, key=lambda i: i.type is not BillingType.PRICE_REVISION):
         try:
             contract = ctx.contract(item)
             expected, decide = _DECIDERS[item.type]
             found = facts.get(item.id)
             if not isinstance(found, expected):
                 raise _Blocked(f"no {expected.__name__} supplied for this {item.type.value} item")
-            drafts.append((item, decide(ctx, item, contract, found), contract))  # type: ignore[operator]
+            covered = (item.company, item.contract, item.type, item.month)
+            if ctx.strict and covered in coverage:
+                raise _Blocked("another billing item already covers this contract, type and period")
+            draft = decide(ctx, item, contract, found)  # type: ignore[operator]
+            drafts.append((item, draft, contract))
+            if draft.decision is Decision.INVOICE:
+                coverage.add(covered)
+                if isinstance(found, RevisionFacts):
+                    ctx.revised_fees[(item.company, item.contract, item.month)] = found.new_fee
         except _Blocked as blocked:
             drafts.append((item, blocked, None))
+        except (KeyError, ValueError, TypeError) as error:
+            drafts.append((item, _Blocked(f"inputs: {error}"), None))
     done: dict[str, BillingResult | Unresolved] = {}
     ordered = sorted((d for d in drafts if isinstance(d[1], _Draft) and d[1].decision is Decision.INVOICE),
                      key=lambda d: (d[1].date, d[0].contract, d[0].id))  # type: ignore[union-attr]
@@ -322,6 +353,8 @@ def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mappi
             done[item.id] = _finish(ctx, draft, terms)  # type: ignore[arg-type]
         except _Blocked as blocked:
             done[item.id] = Unresolved(item, blocked.reasons)
+        except (KeyError, ValueError, TypeError) as error:
+            done[item.id] = Unresolved(item, (f"inputs: {error}",))
     for item, outcome, _ in drafts:
         if isinstance(outcome, _Blocked):
             done[item.id] = Unresolved(item, outcome.reasons)
@@ -330,4 +363,7 @@ def build_ar_billing(data: PhaseData, items: Sequence[BillingItem], facts: Mappi
                                           diagnostics=tuple(outcome.notes))
     results = tuple(done[i.id] for i in items if isinstance(done[i.id], BillingResult))
     unresolved = tuple(done[i.id] for i in items if isinstance(done[i.id], Unresolved))
-    return BillingRun(results, unresolved)  # type: ignore[arg-type]
+    pending = {item.id: PendingWip(item, sum(x.amount for x in outcome.lines), outcome.lines, outcome.evidence)
+               for item, outcome, _ in drafts
+               if isinstance(outcome, _Draft) and outcome.decision is Decision.SKIP_PENDING_APPROVAL}
+    return BillingRun(results, unresolved, tuple(pending[i.id] for i in items if i.id in pending))  # type: ignore[arg-type]

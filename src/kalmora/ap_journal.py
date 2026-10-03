@@ -7,7 +7,11 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 import re
+import json
 
+from .ap_credit_state import (
+    CreditBalance, CreditReservation, original_credit_sha256, reserve_credit, validate_credit_balances,
+)
 from .ap_tax import PostingDecision, TaxResult, fiscal_line, local_amount, nonnegative, require_posting
 from .ap_valuation import CostAssignment, ValuationResult
 from .ap_withholding import WithholdingResult
@@ -38,6 +42,7 @@ class AdvanceBalance:
 class AdvanceState:
     balances: tuple[AdvanceBalance, ...] = ()
     events: tuple[tuple[str, str, str, str], ...] = ()
+    credits: tuple[CreditBalance, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -106,6 +111,7 @@ def _ratio(amount: int, numerator: int, denominator: int) -> int:
 
 
 def _state(state: AdvanceState) -> dict[tuple[str, str], AdvanceBalance]:
+    validate_credit_balances(state.credits)
     balances: dict[tuple[str, str], AdvanceBalance] = {}
     for balance in state.balances:
         for name in ("advance_id", "vendor", "currency", "invoice_number", "original_date", "po"):
@@ -167,12 +173,14 @@ def _entry(company: str, currency: str, invoice_number: str, invoice_date: str,
 
 def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliation_account: str,
                        invoice_date: str, valuation: ValuationResult, tax: TaxResult,
-                       withholding: WithholdingResult, references: Iterable[CreditReference]) -> None:
+                       withholding: WithholdingResult, references: Iterable[CreditReference]) -> tuple[CreditReservation, ...]:
     references = tuple(references)
     if not references:
         raise ValueError("credit notes require resolved original imputation evidence")
     candidates: dict[str, list[tuple[tuple[str, str, int], JournalLine]]] = {}
     originals: dict[str, JournalEntry] = {}
+    limits: dict[tuple[str, str], tuple[int, int]] = {}
+    original_lines: dict[tuple[str, str, int], JournalLine] = {}
     seen_refs: set[tuple[str, tuple[str, str, int]]] = set()
     for ref in references:
         _text(ref.line_id, "credited line id")
@@ -191,11 +199,16 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         if any(l["account"].startswith("407") and (l["debit"] or l["credit"])
                for l in original["lines"]):
             raise ValueError("credit original contains applied advances; restoration requires resolved evidence")
+        if any((l.get("currency") or original.get("currency") or company_local_currency(company)) != currency
+               or (currency != company_local_currency(company) and "amount_doc" not in l)
+               for l in original["lines"]):
+            raise ValueError("credit original document-currency amounts are unresolved")
         number = integer(ref.original_line, "original line number")
         matches = [l for i, l in enumerate(original["lines"], 1) if l.get("line", i) == number]
-        if len(matches) != 1 or matches[0].get("currency", original.get("currency")) != currency:
+        if len(matches) != 1 or (matches[0].get("currency") or original.get("currency") or company_local_currency(company)) != currency:
             raise ValueError("original credited line/currency unresolved")
         key = (company, original["id"], number)
+        original_lines[key] = matches[0]
         if (ref.line_id, key) in seen_refs:
             raise ValueError("duplicate original credit mapping")
         seen_refs.add((ref.line_id, key))
@@ -217,9 +230,13 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         credited[key] = credited.get(key, 0) + abs(component.amount_doc)
         if credited[key] > line.get("amount_doc", max(line["debit"], line["credit"])):
             raise ValueError("aggregate credit exceeds referenced original line")
+    for key, amount in credited.items():
+        line = original_lines[key]
+        limits[(key[1], f"line:{key[2]}")] = (line.get("amount_doc", max(line["debit"], line["credit"])), amount)
     fiscal_original: dict[str, str] = {}
     fiscal_by_original: dict[str, list] = {}
     requested_vat: dict[tuple[str, str], int] = {}
+    vat_postings: dict[tuple[str, str, str], int] = {}
     for component in tax.components:
         refs = candidates.get(component.line_id, ())
         entries = {key[1] for key, _ in refs}
@@ -244,11 +261,19 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         quota = sum(l["amount_doc"] for l in component.journal_lines if l["account"] in {"47200000", "47210000"})
         key = (original_id, component.tax_code)
         requested_vat[key] = requested_vat.get(key, 0) + quota
+        for posting in component.journal_lines:
+            if posting["account"] in {"47200000", "47210000", "47710000"}:
+                posting_key = (original_id, posting["account"], component.tax_code)
+                vat_postings[posting_key] = vat_postings.get(posting_key, 0) + posting["amount_doc"]
     for (original_id, code), amount in requested_vat.items():
         original_quota = sum(l.get("amount_doc", l["debit"]) for l in originals[original_id]["lines"]
                              if l["account"] in {"47200000", "47210000"} and l.get("tax_code") == code)
         if amount > original_quota:
             raise ValueError("credit VAT exceeds original fiscal quota")
+    for (original_id, account, code), amount in vat_postings.items():
+        capacity = sum(l.get("amount_doc", max(l["debit"], l["credit"]))
+                       for l in originals[original_id]["lines"] if (l["account"], l.get("tax_code")) == (account, code))
+        limits[(original_id, f"vat:{account}:{code}")] = (capacity, amount)
     for component in tax.components:
         original_id = fiscal_original[component.line_id]
         for posting in component.journal_lines:
@@ -259,45 +284,60 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
                                 (1 if l["debit"] > l["credit"] else -1)
                                 for l in originals[original_id]["lines"]
                                 if (l["account"], l.get("cost_center"), l.get("wbs")) == dimension
-                                and l.get("currency", currency) == currency)
+                                and (l.get("currency") or currency) == currency)
             net_credit = sum(c.amount_doc for c in valuation.components
                              if line_original.get(c.line_id) == original_id
                              and (c.account, c.cost_center, c.wbs) == dimension)
             tax_credit = sum(l["amount_doc"] for c in tax.components
                              if fiscal_original[c.line_id] == original_id for l in c.journal_lines
                              if (l["account"], l.get("cost_center"), l.get("wbs")) == dimension)
-            if net_credit + tax_credit > original_cost:
+            requested_cost = net_credit + tax_credit
+            if (abs(requested_cost) > abs(original_cost)
+                    or requested_cost * original_cost < 0):
                 raise ValueError("non-deductible credit cost exceeds original expense/asset")
+            bucket = "cost:" + json.dumps(dimension, separators=(",", ":"))
+            limits[(original_id, bucket)] = (abs(original_cost), abs(requested_cost))
     # Check deductions against observed original treatments and catalogue bases,
     # not today's vendor defaults. Unknown/mixed original allocation abstains.
     catalog = dict(withholding.catalog_codes)
     expected: dict[tuple[str, str], int] = {}
     guarantee_base = 0
+    guarantee_requests: dict[str, int] = {}
     for original_id, fiscal in fiscal_by_original.items():
         original = originals[original_id]
         net_lines = [l for l in original["lines"]
                      if ((l["account"][0] in "26" and l["account"] not in {"66800000", "76800000"})
-                         or l["account"] == "40090000") and l.get("currency", currency) == currency]
+                         or l["account"] == "40090000") and (l.get("currency") or currency) == currency]
         net = sum(l.get("amount_doc", max(l["debit"], l["credit"])) * (1 if l["debit"] > l["credit"] else -1) for l in net_lines)
         original_withholding = [l for l in original["lines"] if l["account"] == "47510000" and l["credit"]]
         taxable_lines = [l for l in net_lines if l.get("tax_code") in {"S21", "P23", "M16"}]
         taxable = sum(l.get("amount_doc", l["debit"]) * (1 if l["debit"] > l["credit"] else -1) for l in taxable_lines)
+        original_quotas: dict[str, int] = {}
         for line in original_withholding:
             code = line.get("tax_code")
             treatment = catalog.get(code)
             if treatment is None or line["account"] != treatment.account:
                 raise ValueError("original withholding treatment is unknown")
-            if _ratio(taxable, treatment.rate, 10000) != line.get("amount_doc", line["credit"]):
+            original_quotas[code] = original_quotas.get(code, 0) + line.get("amount_doc", line["credit"])
+        for code, quota in original_quotas.items():
+            treatment = catalog[code]
+            if _ratio(taxable, treatment.rate, 10000) != quota:
                 raise ValueError("original withholding base allocation is unresolved")
             for component in fiscal:
                 if component.tax_code in {"S21", "P23", "M16"}:
                     key = (component.line_id, code)
                     expected[key] = _ratio(component.base_doc, treatment.rate, 10000)
+            amount = sum(component.amount_doc for component in withholding.components
+                         if component.kind == "WITHHOLDING" and component.code == code
+                         and fiscal_original.get(component.line_id) == original_id)
+            limits[(original_id, f"withholding:{code}")] = (quota, amount)
         original_guarantee = sum(l.get("amount_doc", l["credit"]) for l in original["lines"] if l["account"] == "40000900" and l["credit"])
         if original_guarantee:
             if _ratio(net, 500, 10000) != original_guarantee:
                 raise ValueError("original guarantee eligible base is unresolved")
             guarantee_base += sum(c.base_doc for c in fiscal)
+            guarantee_requests[original_id] = _ratio(sum(c.base_doc for c in fiscal), 500, 10000)
+            limits[(original_id, "guarantee")] = (original_guarantee, guarantee_requests[original_id])
     actual: dict[tuple[str, str], int] = {}
     for component in withholding.components:
         if component.kind == "WITHHOLDING":
@@ -307,6 +347,18 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         raise ValueError("credit withholding does not reverse observed original treatment")
     if withholding.retention_doc != _ratio(guarantee_base, 500, 10000):
         raise ValueError("credit guarantee does not reverse observed original guarantee")
+    if sum(guarantee_requests.values()) != withholding.retention_doc:
+        raise ValueError("credit guarantee allocation across originals is unresolved")
+    for original_id, fiscal in fiscal_by_original.items():
+        capacity = sum(l.get("amount_doc", max(l["debit"], l["credit"])) * (1 if l["credit"] > l["debit"] else -1)
+                       for l in originals[original_id]["lines"] if l["account"] == reconciliation_account and l.get("partner") == vendor)
+        deducted = sum(c.amount_doc for c in withholding.components if c.kind == "WITHHOLDING"
+                       and fiscal_original.get(c.line_id) == original_id)
+        amount = sum(c.gross_doc for c in fiscal) - deducted - guarantee_requests.get(original_id, 0)
+        limits[(original_id, "supplier")] = (capacity, amount)
+    hashes = {ident: original_credit_sha256(entry) for ident, entry in originals.items()}
+    return tuple(CreditReservation(ident, hashes[ident], bucket, capacity, amount)
+                 for (ident, bucket), (capacity, amount) in limits.items())
 
 
 def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
@@ -374,13 +426,15 @@ def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
     if document_type not in {"INVOICE", "CREDIT_NOTE"}:
         raise ValueError("invoice or credit-note document type required")
     advances = tuple(advances)
+    credit_balances = state.credits
     if document_type == "CREDIT_NOTE":
         if advances:
             raise ValueError("credit-note advance restoration requires separate resolved evidence")
-        _credit_imputation(company=company, vendor=vendor, currency=currency,
+        reservations = _credit_imputation(company=company, vendor=vendor, currency=currency,
                            invoice_date=invoice_date,
                            reconciliation_account=reconciliation_account, valuation=valuation,
                            tax=tax, withholding=withholding, references=credit_references)
+        credit_balances = reserve_credit(state.credits, reservations, company=company, vendor=vendor, currency=currency)
     lines: list[JournalLine] = []
     tax_codes = {component.line_id: component.tax_code for component in tax.components}
     for component in valuation.components:
@@ -486,7 +540,7 @@ def build_ap_journal(*, company: str, vendor: str, currency: str, doc_id: str,
     if document_type == "CREDIT_NOTE":
         lines = [{**line, "debit": line["credit"], "credit": line["debit"]} for line in lines]
     entry = _entry(company, currency, invoice_number, invoice_date, posting_date, lines, document_type, context)
-    new_state = AdvanceState(tuple(balances[k] for k in sorted(balances)), (*state.events, event))
+    new_state = AdvanceState(tuple(balances[k] for k in sorted(balances)), (*state.events, event), credit_balances)
     return APJournalResult(document_type, payable_doc, payable_local, entry, new_state, tuple(usages))
 
 
@@ -523,5 +577,5 @@ def build_down_payment_request(*, company: str, vendor: str, vendor_country: str
                     partner=vendor, assignment=invoice_number)], "DOWN_PAYMENT_REQUEST", context)
     balances[(company, doc_id)] = AdvanceBalance(doc_id, company, vendor, currency, invoice_number,
                                                 invoice_date, order.po, amount_doc, amount_local)
-    new_state = AdvanceState(tuple(balances[k] for k in sorted(balances)), (*state.events, event))
+    new_state = AdvanceState(tuple(balances[k] for k in sorted(balances)), (*state.events, event), state.credits)
     return APJournalResult("DOWN_PAYMENT_REQUEST", amount_doc, amount_local, entry, new_state)

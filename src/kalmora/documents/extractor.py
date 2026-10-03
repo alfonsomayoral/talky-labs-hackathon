@@ -329,17 +329,25 @@ def _provider_name(client: Any) -> str:
 
 
 class LLMDocumentExtractor:
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, *, include_processing_aids: bool = True) -> None:
+        if type(include_processing_aids) is not bool:
+            raise ValueError('include_processing_aids must be a boolean')
         self.client = client
+        self.include_processing_aids = include_processing_aids
 
-    def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
-        schema, _ = output_models()
+    def _prompt_extras(self) -> dict[str, Any]:
         extras = {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
                   "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
                   "detail_fields": sorted(DETAIL_FIELDS), "raw_extension": "raw.<literal_field_name>",
                   "image_locator_version": 1}
+        if not self.include_processing_aids:
+            extras['include_processing_aids'] = False
+        return extras
+
+    def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
+        schema, _ = output_models()
         return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
-                                   EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": extras},
+                                   EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": self._prompt_extras()},
                                    provider or _provider_name(self.client))
 
     @property
@@ -357,11 +365,7 @@ class LLMDocumentExtractor:
         provenance.update(provider=identity["provider"], model=identity["model"],
                           extractor_version=identity["extractor_version"])
         completion = await _complete(self.client, schema, EXTRACTION_INSTRUCTIONS,
-                                               _prompt(document, {"canonical_fields": sorted(HEADER_FIELDS - DERIVED_COUNTS.keys()),
-                                                                  "line_fields": sorted(LINE_FIELDS), "statement_fields": sorted(STATEMENT_FIELDS),
-                  "detail_fields": sorted(DETAIL_FIELDS),
-                                                                  "raw_extension": "raw.<literal_field_name>",
-                                                                  "image_locator_version": 1}),
+                                               _prompt(document, self._prompt_extras()),
                                      document, provenance)
         output = completion.output
         fields: dict[str, list[Fact]] = {}

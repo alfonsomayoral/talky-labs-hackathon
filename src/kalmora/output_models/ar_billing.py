@@ -32,6 +32,10 @@ class ArInvoice(TypedDict, total=False):
     """The invoice to issue. Scored fields: ``tax_code``, ``due_date``, ``net``, ``tax``,
     ``retention``, ``payable`` and, for public customers, ``face``."""
 
+    number: str
+    currency: str
+    gross: Cents
+    legal_notice: str
     date: IsoDate
     due_date: Required[IsoDate]
     tax_code: Required[str]

@@ -580,7 +580,8 @@ def _runtime(case_ids, reports, contract):
         if reason:
             issues.append({"case_id": cid, "code": "live_capture_gate", "reasons": reason})
     p95 = sorted(times)[math.ceil(len(times) * .95) - 1] if times else None
-    if p95 is None or len(times) != len(case_ids) or p95 > FROZEN_THRESHOLDS["latency_p95_seconds_max"]:
+    latency_limit = contract['thresholds']['latency_p95_seconds_max']
+    if latency_limit is not None and (p95 is None or len(times) != len(case_ids) or p95 > latency_limit):
         issues.append({"code": "latency_gate", "unknown_count": len(case_ids) - len(times)})
     budget = Decimal(contract["budget"]["smoke_plus_sample_spend_cap_usd"])
     if len(costs) != len(case_ids) or sum(costs, Decimal(0)) > budget:
@@ -603,7 +604,10 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
     annotations, annotation_hash = _load(annotations)
     contract = manifest["evaluation_contract"]
     violations = []
-    if contract["thresholds"] != FROZEN_THRESHOLDS:
+    expected_thresholds = dict(FROZEN_THRESHOLDS)
+    if contract.get('threshold_revision') == 'user-no-temporal-limit-2026-10-03':
+        expected_thresholds['latency_p95_seconds_max'] = None
+    if contract["thresholds"] != expected_thresholds:
         violations.append({"code": "frozen_thresholds_changed"})
     expected_cases = {c["case_id"] for c in manifest["cases"] if c["split"] == scope}
     actual_cases = {c["case_id"] for c in annotations["cases"]}
@@ -740,7 +744,8 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
               "capture_correctness_passed": correctness_passed, "live_capture_confirmed": not runtime_issues,
               "manifest_sha256": manifest_hash, "annotations_sha256": annotation_hash,
               "image_reviews_sha256": fingerprint(image_reviews or {}),
-              "selection_sha256": manifest["selection_sha256"], "thresholds": FROZEN_THRESHOLDS,
+              "selection_sha256": manifest["selection_sha256"], "thresholds": contract['thresholds'],
+              "threshold_revision": contract.get('threshold_revision'),
               "metrics": {key: _ratio(*value) for key, value in counters.items()},
               "per_field": {key: _ratio(*value) for key, value in sorted(field_counts.items())},
               "per_format": {key: _ratio(*value) for key, value in sorted(format_counts.items())},

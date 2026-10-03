@@ -618,17 +618,20 @@
       "unique_resolvable_candidate_coverage_min": "0.80",
       "ambiguous_correct_abstention_min": "1.00",
       "case_required_field_completeness_min": "0.95",
-      "latency_p95_seconds_max": 60,
+      "latency_p95_seconds_max": null,
       "capture_estimated_cost_usd_per_document_max": "0.10",
       "unknown_cost": "fails cost criterion"
     },
+    "threshold_revision": "user-no-temporal-limit-2026-10-03",
+    "threshold_revision_reason": "User removed temporal limits before holdout evaluation; elapsed time and p95 remain reported, all accuracy/evidence/completeness/cost gates unchanged",
     "budget": {
-      "smoke_plus_sample_spend_cap_usd": "1.00",
+      "smoke_plus_sample_spend_cap_usd": "5.00",
+      "spend_cap_change": "User approved USD5 and any necessary further extension on 2026-10-03 to complete model comparisons; spending and unknown reservations remain recorded, non-temporal quality and per-document-cost gates unchanged",
       "max_attempts_per_document": 2,
       "max_concurrency": 2,
       "output_token_limit": null,
       "output_limit_policy": "No application output-token limit, per user instruction; monetary reservations use verified model capacity without constraining the response",
-      "request_timeout_seconds": 60,
+      "request_timeout_seconds": null,
       "holdout_attempts_policy": "One frozen candidate/prompt/config pass; timeout retries only within predeclared attempt cap, no retuning or answer selection"
     },
     "reporting": {

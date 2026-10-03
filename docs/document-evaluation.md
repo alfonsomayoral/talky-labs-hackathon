@@ -1,5 +1,11 @@
 # Document evaluation contract (#139)
 
+Release status, 2026-10-03: the user accepts Luna provisionally and defers the
+remaining quality gate to [hotfix #222](https://github.com/alfonsomayoral/talky-labs-hackathon/issues/222).
+See [measured results and acceptance decision](evaluation/luna-provisional-release.md).
+The evaluator continues reporting actual failures; production integration can
+proceed under this explicit provisional approval.
+
 This evaluator consumes explicit original-source annotations and captures. Solver code must never import `kalmora.documents.evaluation` or access these fixtures. No model has been evaluated by this commit. Closing #139 requires the parent's frozen live benchmark; unit tests and source audits establish harness behavior only.
 
 The frozen sample remains 20 documents: 12 tuning and eight holdout. Holdout labels were manually sealed before live evaluation, after reviewing eight original PDF pages (including the image-only page) and two XML documents. The label file byte SHA-256 is `e471a50c39383d96681a891f7fb142696dfb60fb3d41408165720de266f0c866`. It contains 191 facts plus eight document types, 189 critical slots, 64 visible line amount/quantity slots, and eight manually resolvable semantic checks. No intrinsic ambiguous real semantic case exists in this partition; the abstention denominator is zero, rather than a fabricated success. Synthetic ambiguous and incorrect-candidate guards are tested separately. Repeated organizer templates overlap between partitions; these results cannot establish generalization to unseen layouts.
@@ -36,11 +42,19 @@ precision denominators are unchanged; reports expose absence abstentions
 separately. This protocol interpretation is fixed before holdout evaluation and
 does not modify labels, partitions or acceptance thresholds.
 
-The thresholds in the sample manifest are immutable: critical exactness and critical prediction precision at least 95%; returned observation evidence grounding 100%; fabricated values/IDs zero; semantic selection precision 100%; unique resolvable coverage at least 80%; ambiguous abstention 100% where applicable; required-field completeness at least 95% per case; p95 capture latency at most 60 seconds; estimated capture cost at most USD 0.10 per document. Unknown cost fails. The smoke plus sample budget is USD 1, at most two attempts per operation, concurrency two and request timeout 60 seconds. The user subsequently removed the application output limit before holdout evaluation; the API omits it and monetary reservations use the model's verified 128,000-token capacity. The runner enforces concurrency, timeout, spending and the no-retuning holdout policy. Multiple independent attachments or semantic operations are not retries of one request.
+Quality gates remain fixed: critical exactness and critical prediction precision at least 95%; returned observation evidence grounding 100%; fabricated values/IDs zero; semantic selection precision 100%; unique resolvable coverage at least 80%; ambiguous abstention 100% where applicable; required-field completeness at least 95% per case; estimated capture cost at most USD 0.10 per document. Unknown cost fails. The user removed temporal limits on 2026-10-03: request deadlines and the former p95 <=60s acceptance gate are disabled. Actual durations and p95 remain reported. The named contract revision records this explicit change before holdout; arbitrary threshold changes still fail. The aggregate experimental budget is USD3, at most two attempts per operation and concurrency two. The user also removed the application output-token cap; the API omits it and spending reservations use verified physical model capacity. The runner enforces spending, attempts, concurrency and the no-retuning holdout policy. Multiple independent attachments or semantic operations are not retries of one request.
 
 Runtime reports are actual `RunRecorder` JSON per case, including completed calls with provider `openai`, candidate model `gpt-6-luna`, nonzero known usage, and explicit USD/per-token prices and provenance. The evaluator reproduces estimated cost using Decimal. Reports require `input_metadata.capture_mode="captured_live"`, `transport_mode="default"`, and `response_source="provider_api"`. Synthetic/test-fixture markers exclude live confirmation. Cached-only zero-cost runs and replay/model mocks cannot establish live quality. These runner attestations are a trust boundary: an evaluator cannot independently prove that a caller honestly used the default transport. Persist actual production RunRecorder reports and client configuration with the benchmark.
 
 `capture_correctness_passed` reports offline correctness separately. `passed` requires correctness plus live provenance, performance, and cost. Missing runtime reports fail the live gate. This commit does not contain scores, latency estimates asserted as observations, or fabricated provider bills. Any later full-AP run needs an explicit estimated budget before execution.
+
+The user approved raising the aggregate experimental spend cap to USD 5 on
+2026-10-03 for a GPT-6.1 Sol comparison without limiting model output. This
+changes only that cap, retaining all quality, latency, retry and per-document
+cost gates and the original sealed holdout. Necessary further experimental
+extensions are authorized; each run still declares and audits its budget.
+Reservations for unknown usage are
+not reported as zero charges or silently released.
 
 ## Independent image quotation review
 
