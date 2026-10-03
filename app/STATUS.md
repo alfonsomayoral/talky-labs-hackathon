@@ -42,7 +42,12 @@ Comprobado por la coordinadora el 03/10/2026 sobre `hackathon/frontend`.
 | 6 | El Asistente responde las 4 preguntas con cifras iguales a Resumen y Atención, y las partidas citadas abren el panel | Cumple | Navegador con julio: 56 pendientes, 11,6 M€, hueco de 69,8 M€ a 0 €. Tests en `src/features/assistant/engine/local.test.ts` |
 | 7 | El recorrido de demo se hace sin errores en consola | Cumple | Los 7 pasos del «Recorrido de demo» de `app/README.md` sobre julio, sin errores ni avisos |
 
-Pendiente para cerrar la puerta 5: integrar las PRs de QA que faltan (`fe/qa-core`, más rondas de `fe/qa-tasks` y `fe/qa-shell-demo`) y repetir 3, 5 y 7 sobre el resultado.
+Repetido sobre `5caa8e8`, que ya lleva las PRs #153, #154, #157, #158, #161 y #162:
+- **3:** septiembre sin golden, 21 rutas y paneles, cero errores y cero avisos de consola;
+- **5:** 360 tests y build en verde;
+- **7:** el recorrido de demo de julio, sin errores.
+
+Pendiente para cerrar las puertas 5 y 6: la segunda PR de `fe/qa-core` (contraste y fecha en `MasterCompare`) y una última pasada de 3, 5 y 7.
 
 ## Datos para la QA
 
