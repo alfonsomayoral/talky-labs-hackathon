@@ -48,6 +48,8 @@ ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 
 ## Roadmap
 
+[Guía de interfaces y reproducción de M0](docs/m0-backend.md).
+
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
 ingesta, contratos contables, trazabilidad y evaluación reproducible.
 
