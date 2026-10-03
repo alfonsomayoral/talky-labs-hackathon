@@ -111,6 +111,14 @@ class RejectionTests(unittest.TestCase):
         self.assertEqual(evaluate_rejections(fields | {"cfdi_xml": fact({"number": "number"})}).status,
                          "UNKNOWN")
 
+    def test_cumulative_billed_despite_line_rounding_cents(self):
+        fields = valid_fields() | {key: fact(value) for key, value in {
+            "certification_applicable": True, "certification_current_cents": 28037611,
+            "certification_cumulative_cents": 525999861}.items()}
+        for billed, reason in ((525999857, "CERTIFICATION_CUMULATIVE_BILLED"), (28037611, None)):
+            stage = evaluate_rejections(fields | {"billed_net_cents": fact(billed)})
+            self.assertEqual(stage.reason, reason)
+
     def test_gate_validation_and_no_input_mutation(self):
         fields = valid_fields()
         before = dict(fields)

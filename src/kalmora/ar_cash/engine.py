@@ -369,6 +369,19 @@ def _unique_subset(candidates: list[_Candidate], amount: int) -> list[_Candidate
     return [candidates[index] for index in paths[0]]
 
 
+def _exact_subset_count(candidates: list[_Candidate], amount: int) -> int | None:
+    """Count exact subsets up to two; None means the candidate set is too large."""
+    if len(candidates) > 18:
+        return None
+    ways = {0: 1}
+    for candidate in candidates:
+        for subtotal, count in list(ways.items()):
+            total = subtotal + candidate.balance
+            if total <= amount:
+                ways[total] = min(2, ways.get(total, 0) + count)
+    return ways.get(amount, 0)
+
+
 def _unique_penalty_subset(candidates: list[_Candidate], penalty_rows: list[dict[str, Any]],
                            customer: str, receipt_date: str, cash: int
                            ) -> list[tuple[_Candidate, int]] | None:
@@ -748,7 +761,13 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     if sum(candidate.balance == amount for candidate in due_candidates) > 1:
                         diagnostics.append("multiple exact invoice matches; left unapplied")
                     elif len(due_candidates) > 1:
-                        diagnostics.append("no unique exact/grouped invoice match; left unapplied")
+                        subset_count = _exact_subset_count(due_candidates, amount)
+                        if subset_count == 2:
+                            diagnostics.append("multiple exact invoice subsets match; left unapplied")
+                        elif subset_count is None:
+                            diagnostics.append("exact invoice subset search exceeded its bound; left unapplied")
+                        else:
+                            diagnostics.append("no unique exact/grouped invoice match; left unapplied")
 
             if not apps:
                 # A repeated transfer matching a prior full application is evidence of

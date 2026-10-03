@@ -111,6 +111,10 @@ on both 407 and reconciliation lines.
 
 `AdvanceBalance` carries original document cents and booked local cents, the
 source invoice/date/PO, and cumulative document/local consumption.
+[`resolve_historical_advances`](ap-advance-history.md) reconstructs those
+balances and recorded consumption from complete scoped ERP evidence through an
+explicit cutoff. Unknown manual movements suppress usable capacity; original
+null-partner diagnostics are retained without rewriting historical entries.
 `AdvanceApplication` supplies amount, classification and evidence; unknown
 classification blocks. The invoice must explicitly resolve the same PO and
 company/vendor/currency. Every application names an invoice line and an explicit
@@ -165,6 +169,12 @@ after successful projected-ledger insertion. Replaying the same
 validation leaves the incoming state unchanged. Reconstruction from saved state
 retains consumed advance/credit balances and events. M0 `Ledger.add_entry` supplies the final
 event/stage duplicate protection when persisting journals.
+
+[`resolve_ap_opening_state`](ap-opening-state.md) connects the observed advance
+baseline with proved zero historical credit consumption for an explicit scope
+and cutoff. Use it once before new tasks; unknown history exposes no state.
+The caller preserves receipt consumption, prior events and committed credits
+instead of resetting an evolving transaction state.
 
 This module does not serialize `ap.jsonl`, read extraction facts or run decision
 precedence. #55 owns that orchestration, while #32/#35 keep contracts/scoring.

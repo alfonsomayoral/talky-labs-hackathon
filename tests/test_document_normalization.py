@@ -46,6 +46,13 @@ class NormalizationTests(unittest.TestCase):
             self.assertFalse(self.normalize({"document_date": value}).facts.fields)
         self.assertFalse(self.normalize({"currency": "$"}).facts.fields)
 
+    def test_notice_validity_dates_and_ibans_normalize(self):
+        result = self.normalize({"certificate_valid_from": "27/06/2026",
+                                 "certificate_tax_valid_until": "27/06/2027", "new_iban": "es12 3456"})
+        self.assertEqual({key: facts[0].value for key, facts in result.facts.fields.items()},
+                         {"certificate_valid_from": "2026-06-27",
+                          "certificate_tax_valid_until": "2027-06-27", "new_iban": "ES123456"})
+
     def test_alias_conflicts_and_all_line_namespaces(self):
         result = self.normalize({"invoice_number": "A", "document_number": "B",
             "line.1.amount": "1", "lines.2.amount": "2", "lines[3].amount": "3",

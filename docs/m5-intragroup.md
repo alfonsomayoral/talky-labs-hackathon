@@ -1,6 +1,6 @@
 # M5 intercompany module — isolated dependency validation
 
-Refs #18, #19, #88, #89, #90, #91, #92, #93, #94, #159.
+Refs #18, #19, #88, #89, #90, #91, #92, #93, #94, #159, #239.
 
 ## Scope and boundaries
 
@@ -145,7 +145,10 @@ See `m5-score-resolution.md` for the final investigation: expected journals alre
 score 1.0; retaining all eight supported cause keys caps the unchanged IC scorer
 at 0.8615. Modular integration does not resolve the reference or real-flow gates.
 
-M5, both epics and #159 stay open. Real AP receipt coverage, real bank correction
-ownership and the real end-to-end run remain separate gates. Publication and
-unit tests do not substitute for them. PRs target upstream backend with English
-text and Refs; review and checks precede any squash merge.
+PR #196 is integrated in upstream `backend` as `4856b18`. The original comparison
+and validation criteria of #88–#94 are complete; both epics permit explicitly
+documented differences and are closed. M5 stays open for #159, the full real
+AP → banks → IC run, and #239, the three source/reference discrepancies.
+Publication and unit tests do not substitute for those acceptance gates. PRs
+target upstream backend with English text and Refs; review and checks precede
+any squash merge. See `m5-score-resolution.md` for the verified closure evidence.

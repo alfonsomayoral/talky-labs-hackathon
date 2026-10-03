@@ -8,7 +8,8 @@ The machine-readable register is [discrepancies.json](discrepancies.json). Evide
 |---|---|---|
 | Document/local currency | resolved | AP headers remain in document currency; journal entries use local currency. Keep both and FX evidence. API004482 demonstrates USD 240000 against EUR 193767. |
 | Rounding | resolved | Round FX per line and balance vendor/customer; truncate PPA. ±2 scorer cents do not define arithmetic. |
-| SWIFT-API004253 | known_exception | 76800000 appears on debit. Preserve evidence; investigate historical rates and bank/book amounts in #77. Never generalize its sign. |
+| July IC transit reference | known_exception | Three issued/open July 31 invoices are received August 3/4 in the official later history. Keep their findings under §6; the unchanged IC reference penalizes three additional keys, leaving score 0.8615. Organizer clarification remains in #239; [source and provenance audit](verification/m5-239.md). September facts are diagnostic only, never July solver inputs. |
+| SWIFT-API004253 | resolved | Original payment recognizes Cr768 35174; bank charges 24019 more, so Dr768 reduces that gain to 11155. Preserve the two-cent published-rate/recorded-payment precision difference. Sources and executable checks: [M3 #77](verification/m23-77.md). Never generalize an FX sign from an account name. |
 | Close aggregation | resolved | Audit 76 individual rows and 64 scoring keys independently. |
 | Scorer field gaps | followup | The comparator reports unscored fields and submission diagnostics separately from the score; balance dimensions beyond company/account are not compared yet. |
 | Company omitted by je_match | resolved | The comparator reports `COMPANY_MISMATCH` at row, entry and line level; shown with a wrong-company run (score unchanged, diagnostic raised). No committed fixture yet. |

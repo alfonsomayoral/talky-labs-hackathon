@@ -1,4 +1,4 @@
-// Picks the provider: the backend when VITE_API_URL is set, the local deterministic engine otherwise.
+// Picks the provider: the chat backend when VITE_CHAT_URL is set, the local deterministic engine otherwise.
 // In development, «Profundo» can have a model write the text over the local answer (dev/assistantChat.ts):
 // figures, cards and citations stay the local ones, so they match Resumen and Atención.
 
@@ -11,7 +11,7 @@ export interface AskOptions {
   history?: ChatMessage[]
   signal?: AbortSignal
   onUpdate?: (answer: AssistantAnswer) => void
-  /** Overrides VITE_API_URL (tests). `null` forces the local provider. */
+  /** Overrides VITE_CHAT_URL (tests). `null` forces the local provider. */
   baseUrl?: string | null
   fetch?: typeof fetch
 }
