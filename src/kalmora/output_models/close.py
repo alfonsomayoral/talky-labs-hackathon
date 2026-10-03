@@ -3,7 +3,7 @@ from typing import Literal, Required, TypedDict
 from ..model.journal_entry import JournalEntry
 from ..model.scalars import Cents, CompanyCode, PartnerCode
 
-CloseType = Literal["ACCRUAL", "PREPAID", "FX_REVAL", "BAD_DEBT", "WIP_REVENUE"]
+CloseType = Literal["ACCRUAL", "PREPAID", "FX_REVAL", "BAD_DEBT", "WIP_REVENUE", "DOUBTFUL_RECLASS"]
 
 
 class CloseRow(TypedDict, total=False):
