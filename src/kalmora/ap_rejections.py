@@ -164,7 +164,9 @@ def _cumulative(billed, current, cumulative):
     billed, current, cumulative = map(_amount, (billed, current, cumulative))
     if current > cumulative:
         raise ValueError("current certification exceeds cumulative")
-    return billed == cumulative and cumulative != current
+    # Billed lines are rounded independently of the certified totals: a few cents
+    # apart, the invoice still bills the amount "a origen" rather than this period.
+    return cumulative != current and abs(billed - cumulative) < abs(billed - current)
 
 
 CFDI_FIELDS = ("number", "date", "issuer_tax_id", "recipient_tax_id", "currency",
