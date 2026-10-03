@@ -1,6 +1,6 @@
 # fe/tasks-ar — 3.B Facturación + 3.C Cobros
 
-Base: `hackathon/frontend` en `94d5948` (kit confirmado), fusionado por fast-forward.
+Base: `hackathon/frontend` en `94d5948` (kit confirmado). Antes de la PR, fusionado `origin/hackathon/frontend` (`ed15952`) sin conflictos.
 
 ## Hecho
 
@@ -34,7 +34,7 @@ Base: `hackathon/frontend` en `94d5948` (kit confirmado), fusionado por fast-for
 
 ## Verificación
 
-- `npm run typecheck` sale con 0. `npm run lint` sale con 0. `npm run test`: 37 ficheros y 237 tests en verde, 19 de ellos nuevos (`billingModel.test.ts` y `cashModel.test.ts`). `npm run build` termina bien.
+- `npm run typecheck` sale con 0. `npm run lint` sale con 0. `npm run test`: 43 ficheros y 294 tests en verde tras fusionar `ed15952`, 19 de ellos nuevos (`billingModel.test.ts` y `cashModel.test.ts`). `npm run build` termina bien.
 - En el navegador, puerto 5175, con julio y la referencia golden:
   - Facturación:
     - 26 partidas, 25 facturas, 1 pendiente;
