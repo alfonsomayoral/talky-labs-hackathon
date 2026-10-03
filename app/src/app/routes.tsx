@@ -13,6 +13,7 @@ export const routes: RouteObject[] = [
       { index: true, lazy: page(() => import('@/features/overview/OverviewPage')) },
       { path: 'atencion', lazy: page(() => import('@/features/attention/AttentionPage')) },
       { path: 'actividad', lazy: page(() => import('@/features/activity/ActivityPage')) },
+      { path: 'asistente', lazy: page(() => import('@/features/assistant/AssistantPage')) },
       { path: 'tareas/ap', lazy: page(() => import('@/features/tasks/ap/ApPage')) },
       { path: 'tareas/facturacion', lazy: page(() => import('@/features/tasks/ar-billing/ArBillingPage')) },
       { path: 'tareas/cobros', lazy: page(() => import('@/features/tasks/ar-cash/ArCashPage')) },

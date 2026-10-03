@@ -10,5 +10,5 @@ coverage
 .idea
 *.log
 # Run bundles (backend outputs) never go to this public repo
-runs/
+/runs/
 .claude/

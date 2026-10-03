@@ -21,6 +21,7 @@ export const NAV: NavSection[] = [
       { to: '/', label: 'Resumen', icon: 'LayoutDashboard', shortcut: 'r' },
       { to: '/atencion', label: 'Atención', icon: 'Inbox', shortcut: 'a', badge: 'attention' },
       { to: '/actividad', label: 'Actividad', icon: 'Activity', shortcut: 'y' },
+      { to: '/asistente', label: 'Asistente', icon: 'Sparkles', shortcut: 'i' },
     ],
   },
   {
