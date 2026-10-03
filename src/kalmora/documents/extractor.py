@@ -88,14 +88,24 @@ def _field_allowed(name: str) -> bool:
 @lru_cache(maxsize=1)
 def output_models():
     """Build strict optional Pydantic DTOs only when interpretation is requested."""
-    from pydantic import BaseModel, ConfigDict
+    from pydantic import BaseModel, ConfigDict, Field
     from typing import Literal
 
-    class Observation(BaseModel):
+    class ObservationValue(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
         field: str
         value: str | int | bool | None
         kind: Literal["OBSERVED", "EXPLICIT_ABSENCE"]
+
+    class Observation(ObservationValue):
+        block_id: str
+        quote: str
+        image_page: int | None
+        image_sha256: str | None
+
+    class ObservationGroup(BaseModel):
+        model_config = ConfigDict(strict=True, extra="forbid")
+        values: list[ObservationValue]
         block_id: str
         quote: str
         image_page: int | None
@@ -111,6 +121,14 @@ def output_models():
         model_config = ConfigDict(strict=True, extra="forbid")
         observations: list[Observation]
         unknowns: list[Unknown]
+        groups: list[ObservationGroup] = Field(default_factory=list)
+
+        def iter_observations(self):
+            yield from self.observations
+            for group in self.groups:
+                proof = group.model_dump(exclude={'values'})
+                for value in group.values:
+                    yield Observation(**value.model_dump(), **proof)
 
     class SelectionProof(BaseModel):
         model_config = ConfigDict(strict=True, extra="forbid")
@@ -131,7 +149,9 @@ def output_models():
         reason: str
 
     # Local forward references are resolved here rather than at module import.
-    ExtractionOutput.model_rebuild(_types_namespace={"Observation": Observation, "Unknown": Unknown})
+    ObservationGroup.model_rebuild(_types_namespace={"ObservationValue": ObservationValue})
+    ExtractionOutput.model_rebuild(_types_namespace={"Observation": Observation, "Unknown": Unknown,
+                                                   "ObservationGroup": ObservationGroup})
     ResolutionOutput.model_rebuild(_types_namespace={"SelectionProof": SelectionProof})
     return ExtractionOutput, ResolutionOutput
 
@@ -327,10 +347,19 @@ class LLMDocumentExtractor:
                   "detail_fields": sorted(DETAIL_FIELDS),
                                                                   "raw_extension": "raw.<literal_field_name>"}),
                                      document, provenance)
+        output = completion.output
         fields: dict[str, list[Fact]] = {}
         reviews = []
         try:
-            for observation in completion.output.observations:
+            # Legacy injected flat DTOs remain supported. Groups require the
+            # typed output model so every expanded value passes its strict DTO.
+            if hasattr(output, 'iter_observations'):
+                observations = output.iter_observations()
+            elif not getattr(output, 'groups', []):
+                observations = output.observations
+            else:
+                raise DocumentInterpretationError('schema', document, 'grouped output requires the typed DTO')
+            for observation in observations:
                 name = observation.field
                 if not _field_allowed(name) or name in DERIVED_COUNTS:
                     raise DocumentInterpretationError("field", document, "unsupported or accounting-owned field")
