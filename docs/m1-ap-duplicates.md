@@ -15,12 +15,12 @@ stabilizes diagnostic order only: exact timestamp ties cannot prove which
 document was first. A date-only receipt spans its whole day, so same-day overlap
 also remains unknown, even when IDs sort after a possible earlier document.
 
-Normalization removes hyphens, slashes and whitespace and normalizes letter
-case. It preserves leading zeros, letters, suffixes and period punctuation.
-The policy requires removing prefixes but cannot identify arbitrary prefixes
-from an ambiguous number. `confirmed_prefixes` therefore requires an explicitly
-evidenced vendor profile supplied by the caller; no F/FV/TKD prefixes or numeric
-suffixes are guessed. Conflicting prefix interpretations fail visibly.
+Normalization removes hyphens, slashes and whitespace, normalizes letter case
+and drops the letter prefix before the first digit (`F-F2611803` = `F2611803` =
+`2611803`), as policy §2.1 requires and July resends (`F-` added to the number)
+show. It preserves leading zeros, inner letters, suffixes and period punctuation.
+Non-letter prefixes (`Factura:`) need an explicit `confirmed_prefixes` profile.
+Conflicting prefix interpretations fail visibly.
 
 The original ERP log demonstrates `REJECT.corrected_by -> posted doc_id` with
 the same invoice number, including corrections that do not necessarily alter

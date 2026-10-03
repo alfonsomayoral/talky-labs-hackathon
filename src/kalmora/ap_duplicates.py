@@ -12,10 +12,11 @@ STATUSES = frozenset(("RECEIVED", "POST", "POST_PAYMENT_BLOCK", "HOLD", "REJECT"
 
 
 def normalize_number(number: str, confirmed_prefixes: Iterable[str] = ()) -> str:
-    """Strip separators and *explicitly confirmed* prefixes, preserve all digits.
+    """Strip separators, confirmed prefixes and a leading letter prefix; keep all digits.
 
-    Prefixes belong to a caller's evidenced vendor-specific normalization profile.
-    No F/FV/TKD prefix, numeric suffix, leading zero or period is inferred.
+    Policy §2.1 normalizes "sin guiones, barras ni prefijos": a letter run before
+    the first digit (F, FV-, F-F...) is a prefix. Non-letter prefixes need the
+    caller's confirmed profile. No numeric suffix, leading zero or period is dropped.
     """
     if not isinstance(number, str) or not number.strip():
         raise ValueError("invoice number is required")
@@ -35,7 +36,9 @@ def normalize_number(number: str, confirmed_prefixes: Iterable[str] = ()) -> str
             candidates.add(normalized[len(prefix):])
     if len(candidates) > 1 or "" in candidates:
         raise ValueError("ambiguous or empty normalized invoice number")
-    return next(iter(candidates)) if candidates else normalized
+    result = next(iter(candidates)) if candidates else normalized
+    stripped = result.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    return stripped if stripped[:1].isdigit() else result
 
 
 def _validate(record: DuplicateRecord) -> None:

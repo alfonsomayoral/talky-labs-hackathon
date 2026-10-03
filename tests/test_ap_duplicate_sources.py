@@ -4,8 +4,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from kalmora.ap_duplicate_sources import MonthDocument, month_duplicate_results
+from kalmora.ap_duplicate_sources import month_duplicate_results
 from kalmora.data import PhaseData
+from kalmora.documents.ap_sources import APAttachment, APMessage, APTaskSources
+from kalmora.documents.classification import DocumentClassification
+from kalmora.documents.normalization import NormalizedDocument
 from kalmora.facts import DocumentFacts, Evidence, Fact
 
 SHA = "a" * 64
@@ -17,17 +20,22 @@ def log(doc_id, number, received_on, decision="POST", corrected_by=None):
                 corrected_by=corrected_by, journal_entry=None, resolved_on=None)
 
 
-def document(doc_id, received_at, number="2606340", gross=12100, **fields):
+def document(doc_id, received_at, number="2606340", gross=12100, kind="INVOICE", error=None, **fields):
     values = dict(document_number=number, gross_cents=gross, currency="EUR",
                   supplier_tax_id="B11111111", recipient_tax_id="B22222222")
     values.update(fields)
     facts = DocumentFacts(SHA, "synthetic", {
         name: [Fact(value, Evidence(f"{doc_id}.pdf", name))] for name, value in values.items()})
-    return MonthDocument(doc_id, {"doc_id": doc_id, "received_at": received_at}, ((facts, "INVOICE"),))
+    message = APMessage(f"inbox/ap/{doc_id}/message.json", SHA, received_at, "email", None, None, None, None,
+                        (f"{doc_id}.pdf",), {"doc_id": doc_id, "received_at": received_at})
+    attachment = (APAttachment(f"{doc_id}.pdf", None, error=error) if error else APAttachment(
+        f"{doc_id}.pdf", None, facts, (), NormalizedDocument(facts, facts, (), {}),
+        DocumentClassification(kind, "CLASSIFIED" if kind else "UNKNOWN", (), ())))
+    return APTaskSources(doc_id, message, (attachment,))
 
 
 class DuplicateSourceTests(unittest.TestCase):
-    def results(self, documents, logs=(), invoices=()):
+    def results(self, documents, logs=(), invoices=(), statuses=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for area in ("erp", "tasks"):
@@ -37,12 +45,12 @@ class DuplicateSourceTests(unittest.TestCase):
             (root / "erp/vendors.json").write_text(json.dumps([{"id": "V1", "tax_id": "B11111111"}]))
             (root / "erp/ap_document_log.json").write_text(json.dumps(list(logs)))
             (root / "erp/ap_invoices.json").write_text(json.dumps(list(invoices)))
-            return month_duplicate_results(documents, PhaseData(root))
+            return month_duplicate_results(documents, PhaseData(root), statuses)
 
-    def test_number_written_without_vendor_prefix_duplicates_history(self):
-        prior = log("H1", "F26-06340", "2026-06-20")
+    def test_number_with_added_prefix_duplicates_history(self):
+        prior = log("H1", "F2606340", "2026-06-20")
         invoice = dict(prior, currency="EUR", gross=12100)
-        result = self.results([document("M1", "2026-07-02T08:00:00", "26/06340")], [prior], [invoice])["M1"]
+        result = self.results([document("M1", "2026-07-02T08:00:00", "F-F2606340")], [prior], [invoice])["M1"]
         self.assertEqual((result.status, result.duplicate_of), ("DUPLICATE", "H1"))
 
     def test_first_month_document_wins(self):
@@ -62,8 +70,15 @@ class DuplicateSourceTests(unittest.TestCase):
         result = self.results([document("M1", "2026-07-02T08:00:00")], [rejected])["M1"]
         self.assertEqual((result.status, result.reissue_of), ("REISSUE", "H1"))
 
-    def test_unbound_month_document_keeps_inventory_unknown(self):
-        unresolved = document("M2", "2026-07-03T09:00:00", supplier_tax_id="B99999999")
-        results = self.results([document("M1", "2026-07-02T09:00:00"), unresolved])
+    def test_upstream_rejected_month_original_is_not_duplicate_root(self):
+        documents = [document("M1", "2026-07-02T08:00:00"), document("M2", "2026-07-20T08:00:00")]
+        self.assertEqual(self.results(documents)["M2"].duplicate_of, "M1")
+        self.assertNotEqual(self.results(documents, statuses={"M1": "REJECT"})["M2"].status, "DUPLICATE")
+
+    def test_failed_extraction_blocks_clear_only_if_it_could_precede(self):
+        failed = document("M2", "2026-07-03T09:00:00", error="REPLAY_MISSING")
+        results = self.results([document("M1", "2026-07-02T09:00:00"), failed])
         self.assertEqual(results["M2"].diagnostics, ("DUPLICATE_FACTS_UNBOUND",))
-        self.assertEqual(results["M1"].status, "UNKNOWN")
+        self.assertEqual(results["M1"].status, "CLEAR")
+        earlier = document("M0", "2026-07-01T09:00:00", error="REPLAY_MISSING")
+        self.assertEqual(self.results([document("M1", "2026-07-02T09:00:00"), earlier])["M1"].status, "UNKNOWN")
