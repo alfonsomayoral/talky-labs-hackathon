@@ -72,6 +72,37 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize_value('gross', 1.2)
 
+    def test_reviewed_absence_can_match_explicit_unknown_without_creating_null_fact(self):
+        label = {'field': 'purchase_order_reference', 'state': 'absent', 'value': None,
+            'evidence': {'document': self.path, 'source_sha256': self.sha, 'field': 'document.full',
+                         'quote': None, 'verification': 'manual_text_and_render'}}
+        self.annotations['cases'][0]['facts'].append(label)
+        captured = self.capture()['T']
+        state = {'field': 'po_reference', 'status': 'MISSING', 'reason': 'No order reference observed',
+                 'document': self.path, 'source_sha256': self.sha}
+        envelope = {'T': {'raw_facts': [captured], 'unknown_states': [state]}}
+        result = self.report(envelope)
+        self.assertTrue(result['capture_correctness_passed'])
+        outcome = result['cases']['T']['fields'][-1]
+        self.assertTrue(outcome['correct_missing_abstention'])
+        self.assertFalse(outcome['present'])
+        self.assertFalse(outcome['grounded'])
+        self.assertEqual(result['metrics']['grounded_evidence']['denominator'], 4)
+        self.assertEqual(result['cases']['T']['returned_values'], 4)
+        for change in ({'source_sha256': '0' * 64}, {'status': 'AMBIGUOUS'}, {'reason': ''},
+                       {'document': 'phase_dev/inbox/ap/another.txt'}):
+            bad = {'T': {'raw_facts': [captured], 'unknown_states': [{**state, **change}]}}
+            self.assertFalse(self.report(bad)['capture_correctness_passed'])
+        self.assertFalse(self.report({'T': {'raw_facts': [captured]}})['capture_correctness_passed'])
+
+    def test_unknown_for_present_value_does_not_count_as_correct_absence(self):
+        captured = self.capture()['T']
+        del captured['fields']['gross']
+        envelope = {'T': {'raw_facts': [captured], 'unknown_states': [
+            {'field': 'gross', 'status': 'MISSING', 'reason': 'Unable to read total',
+             'document': self.path, 'source_sha256': self.sha}]}}
+        self.assertFalse(self.report(envelope)['capture_correctness_passed'])
+
     def test_wrong_number_and_borrowed_quote_fail(self):
         captures = self.capture()
         captures['T']['fields']['gross'][0]['value'] = '1234.51'

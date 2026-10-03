@@ -240,7 +240,7 @@ def evaluate(args, manifest, cases):
         status = read_json(directory / 'capture.json') if (directory / 'capture.json').exists() else {'case_id': cid}
         config_path = directory / 'config.json'
         config = RecordingConfig.from_dict(read_json(config_path)['resolution']) if config_path.exists() else None
-        raw, normalized, case_semantic = [], [], []
+        raw, normalized, case_semantic, unknown_states = [], [], [], []
         for entry in case['attachments']:
             path = directory / 'artifacts' / (entry['sha256'] + '.json')
             if not path.exists():
@@ -256,13 +256,15 @@ def evaluate(args, manifest, cases):
             recorded_attachment['_source_validated'] = True
             parsed_documents[entry['path']] = document
             transformation_hashes[entry['path']] = artifact['request_metadata'].get('transformation_sha256')
+            unknown_states.extend({**unknown, 'document': entry['path'], 'source_sha256': entry['sha256']}
+                                  for unknown in artifact.get('unknowns', []))
             if recorded_attachment.get('semantic'):
                 try:
                     case_semantic.extend(semantic_capture(directory, recorded_attachment, document, facts, config, data))
                 except (ValueError, KeyError, TypeError, ReplayError) as error:
                     request_errors.append({'case_id': cid, 'code': 'semantic_request_archive_mismatch',
                                            'reason': str(error)})
-        captures[cid] = {'raw_facts': raw, 'normalized_facts': normalized}
+        captures[cid] = {'raw_facts': raw, 'normalized_facts': normalized, 'unknown_states': unknown_states}
         reports[cid] = live_report(directory, status)
         semantics[cid] = case_semantic
     # This is the first boundary that reads evaluator labels. Candidate requests
@@ -287,7 +289,8 @@ def evaluate(args, manifest, cases):
         atomic_json(args.output, result)
     summary = {key: result[key] for key in ('passed', 'capture_correctness_passed', 'live_capture_confirmed', 'metrics')}
     if args.partition == 'tuning':
-        summary['failed_fields'] = {cid: [field['field'] for field in case['fields'] if not field['exact'] or not field['grounded']]
+        summary['failed_fields'] = {cid: [field['field'] for field in case['fields'] if not field['exact'] or (
+                                        not field['grounded'] and not field.get('correct_missing_abstention'))]
                                     for cid, case in result['cases'].items()}
     print(json.dumps(summary, sort_keys=True))
     return int(not result['passed'])

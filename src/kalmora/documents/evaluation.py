@@ -405,6 +405,29 @@ def _critical(label):
     return field in CRITICAL_HEADERS or field.rsplit(".", 1)[-1] in {"amount", "unit_price", "quantity"} or label.get("unit") == "currency_major_decimal"
 
 
+def _missing_abstention(capture, field, document, source_hash):
+    """Compare an explicit unknown with reviewed absence; never create a fact."""
+    if not isinstance(capture, dict):
+        return False
+    states = []
+    items = capture.get('unknown_states', [])
+    if not isinstance(items, (list, tuple)):
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if not isinstance(item.get('field'), str) or not isinstance(item.get('document'), str):
+            continue
+        try:
+            if (canonical_field(item['field']) == field and _source_path(item['document']) == document
+                    and item.get('source_sha256') == source_hash):
+                states.append(item)
+        except (KeyError, ValueError, TypeError):
+            continue
+    return bool(states) and all(item.get('status') == 'MISSING' and isinstance(item.get('reason'), str)
+                                and item['reason'].strip() for item in states)
+
+
 def _ratio(numerator, denominator):
     return {"numerator": numerator, "denominator": denominator,
             "rate": str(Decimal(numerator) / denominator) if denominator else None,
@@ -603,7 +626,7 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
             predictions = []
             violations.append({"case_id": cid, "code": "invalid_capture", "reason": str(error)})
         expected_slots = defaultdict(list)
-        outcomes, present, exact, grounded = [], 0, 0, 0
+        outcomes, present, exact, grounded, abstentions = [], 0, 0, 0, 0
         used = set()
         for label in labels:
             field = canonical_field(label["field"])
@@ -622,9 +645,15 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
                 matches.append(equals)
                 proofs.append(proof == "grounded" and equals)
             observed = bool(candidates)
-            correct = any(matches)
+            abstained = (not observed and label.get('state') == 'absent' and _missing_abstention(
+                captures.get(cid), field, doc, label['evidence']['source_sha256']))
+            if label.get('state') == 'absent':
+                counters['reviewed_absence_abstention'][0] += abstained
+                counters['reviewed_absence_abstention'][1] += 1
+            correct = any(matches) or abstained
             proven = any(proofs)
-            present += observed
+            present += observed or abstained
+            abstentions += abstained
             exact += correct
             grounded += proven
             counters["required_exact"][0] += correct
@@ -638,7 +667,8 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
             format_counts[fmt][0] += correct
             format_counts[fmt][1] += 1
             outcomes.append({"field": field, "document": doc, "present": observed, "exact": correct, "grounded": proven,
-                             "critical": _critical(label), "candidate_count": len(candidates)})
+                             "critical": _critical(label), "candidate_count": len(candidates),
+                             "correct_missing_abstention": bool(abstained)})
         for index, predicted in enumerate(predictions):
             slot_labels = expected_slots.get((predicted["field"], predicted["evidence"]["document"]), [])
             if slot_labels:
@@ -670,7 +700,9 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
                 violations.append({"case_id": cid, "field": predicted["field"], "code": "unreviewed_observation", "reason": reason})
         case_results[cid] = {"required": len(labels), "completeness": _ratio(present, len(labels)),
                              "exact": _ratio(exact, len(labels)), "grounded": _ratio(grounded, len(labels)),
-                             "returned_values": len(predictions), "fields": outcomes}
+                             "returned_values": len(predictions), "fields": outcomes,
+                             "correct_missing_abstentions": abstentions,
+                             "unknown_states": captures.get(cid, {}).get('unknown_states', []) if isinstance(captures.get(cid), dict) else []}
         if Decimal(present) / len(labels) < Decimal(FROZEN_THRESHOLDS["case_required_field_completeness_min"]):
             violations.append({"case_id": cid, "code": "case_completeness_gate"})
     for metric, threshold in [("critical_exact", "critical_header_money_tax_line_amount_exact_min"),
