@@ -61,3 +61,35 @@ export interface FileEntry {
   size: number
   lastModified?: IsoDate
 }
+
+/** Key fields of a Facturae 3.2.x or CFDI 4.0 XML, for evidence display (amounts in cents). */
+export interface EInvoiceSummary {
+  format: 'facturae' | 'cfdi'
+  version: string | null
+  invoiceNumber: string | null
+  series: string | null
+  issueDate: IsoDate | null
+  period: { start: IsoDate | null; end: IsoDate | null } | null
+  currency: string | null
+  seller: { taxId: string | null; name: string | null }
+  buyer: { taxId: string | null; name: string | null }
+  /** Taxable base (Facturae TotalGrossAmountBeforeTaxes, CFDI SubTotal − Descuento). */
+  net: number | null
+  tax: number | null
+  /** Taxes withheld (IRPF / ISR-IVA retenidos). */
+  withheld: number | null
+  /** Invoice total (Facturae InvoiceTotal, CFDI Total). */
+  total: number | null
+  /** Facturae AmountsWithheld (guarantee retention), when present. */
+  retention: number | null
+  /** Amount to pay (Facturae TotalExecutableAmount). */
+  payable: number | null
+  taxes: { type: string | null; rate: number | null; base: number | null; amount: number | null; withheld: boolean }[]
+  lines: { description: string; quantity: number | null; unitPrice: number | null; amount: number | null; reference: string | null }[]
+  iban: string | null
+  /** Facturae `Corrective` block (credit notes / rectificativas). */
+  corrects: { invoiceNumber: string | null; reason: string | null } | null
+  /** CFDI: TipoDeComprobante (I, E, P…), MetodoPago, UUID of the fiscal stamp. */
+  cfdi: { type: string | null; paymentMethod: string | null; uuid: string | null; related: string[] } | null
+  notes: string[]
+}

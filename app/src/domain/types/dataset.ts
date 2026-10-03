@@ -27,7 +27,7 @@ import type {
   TaxCodes,
   Vendor,
 } from './erp'
-import type { ApInboxDoc, ArInbox, DatasetPath, FileEntry } from './inbox'
+import type { ApInboxDoc, ArInbox, DatasetPath, EInvoiceSummary, FileEntry } from './inbox'
 import type { BankStatement, RawBankDetail } from './bank'
 import type { Tasks } from './tasks'
 import type { Golden, TrialBalanceRow } from './golden'
@@ -57,6 +57,8 @@ export interface DatasetMeta {
   /** Month being closed, `YYYY-MM` (from tasks/close.json). */
   month: string
   sourceKind: DatasetSourceKind
+  /** Id of the dataset on the dev middleware (`/__data/<id>`) or the backend API, when it came from there. */
+  remoteId?: string
   loadedAt: string
   inventory: DatasetInventory
 }
@@ -120,4 +122,6 @@ export interface DatasetApi {
   listFiles(prefix?: string): Promise<FileEntry[]>
   readFile(path: DatasetPath): Promise<Blob>
   readText(path: DatasetPath): Promise<string>
+  /** Key fields of a Facturae / CFDI XML in the inbox (null for any other file). Optional: a provider may not offer it. */
+  einvoice?(path: DatasetPath): Promise<EInvoiceSummary | null>
 }
