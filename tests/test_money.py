@@ -1,9 +1,16 @@
 import unittest
 from decimal import Decimal
-from kalmora.money import RateTable, integer, line_amount, quantity_milli, round_cents
+from kalmora.money import RateTable, integer, line_amount, quantity_milli, round_cents, company_local_currency
 
 
 class MoneyTests(unittest.TestCase):
+    def test_local_currency_rejects_unknown_company(self):
+        for company in ('1000','1100','1200','1300','1910','2100'):
+            self.assertEqual(company_local_currency(company),'EUR')
+        self.assertEqual(company_local_currency('3100'),'MXN')
+        for invalid in ('9999','1400',1100,['1100']):
+            with self.assertRaises(ValueError):company_local_currency(invalid)
+
     def test_exact_and_rounding(self):
         for bad in (True, 1.0, "1"):
             with self.assertRaises(TypeError): integer(bad)

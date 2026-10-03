@@ -40,6 +40,8 @@ def line_amount(quantity, unit_price_cents, *, share=Decimal(1), truncate=False)
 
 
 def company_local_currency(company):
+    if not isinstance(company,str) or company not in {"1000","1100","1200","1300","1910","2100","3100"}:
+        raise ValueError("unknown company: local currency requires a supported company")
     return "MXN" if company == "3100" else "EUR"
 
 
