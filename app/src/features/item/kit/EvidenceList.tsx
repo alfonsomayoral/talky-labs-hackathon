@@ -141,7 +141,7 @@ export function BookLine({ bookLine }: { bookLine: string }) {
   const { entryId, line } = parseBookLine(bookLine)
   const state = useAsync(async () => (api ? ((await api.getJournalEntries([entryId]))[0] ?? null) : null), [api, entryId])
   if (state.status === 'loading') return <Skeleton lines={3} />
-  if (state.status === 'error') return <p className={styles.muted}>No se pudo leer el diario: {state.error}</p>
+  if (state.status === 'error') return <p role="alert" className={styles.muted}>No se pudo leer el diario: {state.error}</p>
   if (!state.data) return <p className={styles.muted}>El asiento {entryId} no está en el diario cargado.</p>
   return <JournalEntryView entry={state.data as unknown as JournalEntryOut} highlight={line !== null ? [line] : undefined} />
 }
