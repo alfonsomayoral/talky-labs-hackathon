@@ -90,20 +90,25 @@ def semantic_requests(document, facts, data):
     delivery_refs = observed(facts, *[name for name in facts.fields if name.rsplit('.', 1)[-1] in {'delivery_reference', 'receipt_reference'}])
     starts = observed(facts, 'period_start', 'service_period_start')
     ends = observed(facts, 'period_end', 'service_period_end')
-    # Only literal ISO intervals can support a deterministic historical filter.
+    # Reference identity can be unique after exact vendor/company filtering.
+    # A period narrows it only when dates are actually established; no date is invented.
     import re
-    if delivery_refs and len(starts) == len(ends) == 1:
-        start, end = next(iter(starts)), next(iter(ends))
-        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', start) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', end) and start <= end:
-            candidates = [Candidate(str(row['id']), {'reference': row['reference'], 'vendor': vendor,
-                          'company': company, 'posting_date': row['posting_date'], 'po': row['po']})
-                          for row in data.table('goods_receipts') if row.get('vendor') == vendor
-                          and str(row.get('company')) == company and row.get('reference') in delivery_refs
-                          and start <= row.get('posting_date', '') <= end]
-            if candidates:
-                requests.append(ResolutionRequest(document, tuple(candidates),
-                                {'hard_constraints': {'vendor': vendor, 'company': company},
-                                 'period_start': start, 'period_end': end, 'reference_kind': 'goods_receipt'}))
+    if delivery_refs:
+        start = next(iter(starts)) if len(starts) == 1 else None
+        end = next(iter(ends)) if len(ends) == 1 else None
+        interval = (start is not None and end is not None and
+                    re.fullmatch(r'\d{4}-\d{2}-\d{2}', start) and
+                    re.fullmatch(r'\d{4}-\d{2}-\d{2}', end) and start <= end)
+        candidates = [Candidate(str(row['id']), {'reference': row['reference'], 'vendor': vendor,
+                      'company': company, 'posting_date': row['posting_date'], 'po': row['po']})
+                      for row in data.table('goods_receipts') if row.get('vendor') == vendor
+                      and str(row.get('company')) == company and row.get('reference') in delivery_refs
+                      and (not interval or start <= row.get('posting_date', '') <= end)]
+        if candidates:
+            context = {'hard_constraints': {'vendor': vendor, 'company': company}, 'reference_kind': 'goods_receipt'}
+            if interval:
+                context.update(period_start=start, period_end=end)
+            requests.append(ResolutionRequest(document, tuple(candidates), context))
     return requests
 
 
