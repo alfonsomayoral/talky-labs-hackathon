@@ -173,6 +173,48 @@ class ArCashTests(unittest.TestCase):
                                                       "invoice": "INV-1", "amount": 10000}])
         self.assertEqual(second.row["adjustment"][1]["account"], "43800000")
 
+    def test_duplicate_history_is_scoped_to_company_and_currency(self):
+        (self.phase / "bank/BIN-1200").mkdir(parents=True)
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("erp/bank_accounts.jsonl", [
+            {"id": "BIN-1100", "company": "1100", "currency": "EUR", "gl_account": "57200001"},
+            {"id": "BIN-1200", "company": "1200", "currency": "EUR", "gl_account": "57200002"},
+        ])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 10000, 0),
+                                                     self.line("55500000", 0, 10000)]),
+        ])
+        line = {"booking_date": "2026-07-02", "value_date": "2026-07-02",
+                "amount": 10000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA"}
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [dict(line, bank_line="BL1")])
+        self._jsonl("bank/BIN-1200/2026-07.lines.jsonl", [dict(line, bank_line="BL2")])
+        first, second = self._run().results
+        self.assertEqual(first.row["applications"], [{"invoice": "INV-1", "amount": 10000}])
+        self.assertEqual(second.row["residuals"], [])
+        self.assertEqual(second.row["adjustment"], [])
+
+    def test_historical_full_receipt_supports_duplicate_classification(self):
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                     self.line("70500000", 0, 10000)]),
+            dict(self.entry("PRIORCASH", "2026-07-01", [self.line("57200001", 10000, 0),
+                                                          self.line("43000000", 0, 10000, "C1", "INV-1")]),
+                 currency="EUR"),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 10000, 0),
+                                                     self.line("55500000", 0, 10000)]),
+        ])
+        (self.phase / "bank/BIN-1100/2026-07.lines.jsonl").write_text(json.dumps({
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 10000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
+        }) + "\n", encoding="utf-8")
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["residuals"], [{"type": "OVERPAYMENT_DUPLICATE",
+                                                      "invoice": "INV-1", "amount": 10000}])
+        self.assertEqual(result.row["adjustment"][1]["account"], "43800000")
+
     def test_receivable_posted_after_receipt_is_not_available_as_of_that_date(self):
         self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
             "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
