@@ -43,3 +43,37 @@ equivalence. Image proof requires the supplied image page/hash; quote fidelity
 remains subject to original-image review. Reason must explain selection/abstention
 without introducing new facts or overriding hard constraints.
 """
+
+
+# Pure serialization shared by capture and replay: no provider imports.
+import hashlib
+import json
+
+
+def prompt_text(document, extras):
+    return json.dumps({"untrusted_document": document.to_dict(include_images=False), **extras},
+                      ensure_ascii=False, sort_keys=True, default=str, allow_nan=False)
+
+
+def request_prompt_sha256(document, extras):
+    return hashlib.sha256(prompt_text(document, extras).encode()).hexdigest()
+
+
+def instruction_sha256(instructions):
+    return hashlib.sha256(instructions.encode()).hexdigest()
+
+
+def recording_prompt(stage, source, parameters):
+    if stage == "extract":
+        extras = parameters.get("prompt_extras")
+        if not isinstance(extras, dict):
+            raise ValueError("Recorded extraction requires exact prompt_extras configuration")
+        return prompt_text(source, extras)
+    if stage == "resolve":
+        maximum = parameters.get("max_selections")
+        if type(maximum) is not int or maximum < 1:
+            raise ValueError("Recorded resolution requires explicit max_selections")
+        extras = {"candidates": [{"id": c.id, "attributes": c.attributes} for c in source.candidates],
+                  "context": source.context, "max_selections": maximum}
+        return prompt_text(source.document, extras)
+    raise ValueError("Unknown recording stage")
