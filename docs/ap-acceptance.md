@@ -368,3 +368,55 @@ non-posting journals, duplicate tasks, malformed JSON/rows, optional foreign
 cents, legitimate local FX components, and explicit CLI scope. Real producer
 runs and their audits remain separate evidence; this test suite does not invent
 rows for missing tasks or claim a monthly delivery.
+
+### Preserved v0 outputs: criterion audit before XML normalization v3
+
+The following frozen public CLI audits use backend `fb93a76` with the acceptance
+implementation `a44a75b`, before the integration of #286 and normalization v3:
+[v0-july-audit.json](../outputs/m1-owned-validation/independent-acceptance/v0-july-audit.json)
+and
+[v0-september-audit.json](../outputs/m1-owned-validation/independent-acceptance/v0-september-audit.json).
+They audit the previously preserved real v0 bytes under the explicit documentary
+user authorization recorded in
+[documentary-authorization.json](../outputs/m1-owned-validation/independent-acceptance/documentary-authorization.json).
+They do not claim that those historical producer runs executed the newly installed
+auditor, nor that projection is transaction replay.
+
+| Criterion | July | September |
+| --- | ---: | ---: |
+| Exact task coverage | 305/305 | 297/297 |
+| Contract view and active master scopes | 305 pass | 297 pass |
+| Complete strict row validation | 298 pass; 7 fail | 285 pass; 12 fail |
+| Posted journals independently valid | 242/243 | 232/233 |
+| Non-posting rows without a journal | 62/62 | 64/64 |
+| Document-currency correspondence | 236 pass; 6 inconclusive; 1 fail | 224 pass; 6 inconclusive; 3 fail |
+| Documentary source status | 43 complete; 262 incomplete | 33 complete; 264 incomplete |
+| Actual transaction replay proof | 305 absent | 297 absent |
+
+Both reports retain `COMPLETE_DELIVERY/BLOCKED`, `monthly_acceptance=false` and
+all four blockers: `AP_OUTPUT_INVALID`, `RAW_OUTPUT_REQUIRES_CONTRACT_PROJECTION`,
+`SOURCE_UNDERSTANDING_INCOMPLETE`, `TRANSACTION_REPLAY_ABSENT`. Completeness here
+means task coverage; it does not mean every criterion passed. Full errors remain
+in `output_errors` and each document's criteria. Absent foreign document cents,
+amount correspondence, GR/IR correspondence, the missing foreign-advance partner,
+and September's remaining account/tax/reason diagnostics are not repaired.
+
+That audit snapshot's rule SHA is
+`75fa80f14d30beb3c797566078bd29d09663e38832112a8575cd57107d3dc771` in both phases.
+The source configuration SHA is
+`7b2077e56eea6008e2a3077f46c7c6af4ce2a28be08c09a4e9f4b857a6ef1896`.
+The raw hashes remain the earlier preserved hashes listed above; projection
+hashes are `31035b3dc03800900a91371f81ed2b1e4e5adf1f8a3b7c2cd3f824c561ee280d`
+(July) and `9cc54f1cb7e46923cee0503d6c1e532e660b3908e603cb3d20ca5e116a22ee72`
+(September). Independent review verified self-hashes, raw/projection equality,
+every installed rule-file hash, the same literal authorization and configuration,
+and separate phase inputs/facts. Independent-phase comparison is compatible;
+both acceptance statuses remain blocked.
+
+The new `run_ap_phase` source-based runs are separate artifacts in
+[independent-acceptance](../outputs/m1-owned-validation/independent-acceptance/).
+Their first runs resolved no accounting decisions (305/305 unresolved in July,
+297/297 in September) and exported no complete AP delivery. Unknown source fields,
+flags and unsupported contexts remain in their reports. Those runs neither erase
+the useful preserved v0 validation nor provide the missing monthly transaction
+replay. No new Golden evaluation was used for these audits.
