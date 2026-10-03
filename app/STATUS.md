@@ -1,6 +1,6 @@
 # Estado del frontend
 
-Solo lo edita la sesión coordinadora. Cada sesión escribe su estado y sus peticiones en `app/status/<rama>.md`, con `/` cambiada por `-` (ver `AGENTS.md` §8).
+Solo lo edita la sesión coordinadora. Cada sesión escribe su estado y sus peticiones en `app/status/<rama>.md`, con `/` cambiada por `-`, y al terminar abre una PR contra `hackathon/frontend` (ver `AGENTS.md` §8).
 
 Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia golden se crea, y `useDerivedRun()` devuelve partidas, atención, traza sintetizada, validación y nota 100. La puerta 1 está cerrada.
 
@@ -21,7 +21,7 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 3.B Facturación + 3.C Cobros | «Actividad y panel de partida» | `fe/tasks-ar` | `talky-wt/fe-tasks-ar` | 5175 | En curso; kit avisado | 2.C (kit) | |
 | 3.A AP + 3.D Bancos | «AP + Bancos tasks frontend» | `fe/tasks-ap-bank` | `talky-wt/fe-tasks-ap-bank` | 5177 | Hecho e integrado | 2.C (kit) | Más `37b4774`: estado de cuenta con la regla del control del Resumen |
 | 3.E Intragrupo + 3.F Cierre y balance | «Explorador de datos y coste» | `fe/tasks-ic-close` | `talky-wt/fe-explorer-cost` | 5176 | En curso | 2.C (kit) | Rama nueva en el mismo worktree |
-| 4.B Comparar con golden | Coordinadora (subagente) | `fe/compare` | `talky-wt/fe-design-shell` | 5174 | En curso | 2.C | Rama nueva en el worktree libre de design-shell |
+| 4.B Comparar con golden | Coordinadora (subagente) | `fe/compare` | `talky-wt/fe-design-shell` | 5174 | Hecho e integrado (`0d5bdda`) | 2.C | Peticiones resueltas: `?pestana=golden`, importes con `Amount`, etiqueta «Pierde por sus partidas» |
 | 5.A–5.C QA, pulido y demo | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Pendiente | Fases 2–4 | |
 | 6.A–6.B Asistente | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 2.C, 2.D | Solo `src/features/assistant/`; commitea la coordinadora |
 
