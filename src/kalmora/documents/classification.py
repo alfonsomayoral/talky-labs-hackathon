@@ -5,7 +5,7 @@ import unicodedata
 
 from kalmora.facts import DocumentFacts, Fact
 
-CLASSIFICATION_VERSION = "ap-document-classification-v1"
+CLASSIFICATION_VERSION = "ap-document-classification-v2"
 DOCUMENT_TYPES = frozenset("""INVOICE CREDIT_NOTE DOWN_PAYMENT_REQUEST PROFORMA
 VENDOR_STATEMENT FACTORING_NOTICE TAX_GARNISHMENT_ORDER BANK_DETAILS_CHANGE
 CONTRACTOR_TAX_CERTIFICATE""".split())
@@ -13,14 +13,17 @@ CONTRACTOR_TAX_CERTIFICATE""".split())
 # Specific lexical titles precede the general invoice title. These classify
 # the stated document, never a referenced invoice mentioned inside a notice.
 TITLE_RULES = (
+    # An explicit deposit request remains a request when its literal title also
+    # calls the attachment proforma; no approved-order/payment decision is made.
+    ("DOWN_PAYMENT_REQUEST", r"pro ?forma invoice deposit request"),
     ("PROFORMA", r"(?:(?:factura|invoice|fatura) )?pro ?forma"),
     ("CREDIT_NOTE", r"factura (?:rectificativa|de abono)|nota de (?:credito|abono)|credit note|abono|fatura retificativa"),
     ("DOWN_PAYMENT_REQUEST", r"solicitud de anticipo|solicitud de pago anticipado|down payment request|deposit request|advance payment request"),
     ("FACTORING_NOTICE", r"notificacion de cesion de creditos|notificacion de cesion de credito|carta de cesion de creditos|cesion de creditos|factoring notice|notice of assignment"),
     ("TAX_GARNISHMENT_ORDER", r"diligencia de embargo|orden de embargo|tax garnishment order"),
-    ("BANK_DETAILS_CHANGE", r"cambio de datos bancarios|carta de cambio de cuenta|cambio de cuenta bancaria|cambio de cuenta|bank details change|bank account change"),
+    ("BANK_DETAILS_CHANGE", r"comunicacion de cambio de cuenta bancaria|cambio de datos bancarios|carta de cambio de cuenta|cambio de cuenta bancaria|cambio de cuenta|bank details change|bank account change"),
     ("CONTRACTOR_TAX_CERTIFICATE", r"certificado de estar al corriente|certificado de obligaciones tributarias|certificado de contratistas y subcontratistas|contractor tax certificate|certificado articulo 43"),
-    ("VENDOR_STATEMENT", r"extracto de proveedor|vendor statement|statement of account|recordatorio de deuda|estado de cuentas del proveedor"),
+    ("VENDOR_STATEMENT", r"extracto de cuenta|recordatorio de pago|extracto de proveedor|vendor statement|statement of account|recordatorio de deuda|estado de cuentas del proveedor"),
     ("INVOICE", r"factura|invoice|facture|fatura|facturae|cfdi de ingreso|cfdi ingreso"),
 )
 
@@ -50,6 +53,9 @@ def _title(value: str) -> str:
 def _lexical_type(value: str) -> str | None:
     if value.strip().upper() in DOCUMENT_TYPES:
         return value.strip().upper()
+    # Subject markers are observed title framing, not permission to search body
+    # prose for references to an invoice or another document.
+    value = re.sub(r"^\s*(?:asunto|subject)\s*:\s*", "", value, flags=re.I)
     title = _title(value)
     if title in {"cfdi de egreso", "cfdi egreso"}:
         return "CREDIT_NOTE"
