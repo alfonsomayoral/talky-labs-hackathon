@@ -131,6 +131,11 @@
 }
 
 .evidence {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   align-items: center;
   height: 20px;

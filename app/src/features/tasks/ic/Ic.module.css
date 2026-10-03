@@ -59,6 +59,11 @@
 }
 
 .pairCell {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: flex;
   flex-direction: column;
   align-items: center;

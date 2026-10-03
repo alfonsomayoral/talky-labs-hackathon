@@ -25,6 +25,11 @@
 }
 
 .select {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   width: 100%;
   height: var(--control-height-sm);
   padding: 0 24px 0 var(--space-2);

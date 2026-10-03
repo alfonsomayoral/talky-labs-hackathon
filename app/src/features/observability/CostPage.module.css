@@ -287,6 +287,11 @@
 }
 
 .leak {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 56px;
   align-items: center;

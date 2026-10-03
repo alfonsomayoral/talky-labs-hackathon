@@ -41,6 +41,11 @@
 }
 
 .trigger {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
@@ -80,6 +85,11 @@
 }
 
 .clear {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   align-items: center;
   padding: 0 var(--space-1-5);

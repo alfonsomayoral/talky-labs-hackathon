@@ -63,6 +63,11 @@
 }
 
 .action {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   flex-shrink: 0;
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
@@ -75,6 +80,11 @@
 }
 
 .close {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   flex-shrink: 0;
   padding: 2px;

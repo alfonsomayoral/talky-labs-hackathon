@@ -153,6 +153,11 @@
 }
 
 .heatCell {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   --tint: var(--danger);
   width: 100%;
   height: 32px;

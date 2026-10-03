@@ -69,6 +69,11 @@
 }
 
 .raw summary {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   cursor: pointer;
   font-size: var(--text-12);
   color: var(--ink-3);

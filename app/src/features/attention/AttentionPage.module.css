@@ -151,6 +151,11 @@
 }
 
 .row {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: grid;
   grid-template-columns: 16px 148px minmax(0, 1fr) auto 112px 128px;
   align-items: center;
@@ -411,6 +416,11 @@
 }
 
 .closedHeader {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);

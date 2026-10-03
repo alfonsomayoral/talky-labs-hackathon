@@ -1,5 +1,10 @@
 /* ---------------------------------------------------------------- text and links */
 .link {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   color: var(--ink);
   text-decoration: underline;
   text-decoration-color: var(--line-strong);
@@ -118,6 +123,11 @@
 }
 
 .kind {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
@@ -207,6 +217,11 @@
 }
 
 .itemRow {
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    text-decoration-color var(--duration-fast) ease;
   display: grid;
   grid-template-columns: minmax(120px, auto) minmax(0, 1fr) auto;
   align-items: center;
