@@ -29,6 +29,7 @@ Import everything from `@/components`. Live examples: `/dev/ui` (dev only). Toke
 - `Button` — `variant` primary|secondary(default)|ghost|danger, `size` sm|md, `loading`, `leadingIcon`, `trailingIcon`, plus all `<button>` props. `ButtonLink` = same look on a router `Link` (`to`). `buttonClassName()` for custom elements.
 - `IconButton` — `icon`, `label` (required: aria-label + tooltip), `shortcut?`, `variant` ghost|secondary, `size`, `active` (pressed).
 - `Kbd` — one key per element: `<Kbd>G</Kbd><Kbd>R</Kbd>`.
+- `TalkyMark` — Talky's logo mark (inline SVG): `size` (px, 22 default), `title` (accessible name; omit next to text).
 
 **Status**
 - `StatusDot` — `status` or `tone`, `label` (pass `""` when text sits next to it), `pulse` for in-progress.

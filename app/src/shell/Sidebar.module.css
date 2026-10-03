@@ -34,17 +34,7 @@
 }
 
 .mark {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  background: var(--brand);
-  color: var(--ink-inverse);
-  font-size: var(--text-12);
-  font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
 .switcherText {

@@ -1,9 +1,10 @@
-// Sidebar header: active dataset + month + run, with a menu to switch among them.
+// Sidebar header: Talky mark + the data's group, month and run, with a menu to switch dataset or run.
 import { useNavigate } from 'react-router'
 import { ChevronsUpDown, ListVideo, Plus } from 'lucide-react'
-import { Menu, toast, type MenuItem } from '@/components'
+import { Menu, TalkyMark, toast, type MenuItem } from '@/components'
 import { useDatasetStore, useRunStore } from '@/data/stores'
 import { formatDateTime, formatMonth } from '@/lib/format'
+import { groupName, monthLabel } from './groupName'
 import styles from './Sidebar.module.css'
 
 export function ContextSwitcher() {
@@ -11,6 +12,7 @@ export function ContextSwitcher() {
   const datasets = useDatasetStore((s) => s.datasets)
   const activeDatasetId = useDatasetStore((s) => s.activeId)
   const activate = useDatasetStore((s) => s.activate)
+  const companies = useDatasetStore((s) => s.api?.core.companies)
   const runs = useRunStore((s) => s.runs)
   const activeRunId = useRunStore((s) => s.activeId)
   const setActiveRun = useRunStore((s) => s.setActive)
@@ -50,7 +52,8 @@ export function ContextSwitcher() {
     { id: 'all', label: 'Ver ejecuciones', icon: <ListVideo />, onSelect: () => navigate('/ejecuciones') },
   ]
 
-  const subtitle = dataset ? [formatMonth(dataset.month), run?.label ?? 'Sin ejecución'].join(' · ') : 'Nuevo cierre para empezar'
+  const name = groupName(companies) ?? dataset?.name ?? 'Sin datos cargados'
+  const subtitle = dataset ? [monthLabel(dataset.month), run?.label ?? 'Sin ejecución'].join(' · ') : 'Nuevo cierre para empezar'
 
   return (
     <Menu
@@ -59,11 +62,9 @@ export function ContextSwitcher() {
       items={items}
       trigger={
         <button type="button" className={styles.switcher}>
-          <span className={styles.mark} aria-hidden>
-            K
-          </span>
+          <TalkyMark className={styles.mark} />
           <span className={styles.switcherText}>
-            <span className={styles.switcherName}>{dataset ? dataset.name : 'Sin datos cargados'}</span>
+            <span className={styles.switcherName}>{name}</span>
             <span className={styles.switcherSub}>{subtitle}</span>
           </span>
           <ChevronsUpDown aria-hidden className={styles.switcherIcon} />
