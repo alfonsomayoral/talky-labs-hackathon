@@ -2,12 +2,12 @@
 // (golden, imported, finished API run) with its pipeline counts, manifest and real events.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { CircleX, SearchX } from 'lucide-react'
+import { CircleX, Database, SearchX } from 'lucide-react'
 import { Badge, Button, ButtonLink, Card, EmptyState, Mono, Page, PageHeader, QueryState, statusSegments, StatusDot, toast } from '@/components'
 import { sessionRestored, useDatasetStore, useRunStore } from '@/data/stores'
-import type { AgentEvent, DerivedRun, RunBundle, TaskKey } from '@/domain/types'
+import type { AgentEvent, DatasetMeta, DerivedRun, RunBundle, TaskKey } from '@/domain/types'
 import { useDerivedRun } from '@/engine'
-import { formatDateTime, formatDuration, formatNumber } from '@/lib/format'
+import { formatDateTime, formatDuration, formatMonth, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { EventFeed } from './EventFeed'
 import { createLiveTracker, taskTotals, type LiveSnapshot, type StreamState, type TaskProgress } from './live'
@@ -69,7 +69,20 @@ function storedNode(task: TaskKey, run: RunBundle, derived: DerivedRun | null): 
   return { task, state: 'done', value: formatNumber(run.deliverables[task].length), caption: ROW_UNIT[task], progress: 1, detail: duration ?? undefined }
 }
 
+/** Name and month of the dataset a run was made from. */
+function DatasetTag({ dataset }: { dataset: DatasetMeta | null | undefined }) {
+  if (!dataset) return null
+  return (
+    <span className={s.dataset} title={dataset.id}>
+      <Database aria-hidden />
+      {dataset.name}
+      <Badge variant="outline">{formatMonth(dataset.month)}</Badge>
+    </span>
+  )
+}
+
 function StoredRun({ run }: { run: RunBundle }) {
+  const dataset = useDatasetStore((st) => st.datasets.find((d) => d.id === run.datasetId))
   const activeId = useRunStore((st) => st.activeId)
   const setActive = useRunStore((st) => st.setActive)
   const { data } = useDerivedRun()
@@ -86,6 +99,7 @@ function StoredRun({ run }: { run: RunBundle }) {
         subtitle={
           <span className={s.subtitle}>
             <SourceBadge source={run.source} />
+            <DatasetTag dataset={dataset} />
             <span>Creada {formatDateTime(run.createdAt)}</span>
             <span>· {filesPresent(run)} de 6 entregas</span>
             <Mono muted>· {run.id}</Mono>
@@ -162,6 +176,8 @@ function LiveRun({ runId }: { runId: string }) {
   const subscribeRun = useRunStore((st) => st.subscribeRun)
   const loadRemoteRun = useRunStore((st) => st.loadRemoteRun)
   const tasks = useDatasetStore((st) => st.api?.core.tasks ?? null)
+  // A close is launched on the open dataset, and the session reopens it after a reload.
+  const dataset = useDatasetStore((st) => st.api?.meta ?? null)
   const initial = useMemo(() => createLiveTracker(taskTotals(tasks)).snapshot(), [tasks])
   const [snap, setSnap] = useState<LiveSnapshot | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -216,6 +232,7 @@ function LiveRun({ runId }: { runId: string }) {
             <StatusDot tone={stream.tone} pulse={view.state === 'running'} label="" />
             <span>{stream.label}</span>
             <span>· {formatNumber(view.received)} eventos</span>
+            <DatasetTag dataset={dataset} />
             <Mono muted>· {runId}</Mono>
           </span>
         }

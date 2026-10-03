@@ -5,6 +5,20 @@
   gap: var(--space-1-5);
 }
 
+.dataset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--ink-strong);
+  font-weight: var(--weight-medium);
+}
+
+.dataset > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+}
+
 .alert {
   display: flex;
   align-items: center;
