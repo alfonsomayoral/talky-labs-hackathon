@@ -253,6 +253,30 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
                          sum(line["credit"] for line in result.row["adjustment"]))
 
+    def test_ap_posted_after_receipt_cannot_support_netting(self):
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "TAX1", "companies": ["1100"]}])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                    self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+            self.entry("APPOST", "2026-07-03", [self.line("41000000", 0, 2000, "V1", "AP-1"),
+                                                   self.line("62300000", 2000, 0)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertFalse(any(item["type"] == "NETTING_AP" for item in result.row["residuals"]))
+
+    def test_penalty_notified_after_receipt_date_is_not_applied(self):
+        self._jsonl("erp/penalty_notices.jsonl", [{
+            "invoice": "INV-1", "customer": "C1", "amount": 2000, "notified_on": "2026-07-03",
+        }])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+        self.assertEqual(result.row["residuals"], [])
+
     def test_matured_promissory_note_is_applied_to_431(self):
         self._jsonl("erp/promissory_notes.jsonl", [{
             "number": "7654321", "customer": "C1", "company": "1100",
