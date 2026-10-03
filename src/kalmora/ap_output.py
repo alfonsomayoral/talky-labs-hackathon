@@ -97,6 +97,11 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
         codes = REJECTION_CODES if decision == "REJECT" else HOLD_CODES
         if len(reasons) != 1 or reasons[0] not in codes:
             errors.append("exactly one policy reason required for REJECT/HOLD")
+    elif decision == "DUPLICATE":
+        # §2.2.1 names DUPLICATE, and FORMATO_ENTREGA permits its policy
+        # codes in reasons. Keep the supplied code; do not erase v0 evidence.
+        if reasons not in ([], ["DUPLICATE"]):
+            errors.append("duplicate reasons must be empty or the DUPLICATE policy code")
     elif reasons:
         errors.append("this decision does not carry a rejection/HOLD reason")
     if decision == "NOT_INVOICE":

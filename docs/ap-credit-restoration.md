@@ -129,12 +129,14 @@ original-reference field. These observed absences do not license prefix strippin
 or matching by amount, so their positive history remains UNKNOWN without new
 associated evidence. The source XML corrective references prove two exact
 originals with unique imputations (one grouping three equivalent GL base lines),
-and one reference remains NOT_FOUND. Group binding now resolves the two
+and one reference remains NOT_FOUND in the initial historical ERP catalog. Group binding now resolves the two
 imputations without claiming a document-to-specific-line mapping. A real-factory
 regression initializes their original ERP baseline and validates two frozen AP
 credit rows: 50.00 + 10.50 = 60.50 EUR and 1188.02 + 0 = 1188.02 EUR, preserving
-original account/CC and fiscal codes. The unmatched third reference remains
-non-postable. These are partial evidenced rows, not a complete monthly delivery.
+original account/CC and fiscal codes. The third reference has an ordinary-invoice
+original in the same July task phase; the existing v0 route uses that published
+original. Historical-catalog absence is not a global source absence. These two
+owned rows are partial evidence, not a complete monthly delivery.
 
 407 journals expose recorded amounts, references and assignments, not a monetary
 classification. These balances/applications are reconstructed independently by
@@ -142,6 +144,11 @@ classification. These balances/applications are reconstructed independently by
 source evidence. Receipt restoration additionally needs historical per-invoice
 allocation records: aggregate GR/IR money or aggregate consumption is insufficient.
 No July state is reused in another phase. No evaluation IDs determine rules.
+
+[Independent issue #54 acceptance](ap-credit-acceptance.md) maps the actual
+criteria to implementation, source facts and validation. Historical KG coverage
+and adoption by #140 are operation/integration boundaries, not extra module
+acceptance criteria.
 
 ### Separate evaluation of the two owned original-source rows
 

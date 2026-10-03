@@ -3,9 +3,11 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 from kalmora.cli import main
 from kalmora.evaluation.diagnostics import check_submission
+from kalmora.evaluation.compare import compare_ar_cash
 from kalmora.evaluation.report import _load_rows, evaluate
 from kalmora.evaluation.scorer import load_scorer
 from kalmora.evaluation.structure import check_structure
@@ -13,6 +15,83 @@ from kalmora.package import register_package
 
 
 class EvaluationFormatTests(unittest.TestCase):
+    @staticmethod
+    def ar_cash_scorer(score):
+        def score_ar_cash(gold, submission):
+            return (score,)
+
+        def je_lines(entry, company=None):
+            lines = entry.get("lines", entry) if isinstance(entry, dict) else entry
+            return [(line.get("company") or company, str(line["account"]),
+                     int(line.get("debit") or 0) - int(line.get("credit") or 0),
+                     line.get("partner"), line.get("cost_center"), line.get("wbs"))
+                    for line in lines
+                    if int(line.get("debit") or 0) != int(line.get("credit") or 0)]
+
+        return SimpleNamespace(score_ar_cash=score_ar_cash, je_lines=je_lines,
+                               norm_line=lambda account, amount, partner, cc, wbs:
+                               (account, amount, partner, cc, wbs))
+
+    @staticmethod
+    def cash_row(*, invoice="INV1", customer="C1", app_amount=100,
+                 residual_invoice="INV1", cash_amount=90):
+        return {"bank_line": "BL1", "company": "1100", "customer": customer,
+                "applications": [{"invoice": invoice, "amount": app_amount}],
+                "residuals": [{"type": "PENALTY", "invoice": residual_invoice,
+                               "amount": 10}],
+                "adjustment": [
+                    {"company": "1100", "account": "55500000", "debit": cash_amount, "credit": 0},
+                    {"company": "1100", "account": "70590000", "debit": 10, "credit": 0},
+                    {"company": "1100", "account": "43000000", "debit": 0,
+                     "credit": app_amount, "partner": "C1", "assignment": "INV1"},
+                ]}
+
+    def test_ar_cash_comparator_reports_unscored_residual_invoice(self):
+        gold = [self.cash_row()]
+        submission = [self.cash_row(residual_invoice="INV2")]
+        result = compare_ar_cash(self.ar_cash_scorer(1.0), gold, submission)
+        entity = result["entities"][0]
+        self.assertEqual(result["score"], 1.0)
+        self.assertEqual(entity["diffs"], [])
+        self.assertEqual(entity["unscored"], [{
+            "field": "residuals.invoice", "expected": [("PENALTY", "INV1", 10)],
+            "actual": [("PENALTY", "INV2", 10)], "kind": "unscored",
+        }])
+
+    def test_residual_invoice_amount_binding_survives_swapped_assignments(self):
+        from copy import deepcopy
+        gold = self.cash_row()
+        gold['residuals'] = [dict(type='PENALTY', invoice='INV1', amount=10),
+                             dict(type='PENALTY', invoice='INV2', amount=20)]
+        submission = deepcopy(gold)
+        submission['residuals'][0]['invoice'] = 'INV2'
+        submission['residuals'][1]['invoice'] = 'INV1'
+        result = compare_ar_cash(self.ar_cash_scorer(1.0), [gold], [submission])
+        self.assertEqual(result['entities'][0]['diffs'], [])
+        self.assertEqual(result['entities'][0]['unscored'][0]['field'], 'residuals.invoice')
+
+    @unittest.skipUnless(os.environ.get('KALMORA_SCORER'), 'official scorer path unavailable')
+    def test_official_scorer_ignores_residual_invoice_but_comparator_exposes_it(self):
+        scorer, _ = load_scorer(Path(os.environ['KALMORA_SCORER']))
+        result = compare_ar_cash(scorer, [self.cash_row()], [self.cash_row(residual_invoice='INV2')])
+        self.assertEqual(result['score'], 1.0)
+        self.assertTrue(result['reconciliation']['ok'])
+        self.assertEqual(result['entities'][0]['unscored'][0]['field'], 'residuals.invoice')
+        gold = self.cash_row()
+        gold['applications'] = [{'pagare': '123', 'amount': 100}]
+        result = compare_ar_cash(scorer, [gold], [self.cash_row()])
+        self.assertIn('applications', {d['field'] for d in result['entities'][0]['diffs']})
+        self.assertLess(result['score'], 1.0)
+
+    def test_ar_cash_comparator_reports_application_customer_and_entry_differences(self):
+        gold = [self.cash_row(invoice="PAG123")]
+        submission = [self.cash_row(invoice="INV2", customer="C2", app_amount=90,
+                                   cash_amount=80)]
+        result = compare_ar_cash(self.ar_cash_scorer(0.5), gold, submission)
+        fields = {item["field"] for item in result["entities"][0]["diffs"]}
+        self.assertEqual(fields, {"customer", "applications", "adjustment.lines"})
+        self.assertTrue(result["reconciliation"]["ok"])
+
     def test_invalid_enum_and_malformed_entry_are_diagnostics(self):
         row = {"doc_id": "API1", "document_type": "INVOICE", "decision": "INVALID", "reasons": []}
         errors = check_structure({"ap": [row]})

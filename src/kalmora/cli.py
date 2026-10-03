@@ -28,6 +28,12 @@ def main(argv: list[str] | None = None) -> int:
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
     ar_cash.add_argument("--billing", type=Path, help="This month's ar_billing.jsonl: its invoices can be applied")
+    ar_cash.add_argument("--ap", type=Path, help="This month's ap.jsonl: its posted payables can be netted")
+    cash_projection = commands.add_parser("project-ar-cash", help="Publish M3/M4 projected balances and unresolved receipts")
+    cash_projection.add_argument("phase", type=Path)
+    cash_projection.add_argument("--output", type=Path, required=True)
+    cash_projection.add_argument("--use-preparsed", action="store_true")
+    cash_projection.add_argument("--normalized-dir", type=Path)
     ap_prepare = commands.add_parser("prepare-ap", help="Prepare AP source facts; does not post or export AP decisions")
     ap_prepare.add_argument("phase", type=Path)
     ap_prepare.add_argument("--state-dir", type=Path, required=True, help="Source state outside the original phase")
@@ -61,9 +67,14 @@ def main(argv: list[str] | None = None) -> int:
     solve_ap = commands.add_parser("solve-ap", help="Decide, code and post every AP task (v0 rules)")
     solve_ap.add_argument("phase", type=Path)
     solve_ap.add_argument("--output", type=Path, required=True, help="Destination ap.jsonl")
-    solve_billing = commands.add_parser("solve-ar-billing", help="Invoice every AR billing item from its documents (v0 rules)")
+    solve_billing = commands.add_parser("solve-ar-billing", help="Extract evidenced AR facts and invoice current tasks")
     solve_billing.add_argument("phase", type=Path)
     solve_billing.add_argument("--output", type=Path, required=True, help="Destination ar_billing.jsonl")
+    solve_billing.add_argument("--work-dir", type=Path, help="AR recordings and evidence (default: next to output)")
+    solve_billing.add_argument("--mode", choices=("record", "replay"), default="record",
+                               help="Capture local source extraction or replay saved literal facts")
+    solve_billing.add_argument("--engine", choices=("sources", "v0"), default="sources",
+                               help="Use the evidenced billing engine (default) or explicit legacy v0")
     close = commands.add_parser("close", help="Run the available engines and write a run bundle (serve --close-command)")
     close.add_argument("phase", type=Path)
     close.add_argument("--out", type=Path, required=True, help="Bundle folder: deliverables/, trace/, manifest.json")
@@ -125,6 +136,18 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--no-warm-up", action="store_true", help="Do not prefill the model's prompt cache at start")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
+    if args.command == "solve-ar-billing":
+        phase = args.phase.resolve()
+        work = args.work_dir or args.output.parent / ".ar-billing-state"
+        for destination in (args.output, args.output.with_name("pending_wip.jsonl"), work, args.run_dir):
+            resolved = destination.resolve()
+            if resolved.is_relative_to(phase) or any(part.lower() == "golden" for part in resolved.parts):
+                print(json.dumps({"error": "AR outputs, recordings and run reports must be outside source data and golden"}),
+                      file=sys.stderr)
+                return 1
+        if args.engine == "v0" and args.mode == "replay":
+            print(json.dumps({"error": "v0 does not implement AR capture replay"}), file=sys.stderr)
+            return 1
     if args.command in {"prepare-ap", "plan-ap", "run-ap"}:
         destinations = [args.run_dir] + ([args.output] if args.command == "plan-ap" else [])
         if args.command == "run-ap":
@@ -335,6 +358,42 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
             return 1
         print(json.dumps(summary))
         return 0
+    if args.command == "project-ar-cash":
+        from .ar_cash import build_ar_cash
+        from .ar_cash.projection import project_cash, projection_report
+        from .bankrec import build_bank_rec
+        from .data import PhaseData
+        import os
+        import tempfile
+        temporary = None
+        try:
+            phase, output = args.phase.resolve(), args.output.expanduser().resolve()
+            if output.is_relative_to(phase) or "golden" in output.parts:
+                raise ValueError("projection output must be outside source/golden directories")
+            data = PhaseData(phase)
+            cash = build_ar_cash(data, use_preparsed=args.use_preparsed, normalized_dir=args.normalized_dir)
+            report = projection_report(project_cash(data, cash, build_bank_rec(data)))
+            report["diagnostics"] = {str(r.row["bank_line"]): list(r.diagnostics)
+                                     for r in cash.results if r.diagnostics}
+            report["run_diagnostics"] = list(cash.diagnostics)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output.parent, delete=False) as handle:
+                temporary = handle.name
+                json.dump(report, handle, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, output)
+            temporary = None
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        finally:
+            if temporary is not None:
+                Path(temporary).unlink(missing_ok=True)
+        print(json.dumps({"output": str(output), "complete": report["complete"],
+                          "unresolved_receipts": report["unresolved_receipts"]}))
+        return 0
     if args.command == "solve-ar-cash":
         from .ar_cash import build_ar_cash
         from .ar_cash.io import write_ar_cash
@@ -346,8 +405,10 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                 raise ValueError("AR cash output must be outside the read-only phase directory")
             billing = ([json.loads(line) for line in args.billing.read_text(encoding="utf-8").splitlines() if line.strip()]
                        if args.billing else [])
+            ap = ([json.loads(line) for line in args.ap.read_text(encoding="utf-8").splitlines() if line.strip()]
+                  if args.ap else [])
             run = build_ar_cash(PhaseData(phase), use_preparsed=args.use_preparsed,
-                                normalized_dir=args.normalized_dir, billing=billing)
+                                normalized_dir=args.normalized_dir, billing=billing, ap=ap)
             written = write_ar_cash(run, output)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
@@ -358,6 +419,27 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                           "with_decision": resolved,
                           "unresolved": len(run.results) - resolved,
                           "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
+        return 0
+    if args.command == "solve-ar-billing" and args.engine == "sources":
+        import asyncio
+        from .billing.source_runner import build_billing_from_sources
+        from .billing.io import write_billing_files
+        from .data import PhaseData
+        try:
+            source = asyncio.run(build_billing_from_sources(PhaseData(args.phase.resolve()),
+                work_dir=args.work_dir or args.output.parent / ".ar-billing-state", mode=args.mode))
+            if not source.complete:
+                print(json.dumps({"error": "AR billing has unresolved sources or accounting inputs",
+                                  "report": str(source.report_path), "coverage": source.report["coverage"]}),
+                      file=sys.stderr)
+                return 1
+            written = write_billing_files(source.billing, args.output)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"output": str(written), "rows": len(source.billing.results),
+                          "pending_wip": len(source.billing.pending_wip), "report": str(source.report_path),
+                          "stable_output_sha256": source.stable_sha256, "mode": args.mode}))
         return 0
     if args.command in ("solve-ap", "solve-ar-billing"):
         from .v0.solve import solve_ap, solve_billing, write_jsonl

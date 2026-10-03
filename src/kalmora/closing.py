@@ -7,8 +7,9 @@ working files (IC audit, close handoff, decisions and balance snapshots, their r
 ``OUT/trace/<module>.zip``: the web app downloads every JSON of a bundle, and the IC audit alone is ~20 MB.
 
 Modules run in dependency order and feed each other: bank rec reads this run's AP, AR cash reads this run's
-billing, and close (the M6 engine, when integrated) reads every delivery. AP and AR billing use the v0 rule
-engines (``kalmora.v0``). A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl``
+billing and AP, and close (the M6 engine, when integrated) reads every delivery. AP uses the v0 rule
+engine; AR billing uses recorded source observations and the typed billing engine.
+A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl``
 produced elsewhere), or it is *unavailable*. Unavailable is not a failure: the web app scores a
 missing file as absent.
 
@@ -73,24 +74,41 @@ def _ap(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, A
     return {"coding_errors": errors}
 
 
-def _ar_billing(phase: Path, target: Path, _work: Path, _notes: list[Row]) -> dict[str, Any]:
-    from .v0.solve import solve_billing, write_jsonl
-    rows, pending = solve_billing(phase)
-    write_jsonl(target, rows)
-    return {"pending_wip": len(pending)}
+def _ar_billing(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
+    import asyncio
+    from dataclasses import asdict
+    from .billing.source_runner import build_billing_from_sources
+    from .billing.io import write_billing_files
+    from .data import PhaseData
+    for destination in (target, target.with_name("pending_wip.jsonl")):
+        resolved = destination.resolve()
+        if resolved.is_relative_to(phase.resolve()) or any(part.lower() == "golden" for part in resolved.parts):
+            raise ValueError("AR delivery must be outside original phase data and golden")
+    source = asyncio.run(build_billing_from_sources(PhaseData(phase), work_dir=work))
+    if not source.complete:
+        raise ValueError("unresolved AR billing sources; see the archived source report")
+    write_billing_files(source.billing, target)
+    for result in source.billing.results:
+        finding = note(f"ar_billing:{result.item.id}", "CHECK", "source_evidence", "INFO",
+                       f"Facturación sustentada en {len(result.evidence)} referencias originales",
+                       [asdict(evidence) for evidence in result.evidence])
+        finding["policy_ref"] = "POLITICAS_CONTABLES.md §3.1"
+        notes.append(finding)
+    return {"engine": "sources", "pending_wip": len(source.billing.pending_wip),
+            "source_output_sha256": source.stable_sha256, "source_coverage": source.report["coverage"]}
 
 
 def _ar_cash(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, Any]:
     from .ar_cash import build_ar_cash
     from .ar_cash.io import write_ar_cash
     from .data import PhaseData
-    billing = _delivered(target, "ar_billing")
-    run = build_ar_cash(PhaseData(phase), billing=billing or [])
+    billing, ap = _delivered(target, "ar_billing"), _delivered(target, "ap")
+    run = build_ar_cash(PhaseData(phase), billing=billing or [], ap=ap or [])
     write_ar_cash(run, target)
     for result in run.results:
         notes.extend(note(f"ar_cash:{result.row['bank_line']}", "CHECK", "diagnostic", "INFO", text)
                      for text in result.diagnostics)
-    return {"billing_input": billing is not None, "diagnostics": list(run.diagnostics)}
+    return {"billing_input": billing is not None, "ap_input": ap is not None, "diagnostics": list(run.diagnostics)}
 
 
 def _bank_rec(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, Any]:

@@ -173,6 +173,48 @@ class ArCashTests(unittest.TestCase):
                                                       "invoice": "INV-1", "amount": 10000}])
         self.assertEqual(second.row["adjustment"][1]["account"], "43800000")
 
+    def test_duplicate_history_is_scoped_to_company_and_currency(self):
+        (self.phase / "bank/BIN-1200").mkdir(parents=True)
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("erp/bank_accounts.jsonl", [
+            {"id": "BIN-1100", "company": "1100", "currency": "EUR", "gl_account": "57200001"},
+            {"id": "BIN-1200", "company": "1200", "currency": "EUR", "gl_account": "57200002"},
+        ])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 10000, 0),
+                                                     self.line("55500000", 0, 10000)]),
+        ])
+        line = {"booking_date": "2026-07-02", "value_date": "2026-07-02",
+                "amount": 10000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA"}
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [dict(line, bank_line="BL1")])
+        self._jsonl("bank/BIN-1200/2026-07.lines.jsonl", [dict(line, bank_line="BL2")])
+        first, second = self._run().results
+        self.assertEqual(first.row["applications"], [{"invoice": "INV-1", "amount": 10000}])
+        self.assertEqual(second.row["residuals"], [])
+        self.assertEqual(second.row["adjustment"], [])
+
+    def test_historical_full_receipt_supports_duplicate_classification(self):
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                     self.line("70500000", 0, 10000)]),
+            dict(self.entry("PRIORCASH", "2026-07-01", [self.line("57200001", 10000, 0),
+                                                          self.line("43000000", 0, 10000, "C1", "INV-1")]),
+                 currency="EUR"),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 10000, 0),
+                                                     self.line("55500000", 0, 10000)]),
+        ])
+        (self.phase / "bank/BIN-1100/2026-07.lines.jsonl").write_text(json.dumps({
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 10000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
+        }) + "\n", encoding="utf-8")
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["residuals"], [{"type": "OVERPAYMENT_DUPLICATE",
+                                                      "invoice": "INV-1", "amount": 10000}])
+        self.assertEqual(result.row["adjustment"][1]["account"], "43800000")
+
     def test_receivable_posted_after_receipt_is_not_available_as_of_that_date(self):
         self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
             "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
@@ -215,6 +257,32 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(result.row["residuals"], [{"type": "NON_CUSTOMER", "amount": 8000}])
         self.assertEqual(result.row["adjustment"][1]["account"], "47000000")
 
+    def test_non_customer_guarantee_return_and_insurance_indemnity(self):
+        cases = [
+            ("DEVOLUCIÓN FIANZA PROVISIONAL OBRA", "56500000"),
+            ("ABONO INDEMNIZACIÓN SINIESTRO PÓLIZA 123", "75900000"),
+        ]
+        for text, account in cases:
+            with self.subTest(text=text):
+                self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+                    "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+                    "amount": 8000, "currency": "EUR", "text": text,
+                }])
+                result = self._run().results[0]
+                self.assertIsNone(result.row["customer"])
+                self.assertEqual(result.row["residuals"], [{"type": "NON_CUSTOMER", "amount": 8000}])
+                self.assertEqual(result.row["adjustment"][1]["account"], account)
+
+    def test_social_security_narrative_is_not_classified_as_insurance_income(self):
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "DEVOLUCIÓN DE SEGUROS SOCIALES",
+        }])
+        result = self._run().results[0]
+        self.assertIsNone(result.row["customer"])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
     def test_factored_invoice_paid_to_kalmora_is_credited_to_factor(self):
         self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 8000, factored=True)])
         self._jsonl("erp/factoring_assignments.jsonl", [{
@@ -233,6 +301,17 @@ class ArCashTests(unittest.TestCase):
                                                      "invoice": "INV-1", "amount": 8000}])
         self.assertEqual(result.row["adjustment"][1]["account"], "55300000")
         self.assertEqual(result.row["adjustment"][1]["partner"], "FACTOR-BAE")
+
+    def test_factored_receipt_requires_matching_document_currency(self):
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 8000, factored=True, currency="USD")])
+        self._jsonl("erp/factoring_assignments.jsonl", [{
+            "invoice": "INV-1", "date": "2026-06-10", "customer": "C1",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["adjustment"], [])
 
     def test_netting_against_same_counterparty_vendor_is_balanced(self):
         self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
@@ -253,6 +332,127 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
                          sum(line["credit"] for line in result.row["adjustment"]))
 
+    def test_one_payable_cannot_be_netted_against_two_receipts(self):
+        self.test_netting_against_same_counterparty_vendor_is_balanced()
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 10000),
+            self.invoice("INV-2", 11000, date="2026-07-03", due="2026-07-03")])
+        journal = [json.loads(line) for line in (self.phase / "erp/journal_entries.jsonl").read_text().splitlines()]
+        journal.append(self.entry("INVPOST2", "2026-07-03", [
+            self.line("43000000", 11000, 0, "C1", "INV-2"), self.line("70500000", 0, 11000)]))
+        self._jsonl("erp/journal_entries.jsonl", journal)
+        first = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        second = dict(first, bank_line="BL2", amount=9000, booking_date="2026-07-04", value_date="2026-07-04")
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [first, second])
+        run = self._run()
+        self.assertEqual(run.results[0].row["residuals"][0]["type"], "NETTING_AP")
+        self.assertEqual(run.results[1].row["residuals"], [])
+        self.assertEqual(run.results[1].row["applications"], [{"invoice": "INV-2", "amount": 9000}])
+
+    def _ap_delivery(self, received: str) -> list[dict]:
+        """A payable posted by this month's AP delivery, received on ``received``."""
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "TAX1", "companies": ["1100"]}])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                    self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        (self.phase / "inbox/ap/API1").mkdir(parents=True, exist_ok=True)
+        self._json("inbox/ap/API1/message.json", {"received_at": f"{received}T09:00:00"})
+        return self._ap_delivery_rows()
+
+    @staticmethod
+    def _ap_delivery_rows() -> list[dict]:
+        return [{"doc_id": "API1", "decision": "POST", "company": "1100", "vendor_id": "V1",
+                 "invoice_number": "AP-1", "currency": "EUR",
+                 "journal_entry": {"company": "1100", "lines": [
+                     {"account": "62300000", "debit": 2000, "credit": 0, "partner": None},
+                     {"account": "41000000", "debit": 0, "credit": 2000, "partner": "V1"}]}}]
+
+    def test_payable_posted_by_this_months_ap_delivery_supports_netting(self):
+        ap = self._ap_delivery(received="2026-07-01")
+        result = build_ar_cash(PhaseData(self.phase), ap=ap).results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 10000}])
+        self.assertEqual(result.row["residuals"], [{"type": "NETTING_AP", "invoice": "INV-1", "amount": 2000}])
+        self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
+                         sum(line["credit"] for line in result.row["adjustment"]))
+
+    def test_netting_with_a_short_payment_applies_cash_plus_payable_and_leaves_the_rest_open(self):
+        ap = self._ap_delivery(received="2026-07-01")
+        bank = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [dict(bank, amount=5000)])
+        journal = [json.loads(line) for line in (self.phase / "erp/journal_entries.jsonl").read_text().splitlines()]
+        journal[1] = self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 5000, 0), self.line("55500000", 0, 5000)])
+        self._jsonl("erp/journal_entries.jsonl", journal)
+        result = build_ar_cash(PhaseData(self.phase), ap=ap).results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 7000}])
+        self.assertEqual(result.row["residuals"], [{"type": "NETTING_AP", "invoice": "INV-1", "amount": 2000}])
+        self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
+                         sum(line["credit"] for line in result.row["adjustment"]))
+
+    def test_short_payment_netting_targets_the_invoice_due_on_the_receipt_date(self):
+        self.test_netting_with_a_short_payment_applies_cash_plus_payable_and_leaves_the_rest_open()
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("OLD-1", 9000, date="2026-03-01", due="2026-03-01"),
+                                              self.invoice("INV-1", 10000, date="2026-07-02", due="2026-07-02")])
+        journal = [json.loads(line) for line in (self.phase / "erp/journal_entries.jsonl").read_text().splitlines()]
+        journal.append(self.entry("OLDPOST", "2026-03-01", [self.line("43000000", 9000, 0, "C1", "OLD-1"),
+                                                            self.line("70500000", 0, 9000)]))
+        self._jsonl("erp/journal_entries.jsonl", journal)
+        ap = self._ap_delivery_rows()
+        result = build_ar_cash(PhaseData(self.phase), ap=ap).results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 7000}])
+
+    def test_a_historical_netting_entry_links_vendor_and_customer_despite_different_tax_ids(self):
+        ap = self._ap_delivery(received="2026-07-01")
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "OTHER", "companies": ["1100"]}])
+        journal = [json.loads(line) for line in (self.phase / "erp/journal_entries.jsonl").read_text().splitlines()]
+        journal.append(self.entry("OLDNET", "2026-05-06", [
+            self.line("57200001", 3000, 0), self.line("43000000", 0, 4000, "C1", "OLD-1"),
+            self.line("41000000", 1000, 0, "V1", "AP-0")]))
+        self._jsonl("erp/journal_entries.jsonl", journal)
+        result = build_ar_cash(PhaseData(self.phase), ap=ap).results[0]
+        self.assertEqual(result.row["residuals"], [{"type": "NETTING_AP", "invoice": "INV-1", "amount": 2000}])
+
+    def test_payable_received_after_the_receipt_cannot_support_netting(self):
+        ap = self._ap_delivery(received="2026-07-03")
+        result = build_ar_cash(PhaseData(self.phase), ap=ap).results[0]
+        self.assertEqual(result.row["residuals"], [])
+
+    def test_conflicting_tax_ids_prevent_name_only_ap_netting(self):
+        self.test_netting_against_same_counterparty_vendor_is_balanced()
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "OTHER", "companies": ["1100"]}])
+        result = self._run().results[0]
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+
+    def test_ap_posted_after_receipt_cannot_support_netting(self):
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "TAX1", "companies": ["1100"]}])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-1"),
+                                                    self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+            self.entry("APPOST", "2026-07-03", [self.line("41000000", 0, 2000, "V1", "AP-1"),
+                                                   self.line("62300000", 2000, 0)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertFalse(any(item["type"] == "NETTING_AP" for item in result.row["residuals"]))
+
+    def test_penalty_notified_after_receipt_date_is_not_applied(self):
+        self._jsonl("erp/penalty_notices.jsonl", [{
+            "invoice": "INV-1", "customer": "C1", "amount": 2000, "notified_on": "2026-07-03",
+        }])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+        self.assertEqual(result.row["residuals"], [])
+
     def test_matured_promissory_note_is_applied_to_431(self):
         self._jsonl("erp/promissory_notes.jsonl", [{
             "number": "7654321", "customer": "C1", "company": "1100",
@@ -271,6 +471,17 @@ class ArCashTests(unittest.TestCase):
             {"company": "1100", "account": "43100000", "debit": 0, "credit": 8000,
              "partner": "C1", "assignment": "PAG7654321"},
         ])
+
+    def test_matured_note_cannot_be_consumed_by_two_receipts(self):
+        self.test_matured_promissory_note_is_applied_to_431()
+        first = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        second = dict(first, bank_line="BL2", booking_date="2026-07-03", value_date="2026-07-03")
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [first, second])
+        run = self._run()
+        self.assertEqual(run.results[0].row["applications"], [{"pagare": "7654321", "amount": 8000}])
+        self.assertEqual(run.results[1].row["applications"], [])
+        self.assertEqual(run.results[1].row["adjustment"], [])
 
     def test_unmatured_promissory_note_is_not_available_on_receipt_date(self):
         self._jsonl("erp/promissory_notes.jsonl", [{

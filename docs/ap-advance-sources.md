@@ -45,8 +45,10 @@ be credited through the ordinary invoice path: the builder abstains until advanc
 restoration evidence is supported. This prevents reversing expense/payable while
 silently dropping the original advance and its historical carrying amount. The
 regression covers monetary and non-monetary advances without changing their state.
-The issue remains open until its outstanding integration/evaluation criteria have
-evidence; this helper does not declare the 305-document M1 delivery complete.
+The [independent issue #54 criterion matrix](ap-credit-acceptance.md) records the
+completed module capabilities and evaluation evidence separately from #140's
+monthly adoption. This helper does not declare the 305-document M1 delivery
+complete, and does not claim an approval field absent from the original PO data.
 
 
 [Application and restoration APIs](ap-credit-restoration.md) now accept associated
