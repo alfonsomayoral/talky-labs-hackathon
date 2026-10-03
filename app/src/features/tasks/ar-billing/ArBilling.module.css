@@ -1,0 +1,246 @@
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.strong {
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- list */
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  height: var(--control-height-sm);
+  width: 260px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--ink-3);
+}
+
+.search:focus-within {
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-12);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- preview */
+.preview {
+  scroll-margin-top: var(--space-4);
+}
+
+.previewTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .previewGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.previewMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.previewDoc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.entry {
+  margin-top: var(--space-6);
+}
+
+.docLabel,
+.blockTitle {
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+}
+
+.callout {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-md);
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-size: var(--text-13);
+}
+
+.callout > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.calloutLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-1-5) 0 0;
+}
+
+.dir3 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+/* certification and totals: label left, amount right */
+.cert,
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.certRows,
+.totalRows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1-5) var(--space-6);
+  margin: 0;
+  max-width: 520px;
+  font-size: var(--text-13);
+}
+
+.certRows dt,
+.totalRows dt {
+  color: var(--ink-2);
+}
+
+.certRows dd,
+.totalRows dd {
+  margin: 0;
+  text-align: right;
+}
+
+.certRows dt.strong,
+.totalRows dt.strong {
+  padding-top: var(--space-1-5);
+  border-top: 1px solid var(--line);
+  color: var(--ink-strong);
+}
+
+.certRows dd.strong,
+.totalRows dd.strong {
+  padding-top: var(--space-1-5);
+  border-top: 1px solid var(--line);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-12);
+  color: var(--ink-3);
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-12);
+}
+
+.lines th {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+}
+
+.lines td {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+  vertical-align: top;
+}
+
+.lines th:first-child,
+.lines td:first-child {
+  padding-left: 0;
+}
+
+.lines th:last-child,
+.lines td:last-child {
+  padding-right: 0;
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lines th.num {
+  text-align: right;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-12);
+}
+
+.checks li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.checks li[data-tone='ok'] {
+  color: var(--ok-ink);
+}
+
+.checks li[data-tone='danger'] {
+  color: var(--danger-ink);
+}
+
+.checks svg {
+  width: 14px;
+  height: 14px;
+}

@@ -1,0 +1,237 @@
+/* ---------------------------------------------------------------- sankey */
+.sankey {
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  height: auto;
+  overflow: visible;
+}
+
+.band {
+  opacity: 0.28;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.band:hover {
+  opacity: 0.5;
+}
+
+.sankeyNode {
+  cursor: pointer;
+  outline: none;
+}
+
+.sankeyNode:focus-visible .nodeLabel {
+  text-decoration: underline;
+  text-decoration-color: var(--brand);
+}
+
+.nodeBar {
+  fill: var(--ink-3);
+}
+
+.nodeLabel {
+  fill: var(--ink-2);
+  font-size: var(--text-12);
+}
+
+.nodeCount {
+  fill: var(--ink-3);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dim {
+  opacity: 0.12;
+}
+
+.sankeyNode.dim {
+  opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------- list */
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink-3);
+}
+
+.search:focus-within {
+  border-color: var(--brand-line);
+}
+
+.search input {
+  width: 220px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-12);
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------- ficha */
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.cardTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cardType {
+  color: var(--ink-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.cardBody {
+  display: grid;
+  grid-template-columns: minmax(320px, 4fr) minmax(520px, 7fr);
+  min-height: 560px;
+}
+
+.cardFacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .cardBody {
+    grid-template-columns: 1fr;
+  }
+
+  .cardFacts {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+.docPane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.docBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+  padding-top: var(--space-3);
+}
+
+/* ---------------------------------------------------------------- tables in the ficha */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-12);
+}
+
+.table th {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+  vertical-align: top;
+}
+
+.table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--ink-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-11);
+  overflow-wrap: normal;
+}
+
+.rowBad td {
+  background: var(--danger-bg);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--danger);
+}
+
+.info {
+  color: var(--info);
+}
+
+.dupLine {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: var(--leading);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-ink);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* The characters that differ from the master; danger ink on a danger wash, readable at 12px. */
+.changed {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--danger-border);
+  color: var(--danger-ink);
+  font-weight: var(--weight-semibold);
+  /* Keeps the wash on both halves when a long value wraps. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}

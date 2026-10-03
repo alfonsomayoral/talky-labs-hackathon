@@ -1,0 +1,135 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--bg-overlay);
+  animation: fade var(--duration) ease-out;
+}
+
+.top {
+  align-items: flex-start;
+  padding-top: 14vh;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - 2 * var(--space-6));
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dialog);
+  animation: rise var(--duration) var(--ease-out);
+}
+
+/* The panel only takes focus as a fallback (no control inside): it is not a control, so no ring. */
+.panel:focus-visible {
+  outline: none;
+}
+
+.top .panel {
+  max-height: calc(86vh - var(--space-6));
+}
+
+.sm {
+  max-width: 400px;
+}
+
+.md {
+  max-width: 560px;
+}
+
+.lg {
+  max-width: 720px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-5);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: 2px;
+}
+
+.title {
+  font-size: var(--text-14);
+  font-weight: var(--weight-semibold);
+}
+
+.description {
+  color: var(--ink-3);
+}
+
+.body {
+  padding: 0 var(--space-5) var(--space-5);
+  overflow: auto;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line-soft);
+  background: var(--bg-subtle);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+}
+
+/* Exit faster than the entrance; nothing inside takes clicks while it leaves. */
+.closing {
+  pointer-events: none;
+  animation: fade-out var(--duration-fast) ease-in forwards;
+}
+
+.closing .panel {
+  animation: sink var(--duration-fast) ease-in forwards;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sink {
+  to {
+    opacity: 0;
+    transform: translateY(2px) scale(0.99);
+  }
+}
+
+/* Reduced motion: no scale or travel, only the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation-name: fade;
+  }
+
+  .closing .panel {
+    animation-name: fade-out;
+  }
+}

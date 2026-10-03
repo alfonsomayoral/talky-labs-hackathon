@@ -1,0 +1,45 @@
+.band {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-12);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+
+.bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--line);
+}
+
+.bar:nth-child(1) {
+  height: 5px;
+}
+.bar:nth-child(2) {
+  height: 7.5px;
+}
+.bar:nth-child(3) {
+  height: 10px;
+}
+
+.band[data-tone='ok'] .on {
+  background: var(--ok);
+}
+.band[data-tone='warn'] .on {
+  background: var(--warn);
+}
+.band[data-tone='danger'] .on {
+  background: var(--danger);
+}
+
+.value {
+  color: var(--ink-3);
+}
