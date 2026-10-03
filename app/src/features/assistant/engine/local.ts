@@ -277,13 +277,22 @@ export function findItem(itemsById: ReadonlyMap<ItemId, WorkItem>, token: string
   return null
 }
 
+/** An id to suggest that exists in this run: an AP document key when it reads as one, else any item id. */
+function exampleId(itemsById: ReadonlyMap<ItemId, WorkItem>): string | null {
+  const items = [...itemsById.values()]
+  const ap = items.find((i) => i.task === 'ap')
+  if (ap && detectIntent(ap.key).kind === 'explain') return ap.key
+  return items[0]?.id ?? null
+}
+
 function explain(ctx: AssistantContext, token: string): AssistantAnswer {
   const { data, core, run } = ctx
   const item = findItem(data.itemsById, token)
   if (!item) {
     const task = parseItemId(token)?.task
+    const example = exampleId(data.itemsById)
     return answer('explain', {
-      text: `No encuentro ${token} en la ejecución activa${task ? ` (${TASK_META[task].label})` : ''}. Comprueba el id: por ejemplo, «Explica API004128».`,
+      text: `No encuentro ${token} en la ejecución activa${task ? ` (${TASK_META[task].label})` : ''}. Comprueba el id${example ? `: por ejemplo, «Explica ${example}»` : ''}.`,
     })
   }
   const rows = itemRows(run, item)
@@ -416,9 +425,10 @@ function cost(ctx: AssistantContext): AssistantAnswer {
   return answer('cost', { text: sentences.join(' '), cards, links })
 }
 
-function unknown(): AssistantAnswer {
+function unknown(ctx: AssistantContext): AssistantAnswer {
+  const example = exampleId(ctx.data.itemsById)
   return answer('unknown', {
-    text: `No sé responder a eso con los datos de la ejecución. Puedo darte el resumen del mes, lo que hay que revisar, por qué no cuadra el balance, cómo decidió un proceso, explicar una partida («Explica API004128»), el estado de una cuenta bancaria («¿Cómo está BIN-1100?») o el coste.`,
+    text: `No sé responder a eso con los datos de la ejecución. Puedo darte el resumen del mes, lo que hay que revisar, por qué no cuadra el balance, cómo decidió un proceso, explicar una partida${example ? ` («Explica ${example}»)` : ''}, el estado de una cuenta bancaria («¿Cómo está BIN-1100?») o el coste.`,
   })
 }
 
@@ -441,6 +451,6 @@ export function answerLocally(question: string, ctx: AssistantContext): Assistan
     case 'cost':
       return cost(ctx)
     case 'unknown':
-      return unknown()
+      return unknown(ctx)
   }
 }
