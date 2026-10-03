@@ -12,10 +12,10 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 1.A Diseño y shell | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.0 | Tokens Talky, 25 componentes, shell con hoja flotante, logo de Talky |
 | 1.B Datos (adaptador v1) | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.0 | Balance registrado igual al golden; 96 extractos cuadran |
 | 1.C Motor | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.0 | Paridad exacta con `score.py` en 8 casos; totales en EUR |
-| 2.A Ejecuciones y entregables | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 1.B, 1.C | Subida, fuentes de resultados, zip de entrega |
+| 2.A Ejecuciones y entregables | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.B, 1.C | El zip de entrega saca 100 en `score.py` |
 | 2.B Resumen | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.C | Commit `ac57d87` |
 | 2.C Actividad y panel de partida | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 1.C | `ItemPanel` y kit (`ProcessMap`, `ReasoningView`, `JournalEntryView`…). **Desbloquea la fase 3** |
-| 2.D Atención | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 1.C | Cola P0–P3 y `overrides.jsonl` |
+| 2.D Atención | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 1.C | Commit `21fc1c3` |
 | Refinado de diseño + 4.D Búsqueda y teclado | «Kalmora Close frontend: diseño y shell» | `fe/design-shell` | `talky-wt/fe-design-shell` | 5174 | Asignado | 1.A | Cambios de componentes solo compatibles (las demás sesiones los usan) |
 | 4.A Explorador de datos + 4.C Coste y calibración | «Resumen y Atención Kalmora Close» | `fe/explorer-cost` | `talky-wt/fe-explorer-cost` | 5176 | Asignado | 1.B, 1.C | Resumen y Atención ya los cubre la coordinadora |
 | 3.B Facturación + 3.C Cobros | «Actividad y panel de partida» | `fe/tasks-ar` | `talky-wt/fe-tasks-ar` | 5175 | Esperando el kit | 2.C (kit) | 2.C lo termina la coordinadora |
@@ -29,10 +29,10 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 
 | Sesión | Última instrucción | Próximo hito |
 | --- | --- | --- |
-| Diseño y shell | Empezar en `fe/design-shell` | Informe en `app/status/fe-design-shell.md` |
-| Resumen y Atención | Reasignada a 4.A + 4.C | Informe en `app/status/fe-explorer-cost.md` |
-| Actividad y panel de partida | No duplicar 2.C; reasignada a 3.B + 3.C | Aviso de la coordinadora cuando el kit esté en `hackathon/frontend` |
-| AP y Bancos | Usar `fe/tasks-ap-bank`; el kit llega después | Aviso de la coordinadora cuando el kit esté en `hackathon/frontend` |
+| Diseño y shell | Instrucciones enviadas: refinado, peticiones de diseño y ⌘K | Informe en `app/status/fe-design-shell.md` |
+| Resumen y Atención | Instrucciones enviadas: 4.A + 4.C, empieza ya | Informe en `app/status/fe-explorer-cost.md` |
+| Actividad y panel de partida | Instrucciones enviadas: parar 2.C; 3.B + 3.C tras el kit | Aviso de la coordinadora cuando el kit esté en `hackathon/frontend` |
+| AP y Bancos | Instrucciones enviadas: avanzar sin el kit | Aviso de la coordinadora cuando el kit esté en `hackathon/frontend` |
 
 ## Puertas
 
