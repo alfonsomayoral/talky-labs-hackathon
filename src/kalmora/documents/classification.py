@@ -5,7 +5,7 @@ import unicodedata
 
 from kalmora.facts import DocumentFacts, Fact
 
-CLASSIFICATION_VERSION = "ap-document-classification-v2"
+CLASSIFICATION_VERSION = "ap-document-classification-v3"
 DOCUMENT_TYPES = frozenset("""INVOICE CREDIT_NOTE DOWN_PAYMENT_REQUEST PROFORMA
 VENDOR_STATEMENT FACTORING_NOTICE TAX_GARNISHMENT_ORDER BANK_DETAILS_CHANGE
 CONTRACTOR_TAX_CERTIFICATE""".split())
@@ -92,6 +92,16 @@ def classify_document(facts: DocumentFacts) -> DocumentClassification:
                 typed.setdefault(document_type, []).append(fact)
             else:
                 diagnostics.append(ClassificationDiagnostic("UNSUPPORTED_CFDI_KIND", "CFDI kind is missing or outside invoice/credit-note scope", (fact,)))
+    # Facturae: InvoiceClass OO is an original invoice and OR an original
+    # corrective one, for complete (FC) or simplified (FA) invoice documents.
+    kinds = facts.fields.get("raw.invoice_document_type", ())
+    if any(fact.value in {"FC", "FA"} for fact in kinds):
+        for fact in facts.fields.get("raw.invoice_class", ()):
+            document_type = {"OO": "INVOICE", "OR": "CREDIT_NOTE"}.get(fact.value) if isinstance(fact.value, str) else None
+            if document_type:
+                typed.setdefault(document_type, []).append(fact)
+            else:
+                diagnostics.append(ClassificationDiagnostic("UNSUPPORTED_FACTURAE_CLASS", "Facturae class is outside original invoice/corrective scope", (fact,)))
     if len(typed) > 1:
         evidence = tuple(fact for candidates in typed.values() for fact in candidates)
         diagnostics.append(ClassificationDiagnostic("TYPE_CONFLICT", "source hints establish different document types", evidence))
