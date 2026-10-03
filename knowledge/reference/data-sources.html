@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuentes de datos Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+
+/* Mismo sistema visual que ap-data-model.html y ar-data-model.html */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0;font-weight:600}
+p{margin:0;max-width:72ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px;min-width:0}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .info{color:var(--info)} .neutral{color:var(--neutral)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0;align-content:start}
+.card .meta{display:flex;flex-wrap:wrap;gap:6px}
+pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0;display:grid;gap:6px}
+.note.info{border-left-color:var(--info);color:inherit}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:76ch}
+.muted{color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px}
+nav.toc a{font-family:var(--mono);font-size:.78rem;color:var(--accent);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px}
+nav.toc a:hover{border-color:var(--accent)}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.flow .step{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
+.flow .step b{font-family:var(--mono);font-size:.74rem;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · participant/phase_dev · cierre julio 2026</div>
+  <h1>Fuentes de información: formatos, parseo y contenido contable</h1>
+  <p>Inventario de todo lo que hay en <code>phase_dev/</code>: de dónde viene cada dato, en qué formato llega, cómo leerlo sin perder céntimos y qué hecho contable aporta a cada una de las seis tareas. Los recuentos y los desplazamientos de los formatos fijos se han comprobado contra los ficheros reales; lo que es inferencia está marcado como tal.</p>
+  <div class="kpis">
+    <div class="kpi"><b>826</b><span>ficheros</span></div>
+    <div class="kpi"><b>6</b><span>familias de fuente</span></div>
+    <div class="kpi"><b>11</b><span>formatos distintos</span></div>
+    <div class="kpi"><b>305</b><span>documentos AP</span></div>
+    <div class="kpi"><b>26 + 8</b><span>partidas AR + avisos/FACe</span></div>
+    <div class="kpi"><b>12</b><span>cuentas bancarias × 4 meses</span></div>
+    <div class="kpi"><b>36.743</b><span>asientos históricos</span></div>
+  </div>
+  <nav class="toc" aria-label="Secciones">
+    <a href="#fuentes">1 · Fuentes</a><a href="#formatos">2 · Formatos</a><a href="#parseo">3 · Parseo</a><a href="#contable">4 · Contenido contable</a><a href="#claves">5 · Claves de enlace</a><a href="#huecos">6 · Huecos y riesgos</a>
+  </nav>
+</header>
+
+<!-- ============================ 1 ============================ -->
+<section id="fuentes">
+  <div class="eyebrow">1 · Fuente</div>
+  <h2>Seis familias de fuente</h2>
+  <p>La fase es una foto del ERP <em>tal como estaba contabilizado</em> al cierre, más lo que llegó durante el mes y aún no se ha tratado. <code>tasks/</code> dice exactamente qué hay que resolver; <code>golden/</code> solo existe en dev y no debe usarse como entrada.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Familia</th><th>Ruta</th><th class="n">Ficheros</th><th>Origen en el mundo real</th><th>Naturaleza</th><th>Tareas que la consumen</th></tr></thead>
+    <tbody>
+      <tr><td><b>ERP</b></td><td><code>erp/*.jsonl|json</code></td><td class="n">24</td><td>Datos maestros y libros del ERP (estilo SAP: tipos de documento WE, SA…)</td><td><span class="pill ok">registrado</span> estructurado, fiable salvo errores humanos sembrados</td><td>Todas</td></tr>
+      <tr><td><b>Bandeja AP</b></td><td><code>inbox/ap/&lt;doc_id&gt;/</code></td><td class="n">305 docs · 625 ficheros</td><td>Buzón <code>facturas.proveedores@kalmora.example</code>: email, portal, Facturae, CFDI y papel escaneado</td><td><span class="pill warn">no registrado</span> semiestructurado, debe extraerse</td><td>1 AP · 6 cierre (periodificaciones)</td></tr>
+      <tr><td><b>AR facturación</b></td><td><code>inbox/ar/billing/&lt;item&gt;/</code></td><td class="n">26 partidas · 52 ficheros</td><td>Certificaciones de obra, partes de servicio municipales, decretos de revisión, medida PPA, liquidación del representante</td><td><span class="pill warn">no registrado</span> <code>item.json</code> + PDF</td><td>2 AR facturación · 6 cierre (WIP)</td></tr>
+      <tr><td><b>AR avisos de cobro</b></td><td><code>inbox/ar/remittances/</code></td><td class="n">14</td><td>Avisos de pago de clientes (PDF + metadatos) y exportaciones del portal FACe</td><td><span class="pill info">pista</span> ayuda a aplicar cobros</td><td>3 AR cobros</td></tr>
+      <tr><td><b>Banco</b></td><td><code>bank/&lt;cuenta&gt;/&lt;YYYY-MM&gt;.*</code></td><td class="n">96</td><td>Extractos de 12 cuentas (ES, PT, MX), abril–julio 2026, cada uno con su gemelo <code>.lines.jsonl</code></td><td><span class="pill ok">externo</span> verdad bancaria</td><td>3 cobros · 4 conciliación · 5 IC · 6 FX</td></tr>
+      <tr><td><b>Tareas</b></td><td><code>tasks/*.json</code></td><td class="n">6</td><td>Enunciado: ids a resolver</td><td>Listas de ids / pasos</td><td>Define el alcance</td></tr>
+      <tr><td class="muted"><b>Golden</b> (solo dev)</td><td><code>golden/*</code></td><td class="n">9</td><td>Solución de referencia de julio</td><td><span class="pill neutral">referencia</span> no es entrada</td><td><code>score.py</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Canales de la bandeja AP</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Canal (<code>message.json.channel</code>)</th><th class="n">Docs</th><th>Adjuntos típicos</th><th>Metadatos propios del canal</th></tr></thead>
+    <tbody>
+      <tr><td><code>email</code></td><td class="n">211</td><td>1 PDF (factura, rectificativa, proforma, extracto, carta, certificado)</td><td><code>from</code>, <code>to</code>, <code>subject</code>, <code>body</code></td></tr>
+      <tr><td><code>facturae</code></td><td class="n">43</td><td><code>facturae_&lt;n&gt;.xml</code> (Facturae 3.2.2), sin PDF</td><td><code>source</code></td></tr>
+      <tr><td><code>portal</code></td><td class="n">30</td><td>1 PDF</td><td><code>source</code>, <code>uploaded_by</code></td></tr>
+      <tr><td><code>cfdi</code></td><td class="n">15</td><td>PDF <b>y</b> XML CFDI 4.0 (<code>&lt;UUID&gt;.xml</code>) — deben coincidir</td><td><code>from</code>, <code>subject</code>, <code>body</code></td></tr>
+      <tr><td><code>paper</code></td><td class="n">6</td><td>1 PDF «escaneado en recepción»</td><td><code>source</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Remitente sospechoso: el dominio de <code>from</code>/<code>uploaded_by</code> frente a <code>vendors.email</code> es una de las señales de <code>BANK_DETAILS_CHANGED</code> (POLITICAS §2.2.3).</p>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section id="formatos">
+  <div class="eyebrow">2 · Formatos</div>
+  <h2>Once formatos, de más a menos estructurado</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Formato</th><th class="n">Ficheros</th><th>Dónde</th><th>Codificación / forma</th><th>Importes y fechas en origen</th></tr></thead>
+    <tbody>
+      <tr><td><b>JSONL</b></td><td class="n">77</td><td>21 de <code>erp/</code>, 48 <code>bank/*.lines.jsonl</code>, 8 de <code>golden/</code></td><td>UTF-8, un objeto por línea</td><td><span class="pill ok">céntimos enteros</span> fechas ISO; cantidades en milésimas (<code>quantity_milli</code>)</td></tr>
+      <tr><td><b>JSON</b></td><td class="n">347</td><td>305 <code>message.json</code>, 26 <code>item.json</code>, 6 <code>aviso_pago_*.json</code>, 3 ERP, 6 tareas, 1 golden</td><td>UTF-8, objeto o lista</td><td>Fechas ISO; <code>received_at</code> con hora local sin zona</td></tr>
+      <tr><td><b>Norma 43 (AEB/CSB)</b></td><td class="n">36</td><td>9 cuentas españolas</td><td>Ancho fijo 80, <b>ISO-8859-1</b>, CRLF</td><td>14 dígitos en céntimos + clave D/H; fechas <code>YYMMDD</code></td></tr>
+      <tr><td><b>ISO 20022 camt.053.001.08</b></td><td class="n">4</td><td><code>BLC-2100</code> (Portugal)</td><td>XML con namespace por defecto</td><td>Decimal con punto, <code>CdtDbtInd</code> CRDT/DBIT; fechas ISO</td></tr>
+      <tr><td><b>CSV banca MX</b></td><td class="n">8</td><td><code>BANH-3100-MXN</code>, <code>BANH-3100-USD</code></td><td>UTF-8, coma, fila 1 = metadatos, fila 2 = cabecera</td><td>Decimal con punto, columnas Cargo/Abono/Saldo; <code>dd/mm/yyyy</code></td></tr>
+      <tr><td><b>CSV FACe</b></td><td class="n">2</td><td><code>inbox/ar/remittances/FACe_estado_facturas_*.csv</code></td><td>ASCII, <b>punto y coma</b></td><td>Decimal con <b>coma</b> (<code>469994,66</code>); <code>dd/mm/yyyy</code></td></tr>
+      <tr><td><b>Facturae 3.2.2</b></td><td class="n">43</td><td>Bandeja AP, canal <code>facturae</code></td><td>XML, prefijo <code>fe:</code>; hijos sin namespace</td><td>Decimal con punto; fechas ISO; bloque <code>Corrective</code> en rectificativas</td></tr>
+      <tr><td><b>CFDI 4.0 (SAT)</b></td><td class="n">15</td><td>Bandeja AP, canal <code>cfdi</code></td><td>XML, prefijo <code>cfdi:</code>, datos en <b>atributos</b></td><td><code>SubTotal</code>, <code>Total</code>, <code>Moneda</code> MXN/USD; fecha ISO con hora</td></tr>
+      <tr><td><b>PDF con capa de texto</b></td><td class="n">291</td><td>AP (259), AR facturación (26), avisos de pago (6)</td><td>ReportLab, 1–2 páginas (16 con 2)</td><td>Mayoritario <code>1.234,56</code>; 7 en <code>1,234.56</code>; fechas en 4 estilos (ver §3)</td></tr>
+      <tr><td><b>PDF escaneado (imagen)</b></td><td class="n">3</td><td><code>API005199</code>, <code>API005205</code>, <code>API005209</code></td><td>Una imagen JPEG por página, sin texto</td><td>Requiere OCR</td></tr>
+      <tr><td><b>Markdown / Python</b></td><td class="n">—</td><td><code>participant/*.md</code>, <code>score.py</code></td><td>Reglas y contrato</td><td>No es dato: es norma y evaluación</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note info"><p><b>Gemelo <code>.lines.jsonl</code>.</b> Cada extracto bancario tiene un JSONL con el identificador <code>bank_line</code> que exige la entrega. Verificado: en los 48 extractos el orden y los importes coinciden 1:1 con el N43, CSV o camt, y saldo inicial + movimientos = saldo final. El campo <code>text</code> del JSONL viene normalizado o truncado (p. ej. CSV «14 500.00» → JSONL «14,500.00»), así que para la referencia completa conviene leer el original.</p></div>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section id="parseo">
+  <div class="eyebrow">3 · Método de parseo</div>
+  <h2>Cómo leer cada formato sin perder un céntimo</h2>
+  <p>Regla común: nunca <code>float</code>. Todo importe textual se convierte con <code>Decimal</code> y se redondea a céntimos enteros; los signos se fijan en el momento del parseo (positivo = cargo en la cuenta del banco / abono del cliente, según convenga al contrato de <code>lines.jsonl</code>: abonos positivos, cargos negativos).</p>
+
+  <div class="flow">
+    <div class="step"><b>1 · Clasificar</b><span>Por canal y nombre de adjunto (<code>factura_</code>, <code>invoice_</code>, <code>proforma_</code>, <code>statement_</code>, <code>letter_cession_</code>, <code>letter_bank_change_</code>, <code>certificate_art43_</code>) y luego por título del documento.</span></div>
+    <div class="step"><b>2 · Extraer</b><span>XML → árbol; PDF → texto con disposición; imagen → OCR.</span></div>
+    <div class="step"><b>3 · Normalizar</b><span>Locale numérico, fechas, NIF, IBAN, números de factura sin guiones/barras/prefijos.</span></div>
+    <div class="step"><b>4 · Validar</b><span>Σ líneas = base; base + cuotas − retenciones = total; cantidad × precio = importe. Si falla tras OCR, revisar antes de concluir <code>ARITHMETIC_ERROR</code>.</span></div>
+    <div class="step"><b>5 · Resolver</b><span>Enlazar con maestros: NIF → proveedor/sociedad, pedido → <code>purchase_orders</code>, albarán → <code>goods_receipts</code>.</span></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>JSONL / JSON del ERP</h3>
+      <div class="meta"><span class="pill ok">directo</span></div>
+      <p>Leer en streaming línea a línea. <code>journal_entries.jsonl</code> pesa 38 MB (36.743 asientos con líneas embebidas): indexar por <code>id</code>, por <code>(company, account)</code> y por <code>lines[].assignment</code>. Los importes ya están en céntimos.</p>
+<pre>for line in open(path, encoding="utf-8"):
+    if line.strip():
+        row = json.loads(line)</pre>
+    </div>
+
+    <div class="card">
+      <h3>Norma 43</h3>
+      <div class="meta"><span class="pill warn">ancho fijo</span><span class="pill warn">latin-1</span></div>
+      <p>Abrir con <code>encoding="latin-1"</code> y <code>splitlines()</code> (CRLF). Registros: <code>11</code> cabecera, <code>22</code> movimiento, <code>23</code> concepto complementario (1–n por movimiento), <code>24</code> equivalencia de divisa, <code>33</code> final de cuenta, <code>88</code> fin de fichero. Desplazamientos comprobados en los 36 ficheros (0-based):</p>
+<pre>11: [2:6] banco [6:10] oficina [10:22] DC+cuenta
+    [22:28] fecha ini [28:34] fecha fin
+    [32] D/H saldo (1=deudor 2=acreedor)
+    [33:47] saldo inicial ¢  [47:50] divisa 978
+22: [6:10] oficina [10:16] f.operación [16:22] f.valor
+    [22:24] concepto común [24:27] concepto propio
+    [27] D/H (1=cargo → negativo, 2=abono)
+    [28:42] importe ¢ [42:52] nº documento
+    [52:64] ref1 [64:80] ref2
+23: [2:4] código, luego 2 × 38 caracteres de texto
+24: [2:4] clave [4:7] divisa origen [7:21] importe ¢
+33: [58] D/H [59:73] saldo final ¢</pre>
+      <p class="muted">Nota: el campo de cuenta ocupa 12 posiciones (incluye los dígitos de control), así que fechas y saldo quedan dos posiciones más a la derecha que en la plantilla AEB «de libro». Validar siempre con saldo inicial + Σ movimientos = saldo del registro 33.</p>
+    </div>
+
+    <div class="card">
+      <h3>camt.053.001.08</h3>
+      <div class="meta"><span class="pill ok">XML estándar</span></div>
+      <p>Namespace <code>urn:iso:std:iso:20022:tech:xsd:camt.053.001.08</code>. Saldos en <code>Bal</code> con <code>Tp/CdOrPrtry/Cd</code> = <code>OPBD</code>/<code>CLBD</code>. Cada <code>Ntry</code> trae <code>NtryRef</code> = <code>bank_line</code> directamente.</p>
+<pre>amt  = Decimal(ntry.find("c:Amt").text)
+sign = 1 if CdtDbtInd == "CRDT" else -1
+ref  = NtryRef                      # = bank_line
+cpty = RltdPties/Dbtr|Cdtr/Nm
+memo = RmtInf/Ustrd                 # "ORDEN DE PAGO 2026/090527"
+code = BkTxCd/Prtry/Cd              # 02011, 04012…</pre>
+    </div>
+
+    <div class="card">
+      <h3>CSV bancario MX</h3>
+      <div class="meta"><span class="pill warn">cabecera doble</span></div>
+      <p>Fila 1 = pares clave/valor (<code>Cuenta</code>, <code>Moneda</code>, <code>Periodo</code>, <code>Saldo inicial</code>); fila 2 = cabecera real. Usar <code>csv.reader</code> (siempre 7 columnas). Importe = Abono − Cargo. Las comisiones y gastos SWIFT llegan como líneas separadas tras la transferencia.</p>
+<pre>Fecha,Concepto,Referencia,Clave de rastreo,Cargo,Abono,Saldo
+10/07/2026,TRANSF. EXTERIOR USD …,F2620614,2026071059…,14500.00,0.00,32607.00
+10/07/2026,COMISION TRANSFERENCIA EXTERIOR OUR,,,18.00,0.00,32589.00</pre>
+    </div>
+
+    <div class="card">
+      <h3>Facturae 3.2.2</h3>
+      <div class="meta"><span class="pill ok">XML estándar</span></div>
+      <p>Solo la raíz lleva namespace (<code>fe:Facturae</code>); el resto de etiquetas van sin prefijo. Etiquetas presentes en los 43 ficheros de dev:</p>
+<pre>Parties/SellerParty/TaxIdentification/TaxIdentificationNumber
+Parties/BuyerParty/.../TaxIdentificationNumber   # → sociedad
+InvoiceHeader/InvoiceNumber, InvoiceClass
+InvoiceHeader/Corrective/{InvoiceNumber,ReasonDescription}  # → CREDIT_NOTE (3)
+InvoiceIssueData/{IssueDate,InvoicingPeriod}
+TaxesOutputs/Tax/{TaxTypeCode,TaxRate,TaxableBase,TaxAmount}
+InvoiceTotals/{TotalGrossAmountBeforeTaxes,TotalTaxOutputs,
+   TotalTaxesWithheld,InvoiceTotal,TotalExecutableAmount}
+InvoiceTotals/AmountsWithheld/{WithholdingReason,WithholdingAmount}
+                                       # «Retención de garantía» (2)
+Items/InvoiceLine/{ItemDescription,Quantity,UnitPriceWithoutTax,
+   TotalCost,GrossAmount,IssuerTransactionReference}  # ← nº pedido 45000…
+AdditionalData/InvoiceAdditionalInformation  # leyendas ISP, REAV</pre>
+      <p class="muted">No hay IBAN en los Facturae de dev: el control de cuenta bancaria solo aplica a PDF.</p>
+    </div>
+
+    <div class="card">
+      <h3>CFDI 4.0</h3>
+      <div class="meta"><span class="pill ok">atributos</span><span class="pill warn">cotejar con PDF</span></div>
+      <p>Namespace <code>http://www.sat.gob.mx/cfd/4</code>. Todo está en atributos: <code>Comprobante@{Serie,Folio,Fecha,SubTotal,Total,Moneda,TipoDeComprobante,MetodoPago}</code>, <code>Emisor@Rfc</code>, <code>Receptor@Rfc</code>, <code>Concepto@{Cantidad,ValorUnitario,Importe,Descripcion}</code>, <code>Impuestos/Traslados</code> y <code>Retenciones</code>. Parsear también el PDF y comparar folio, RFC, subtotal, impuestos y total: una diferencia es <code>CFDI_MISMATCH</code>.</p>
+    </div>
+
+    <div class="card">
+      <h3>PDF con texto</h3>
+      <div class="meta"><span class="pill warn">semiestructurado</span></div>
+      <p><code>pdfplumber</code> (instalado, igual que <code>pypdf</code>) extrae líneas legibles. Patrón: cabecera por regex (<code>Nº Factura</code>, <code>Fecha</code>, <code>Vencimiento</code>, <code>NIF</code>, <code>Su pedido</code>, <code>Periodo</code>, <code>IBAN</code>), líneas por regex de fin de línea <code>cant · ud · precio · importe</code>, totales por etiqueta (<code>Base imponible</code>, <code>IVA nn%</code>, <code>Retención</code>, <code>TOTAL</code>).</p>
+<pre>LINE = r"^(?P&lt;desc&gt;.+?) – (?P&lt;albaran&gt;AL-\d+|REM-\d+) \((?P&lt;d&gt;\d\d/\d\d)\)"
+       r" (?P&lt;qty&gt;[\d.,]+) (?P&lt;ud&gt;\S+) (?P&lt;price&gt;[\d.,]+) (?P&lt;amt&gt;-?[\d.,]+)$"</pre>
+      <ul>
+        <li><b>Idiomas:</b> FACTURA (212), FATURA pt (13), INVOICE (8), rectificativas y notas de crédito, recibos de arrendamiento.</li>
+        <li><b>Fechas:</b> <code>dd/mm/yyyy</code> (249), <code>yyyy-mm-dd</code> (52), «12 de julio de 2026» (32), «Jul 31, 2026» (1).</li>
+        <li><b>Números:</b> <code>1.234,56</code> es la norma; 7 documentos usan <code>1,234.56</code>. Decidir el separador por documento, no por número.</li>
+        <li><b>Sellos:</b> el texto superpuesto («CONFORME», «Recibido») se entremezcla con la línea («CONFOCRoMnfEorme»). Buscar la palabra con tolerancia, no por igualdad.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>PDF escaneado (OCR)</h3>
+      <div class="meta"><span class="pill bad">frágil</span></div>
+      <p><code>tesseract</code> está en <code>/opt/homebrew/bin</code> pero solo con modelos <code>eng</code>/<code>osd</code>. Extraer la imagen con <code>pypdf</code> (<code>page.images</code>) y pasar OCR. Prueba real sobre <code>API005199</code>: «A12359962» salió como «412359962» y un importe «1.464,90» como «4.464,90».</p>
+      <ul>
+        <li>Instalar <code>spa</code> (y <code>por</code>) mejora tildes y dígitos.</li>
+        <li>Validar cada línea con cantidad × precio y reconstruir los totales; corregir NIF contra el maestro de sociedades/proveedores.</li>
+        <li>Recibidos por <code>email</code>, no por canal <code>paper</code>: el canal no indica si hay capa de texto.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Avisos de pago y FACe</h3>
+      <div class="meta"><span class="pill info">pista de cobro</span></div>
+      <p><code>aviso_pago_RCPT-*.json</code> solo trae <code>file</code>, <code>channel</code>, <code>from_</code> (nombre del pagador) y <code>received_at</code>; el detalle (facturas, importes, referencia de la orden) está en el PDF gemelo. El CSV FACe es <code>;</code> con coma decimal:</p>
+<pre>numero_registro;numero_factura;fecha_factura;importe;estado;fecha_estado;importe_pagado
+;SU26-00035;31/03/2026;469994,66;PAGADA;13/07/2026;469994,66</pre>
+    </div>
+
+    <div class="card">
+      <h3>Partidas AR (<code>item.json</code> + PDF)</h3>
+      <div class="meta"><span class="pill warn">plantilla por tipo</span></div>
+      <p><code>item.json</code> da <code>type</code>, sociedad, contrato, cliente y mes. El PDF cambia según el tipo:</p>
+      <ul>
+        <li><code>OBRA_CERTIFICATION</code> (14): capítulos, «a origen», «anterior», «presente certificación» y sello «CONFORME» de la Dirección Facultativa. En MX se llama «Estimación».</li>
+        <li><code>SERVICE_MONTHLY</code> (8): canon + extraordinarios con estado de conformidad.</li>
+        <li><code>PRICE_REVISION</code> (2): decreto con canon nuevo/anterior, fecha de efectos y meses facturables.</li>
+        <li><code>PPA</code> (1): MWh por planta, % contratado, precio fijo; números <code>8.652,582</code>.</li>
+        <li><code>MARKET_SETTLEMENT</code> (1): MWh e importes por planta y desvíos; MWh en formato <code>2,737.647</code> e importes en <code>197.781,33</code> en el mismo documento.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section id="contable">
+  <div class="eyebrow">4 · Contenido contable</div>
+  <h2>Qué hecho contable aporta cada fuente</h2>
+
+  <h3>Datos maestros y configuración</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Fichero</th><th class="n">Filas</th><th>Contenido contable</th><th>Uso en decisiones</th></tr></thead>
+    <tbody>
+      <tr><td><code>companies.json</code></td><td class="n">7</td><td>Sociedad, país, moneda local, NIF/VAT, dirección</td><td>Identificar destinatario; <code>WRONG_ADDRESSEE</code>, <code>MANDATORY_FIELD_MISSING</code></td></tr>
+      <tr><td><code>chart_of_accounts.jsonl</code></td><td class="n">97</td><td>Plan único PGC; <code>type</code> BS/PL, <code>open_items</code></td><td>Validar cuentas; saber qué cuentas llevan partidas abiertas</td></tr>
+      <tr><td><code>tax_codes.json</code></td><td class="n">—</td><td>Códigos de IVA (S21, S10, SISP, SIC, SIS, PAUT…) con tipo en puntos básicos y naturaleza input/reverse/exempt</td><td>Cuotas, autorrepercusión 47210000/47710000, <code>VAT_RATE_INCORRECT</code>, <code>ISP_NOT_APPLIED</code></td></tr>
+      <tr><td><code>cost_centers.jsonl</code> · <code>projects.jsonl</code></td><td class="n">25 · 20</td><td>Centros de coste y obras con PEP (<code>wbs</code>) por capítulo</td><td>Objeto de coste: CeCo <b>o</b> PEP, nunca ambos</td></tr>
+      <tr><td><code>vendors.jsonl</code></td><td class="n">225</td><td>Cuenta de acreedor, gasto y IVA por defecto, retención, IBAN + historial, plazo, <code>po_required</code>, sociedades</td><td>Imputación por defecto, <code>VENDOR_NOT_IN_MASTER</code>, <code>BANK_DETAILS_CHANGED</code>, <code>WITHHOLDING_MISSING</code></td></tr>
+      <tr><td><code>contractor_certificates.jsonl</code></td><td class="n">97</td><td>Certificados art. 43.1.f LGT con vigencia</td><td><code>POST_PAYMENT_BLOCK</code></td></tr>
+      <tr><td><code>customers.jsonl</code></td><td class="n">87</td><td>Cliente público/privado, IBAN, códigos DIR3</td><td>FACe, deterioro (públicos no se deterioran), identificación de cobros</td></tr>
+      <tr><td><code>sales_contracts.jsonl</code></td><td class="n">83</td><td>Valor, código fiscal (R21, RISP, R10, PR*, MR16), garantía en bp, plazo, factoring</td><td>Importes y vencimiento de la facturación AR</td></tr>
+      <tr><td><code>bank_accounts.jsonl</code></td><td class="n">12</td><td>Cuenta → sociedad, IBAN/CLABE, <code>gl_account</code> 572xxxxx, moneda, formato, roles (pooling, préstamos…)</td><td>Puente entre extracto y diario</td></tr>
+      <tr><td><code>fx_rates.jsonl</code></td><td class="n">2.365</td><td>Serie SYN-BCE diaria, base EUR</td><td>Conversión a fecha de factura, revaluación de cierre, <code>FX_RATE_DIFFERENCE</code></td></tr>
+      <tr><td><code>intercompany_agreements.json</code></td><td class="n">—</td><td>Management fees mensuales 2025/2026, préstamo KMI-2025-01 (principal, 600 bp, act/360)</td><td>Esperado intragrupo; causa <code>INTEREST_DAY_COUNT</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Libros y documentos ya registrados</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Fichero</th><th class="n">Filas</th><th>Contenido contable</th><th>Uso en decisiones</th></tr></thead>
+    <tbody>
+      <tr><td><code>journal_entries.jsonl</code></td><td class="n">36.743</td><td>Diario completo desde 01/10/2024: cabecera (<code>doc_type</code>, <code>source</code>, referencia) y líneas Debe/Haber con socio, CeCo/PEP, IVA y asignación</td><td>Aprender imputaciones; lado «libro» de la conciliación (<code>&lt;id&gt;#&lt;línea&gt;</code>); no volver a registrar</td></tr>
+      <tr><td><code>open_items.jsonl</code></td><td class="n">1.626</td><td>Saldo abierto por sociedad, cuenta, socio y asignación</td><td>Facturas pendientes de cobro/pago, GR/IR 40090000, base de deterioro y revaluación</td></tr>
+      <tr><td><code>purchase_orders.jsonl</code> · <code>goods_receipts.jsonl</code></td><td class="n">655 · 21.699</td><td>Pedidos con precio, cuenta, PEP e IVA por posición; entradas y hojas de servicio con valor y asiento WE</td><td>Casación 3 vías: <code>QTY_NOT_RECEIVED</code>, <code>PRICE_VARIANCE</code> (2 % o 150 €), Dr 40090000</td></tr>
+      <tr><td><code>ap_invoices.jsonl</code> · <code>ap_document_log.jsonl</code></td><td class="n">4.207 · 4.459</td><td>Facturas ya tratadas (importes, decisión, casos) y bitácora de todo documento recibido</td><td>Detección de <code>DUPLICATE</code> contra histórico; cartas de cambio de IBAN ya registradas</td></tr>
+      <tr><td><code>ar_invoices.jsonl</code> · <code>billing_history.jsonl</code></td><td class="n">1.410 · 487</td><td>Facturas emitidas con DIR3 y certificación; histórico de partidas facturadas (certificaciones con líneas, cuentas y PEP)</td><td>Patrones de facturación, «anterior» de la certificación, aplicación de cobros</td></tr>
+      <tr><td><code>promissory_notes.jsonl</code> · <code>factoring_assignments.jsonl</code> · <code>sepa_remittances.jsonl</code></td><td class="n">8 · 42 · 22</td><td>Pagarés (431, <code>PAG&lt;n&gt;</code>), facturas cedidas al factor, remesas de recibos SEPA</td><td><code>FACTORED_MISDIRECTED</code>, cobros N:1 de remesas, <code>RETURNED_DIRECT_DEBIT</code></td></tr>
+      <tr><td><code>penalty_notices.jsonl</code></td><td class="n">10</td><td>Penalidades notificadas por factura</td><td>Residual <code>PENALTY</code> (Dr 70590000)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Documentos del mes (no registrados)</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Fuente</th><th>Tipo documental</th><th>Hecho contable</th><th>Resultado esperado (política)</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="3">Bandeja AP</td><td>Factura / Facturae / CFDI</td><td>Gasto o activo, IVA soportado o autorrepercutido, retenciones, garantía 5 %, deuda con proveedor</td><td>POST · POST_PAYMENT_BLOCK · HOLD · REJECT · DUPLICATE (§2.2); asiento §2.3</td></tr>
+      <tr><td>Rectificativa / nota de crédito</td><td>Reversión parcial de un gasto</td><td><code>CREDIT_NOTE</code> → POST inverso a la misma cuenta y objeto de coste</td></tr>
+      <tr><td>Proforma, extracto, cesión, cambio de IBAN, certificado art. 43</td><td>Sin hecho contable; cambian datos de pago o de cumplimiento</td><td><code>NOT_INVOICE</code> + acción (<code>REGISTER_ALTERNATIVE_PAYEE</code>, <code>UPDATE_BANK_DETAILS</code>…)</td></tr>
+      <tr><td>AR facturación</td><td>Certificación, parte de servicio, decreto, PPA, liquidación</td><td>Ingreso (705x), IVA repercutido 47700000, cliente 430, garantía 43000900, anticipo 43800000, 5 al millar 63100000</td><td>INVOICE o <code>SKIP_PENDING_APPROVAL</code> → WIP en cierre (Dr 43090000 / Cr 71300000)</td></tr>
+      <tr><td>Avisos / FACe</td><td>Comunicación de pago, estado de factura</td><td>Qué facturas cubre cada abono</td><td>Aplicación desde 55500000; residuales §3.2</td></tr>
+      <tr><td>Banco</td><td>Movimientos del extracto</td><td>Cobros ya en 572/55500000; comisiones, intereses, barridos de pooling, recibos devueltos sin registrar</td><td>Casación banco↔libro y categorías §4 (con o sin ajuste)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Qué tarea alimenta cada fuente</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Tarea (<code>tasks/</code>)</th><th class="n">Alcance</th><th>Fuente principal</th><th>Fuentes de apoyo</th></tr></thead>
+    <tbody>
+      <tr><td>1 · AP <code>ap_documents.json</code></td><td class="n">305 docs</td><td><code>inbox/ap</code></td><td>vendors, companies, purchase_orders, goods_receipts, tax_codes, contractor_certificates, ap_invoices, ap_document_log, fx_rates, journal_entries</td></tr>
+      <tr><td>2 · AR facturación <code>ar_billing_items.json</code></td><td class="n">26 partidas</td><td><code>inbox/ar/billing</code></td><td>sales_contracts, customers (DIR3), billing_history, ar_invoices, projects</td></tr>
+      <tr><td>3 · AR cobros <code>ar_receipts.json</code></td><td class="n">32 líneas</td><td><code>bank/*.lines.jsonl</code> + original</td><td>remittances, open_items, ar_invoices, promissory_notes, factoring_assignments, penalty_notices, sepa_remittances</td></tr>
+      <tr><td>4 · Bancos <code>bank_accounts.json</code></td><td class="n">12 cuentas</td><td><code>bank/</code> (julio y meses previos)</td><td>journal_entries (572), bank_accounts, fx_rates</td></tr>
+      <tr><td>5 · Intragrupo <code>intercompany.json</code></td><td class="n">7 parejas · 8 cuentas</td><td>journal_entries / open_items</td><td>intercompany_agreements, bank (pooling)</td></tr>
+      <tr><td>6 · Cierre <code>close.json</code></td><td class="n">6 pasos</td><td>journal_entries, open_items, inbox</td><td>ap_invoices (histórico por proveedor para periodificar), fx_rates, customers, billing items no aprobados</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section id="claves">
+  <div class="eyebrow">5 · Trazabilidad</div>
+  <h2>Claves que enlazan las fuentes</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Clave</th><th>Ejemplo</th><th>Aparece en</th></tr></thead>
+    <tbody>
+      <tr><td><code>doc_id</code></td><td><code>API004204</code></td><td>carpeta de la bandeja, <code>message.json</code>, <code>ap_invoices</code>, <code>ap_document_log</code>, tarea 1</td></tr>
+      <tr><td><code>bank_line</code></td><td><code>BL0005631</code></td><td><code>.lines.jsonl</code>, <code>NtryRef</code> del camt, tareas 3 y 4</td></tr>
+      <tr><td>id de asiento + línea</td><td><code>1000-2026-1600000046#2</code></td><td><code>journal_entries</code> (<code>&lt;sociedad&gt;-&lt;año&gt;-&lt;nº&gt;</code>), casación bancaria</td></tr>
+      <tr><td><code>billing_item</code></td><td><code>BILL-CV-OB-1100-2511-202607</code></td><td><code>item.json</code>, <code>billing_history</code>, tarea 2</td></tr>
+      <tr><td>Pedido / posición</td><td><code>4500019521</code>, <code>4500010026/10</code></td><td>PDF («Su pedido»), <code>purchase_orders</code>, <code>goods_receipts</code>, <code>assignment</code> en 40090000</td></tr>
+      <tr><td>Albarán</td><td><code>AL-086310</code>, <code>REM-006926</code></td><td>Descripción de línea en PDF/CFDI ↔ <code>goods_receipts.reference</code> (inferencia a confirmar por proveedor)</td></tr>
+      <tr><td>NIF / RFC / IBAN</td><td><code>A12359962</code>, <code>KMI91110719K</code></td><td>Documentos ↔ companies, vendors, customers, bank_accounts</td></tr>
+      <tr><td>Factura de venta</td><td><code>OB26-00022</code>, <code>SU26-00035</code></td><td>ar_invoices, open_items (assignment), FACe CSV, avisos de pago, memo bancario</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section id="huecos">
+  <div class="eyebrow">6 · Huecos y riesgos</div>
+  <h2>Lo que hay que vigilar</h2>
+  <ul>
+    <li><b><code>inbox/ar/notices/</code> no existe en dev</b> aunque el README lo describe; las penalidades del mes solo están en <code>erp/penalty_notices.jsonl</code>. La fase test podría traerlo: el lector debe tolerar su ausencia y su presencia.</li>
+    <li><b>DUA:</b> el README y la política hablan de IVA de importación del DUA, pero en dev no hay ningún adjunto con ese nombre. Puede aparecer en test.</li>
+    <li><b>Nombres de adjunto no fiables para el tipo:</b> 25 <code>invoice_*.pdf</code> incluyen notas de crédito portuguesas; el título del documento manda sobre el nombre del fichero.</li>
+    <li><b>OCR:</b> 3 documentos sin capa de texto; sin modelo <code>spa</code> los dígitos fallan. No concluir <code>ARITHMETIC_ERROR</code> ni <code>MANDATORY_FIELD_MISSING</code> sobre texto OCR sin revalidarlo.</li>
+    <li><b>Locale mixto:</b> separador decimal por documento (y a veces por columna, como en la liquidación de mercado).</li>
+    <li><b>Monedas:</b> AP en EUR (285), MXN (15) y USD (5); extractos en EUR, MXN y USD; el registro N43 <code>24</code> trae importe en divisa original.</li>
+    <li><b>Histórico ≠ trabajo pendiente:</b> el diario ya contiene los cobros en 55500000 y las entradas de mercancía; la entrega solo añade asientos nuevos o de ajuste.</li>
+    <li><b>Golden:</b> solo para medir en dev; en <code>phase_test</code> no existe y no debe condicionar el parser.</li>
+  </ul>
+  <div class="note"><p><b>Método de verificación usado aquí.</b> Recuentos con <code>find</code>/<code>jq</code>; texto de PDF con <code>pdfplumber</code> sobre los 294 PDF; desplazamientos N43, CSV y camt cotejados contra los 48 <code>.lines.jsonl</code> (importes, orden y saldo final). La relación albarán ↔ entrada de mercancía y la correspondencia exacta de etiquetas Facturae de retención no se han verificado fichero a fichero.</p></div>
+</section>
+
+</div>
+</body>
+</html>

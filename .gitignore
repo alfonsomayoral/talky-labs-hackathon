@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .venv/
 __pycache__/
 *.py[cod]
@@ -11,4 +12,8 @@ outputs/
 .env
 .env.*
 !.env.example
+=======
+participant/
+.DS_Store
+>>>>>>> main
 

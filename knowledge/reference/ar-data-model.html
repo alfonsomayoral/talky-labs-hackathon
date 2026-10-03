@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo AR Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+
+/* Layout: una columna de lectura (max 1080px) con diagramas a ancho completo y tablas con scroll propio */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0 0 6px;font-weight:600}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.POST{color:var(--ok)} .HOLD{color:var(--warn)} .REJECT{color:var(--bad)} .DUPLICATE{color:var(--info)} .NOT_INVOICE{color:var(--neutral)} .PPB{color:var(--warn)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.card pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg)}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:72ch}
+.muted{color:var(--muted)}
+</style>
+<style>
+.grid2.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
+.INVOICE{color:var(--ok)} .SKIP{color:var(--warn)} .DR{color:var(--info)} .CR{color:var(--bad)} .CLEAN{color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · phase_dev · golden/ar_billing.jsonl + ar_cash.jsonl · julio 2026</div>
+  <h1>Modelo de datos de cuentas a cobrar</h1>
+  <p>AR tiene dos entregables. <code>ar_billing.jsonl</code> resuelve cada concepto facturable del mes (<code>billing_item</code>): se factura o se omite. Cuando se factura, genera la factura y su asiento DR. <code>ar_cash.jsonl</code> resuelve cada abono bancario (<code>bank_line</code>): a qué facturas se aplica, qué diferencias explica y qué asiento de ajuste sale de la 555. Importes en céntimos enteros.</p>
+  <div class="kpis">
+    <div class="kpi"><b>26</b><span>billing items</span></div>
+    <div class="kpi"><b>25</b><span>facturas con asiento</span></div>
+    <div class="kpi"><b>77 · 132</b><span>líneas factura · asiento</span></div>
+    <div class="kpi"><b>32</b><span>cobros bancarios</span></div>
+    <div class="kpi"><b>33 · 7</b><span>aplicaciones · residuals</span></div>
+    <div class="kpi"><b>EUR · MXN</b><span>23 · 2 facturas</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">1 · Entidades</div>
+  <h2>Diagrama entidad-relación</h2>
+  <p>Hay dos raíces independientes y las une la partida abierta de clientes (cuenta 430). La factura emitida crea una partida con <code>assignment</code> igual al número de factura. El cobro la liquida mediante <code>applications[].invoice</code>, o <code>pagare</code> si es un pagaré.</p>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  BILLING_ITEM ||--o| INVOICE : "invoice (solo INVOICE)"
+  BILLING_ITEM ||--o| JOURNAL_ENTRY : "journal_entry (solo INVOICE)"
+  INVOICE ||--|{ INVOICE_LINE : "lines[]"
+  INVOICE ||--o{ DEDUCTION : "deductions[] (solo MX)"
+  INVOICE ||--o| FACE : "face (publico ES)"
+  JOURNAL_ENTRY ||--|{ JE_LINE : "lines[]"
+  JE_LINE }o--o| OPEN_ITEM_430 : "assignment = n factura"
+  BANK_LINE ||--o{ APPLICATION : "applications[]"
+  BANK_LINE ||--o{ RESIDUAL : "residuals[]"
+  BANK_LINE ||--|{ ADJ_LINE : "adjustment[]"
+  APPLICATION }o--|| OPEN_ITEM_430 : "invoice | pagare"
+  RESIDUAL }o--o| OPEN_ITEM_430 : "invoice (opcional)"
+
+  BILLING_ITEM {
+    string billing_item PK "BILL-contrato-YYYYMM"
+    enum type "OBRA_CERTIFICATION, SERVICE_MONTHLY, PRICE_REVISION, PPA, MARKET_SETTLEMENT"
+    string company
+    string customer
+    string contract
+    enum expected "INVOICE, SKIP_PENDING_APPROVAL"
+  }
+  INVOICE {
+    date date
+    date due_date "date + dias contrato"
+    enum tax_code "R21, R10, RISP, PR06, MR16"
+    cents net
+    cents tax
+    cents gross "net + tax"
+    cents retention "5pct base obra privada"
+    cents payable "gross - retention - deducciones"
+    string currency "EUR, MXN"
+  }
+  INVOICE_LINE {
+    string description
+    cents amount "puede ser negativo"
+    string account "705xxxxx"
+    string wbs "obra"
+    string cost_center "servicios, energia"
+  }
+  DEDUCTION {
+    enum code "MX5MILL, ADV_AMORT"
+    cents amount
+    string account "63100000, 43800000"
+  }
+  FACE {
+    string oficina_contable
+    string organo_gestor
+    string unidad_tramitadora
+    string registry
+  }
+  JOURNAL_ENTRY {
+    string id
+    string doc_type "DR"
+    date posting_date
+    string reference "n factura"
+    string source "SD"
+    string currency
+  }
+  JE_LINE {
+    int line
+    string account
+    cents debit
+    cents credit
+    string partner
+    string tax_code
+    string assignment
+    string wbs
+    string cost_center
+  }
+  BANK_LINE {
+    string bank_line PK
+    string account "cuenta bancaria"
+    string company
+    date date
+    cents amount
+    string customer "null si NON_CUSTOMER"
+    enum kind "TRANSFER"
+  }
+  APPLICATION {
+    string invoice "o pagare"
+    cents amount
+  }
+  RESIDUAL {
+    enum type
+    string invoice "opcional"
+    cents amount "siempre positivo"
+    string account
+  }
+  ADJ_LINE {
+    string company
+    string account
+    cents debit
+    cents credit
+    string partner
+    string assignment
+  }
+  OPEN_ITEM_430 {
+    string assignment "n factura o PAGn"
+    string partner "cliente"
+  }
+  </pre></div>
+</section>
+
+<section>
+  <div class="eyebrow">2 · Invariantes</div>
+  <h2>Reglas aritméticas comprobadas en golden</h2>
+  <div class="grid2 wide">
+    <div class="card"><h3>Factura</h3><pre>gross   = net + tax
+payable = gross − retention − Σ deductions.amount
+Σ lines.amount = net</pre></div>
+    <div class="card"><h3>Asiento de facturación (DR)</h3><pre>Dr 43000000  payable    socio cliente, assignment = nº
+Dr 43000900  retention  socio cliente
+Dr 63100000  MX5MILL    sin socio
+Dr 43800000  ADV_AMORT  socio cliente
+Cr 705xxxxx  por línea  WBS o CeCo, tax_code
+Cr 47700000  tax        (no existe si RISP)</pre></div>
+    <div class="card"><h3>Cobro</h3><pre>amount = Σ applications
+       − Σ residuals deudores  (PENALTY, NETTING_AP)
+       + Σ residuals acreedores (OVERPAYMENT, FACTORED,
+                                 NON_CUSTOMER)</pre></div>
+    <div class="card"><h3>Asiento de ajuste</h3><pre>Dr 55500000  amount        (el banco ya entró
+                              Dr 572 / Cr 555)
+Cr 43000000  por aplicación  assignment = factura
+Dr|Cr cuenta del residual
+Σ debit = Σ credit  (32/32)</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">3 · AR Billing</div>
+  <h2>Alternativas semánticas de facturación</h2>
+  <p>Hay dos ejes independientes. El <code>type</code> fija la cuenta de ingreso y la dimensión analítica. El <code>tax_code</code> fija el IVA, la retención y las deducciones. La retención depende del régimen (obra privada) y no del tipo.</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  BI["billing_item"] --> E{"expected"}
+  E -->|"certificación no aprobada · 1"| SK["SKIP_PENDING_APPROVAL<br/>sin invoice ni asiento<br/>→ cierre: obra pendiente de certificar"]
+  E -->|"25"| INV["INVOICE"]
+  INV --> T{"type → ingreso"}
+  T -->|"14"| OB["OBRA_CERTIFICATION<br/>70510000 · WBS por capítulo"]
+  T -->|"8"| SM["SERVICE_MONTHLY<br/>70500000 · cost_center"]
+  T -->|"2"| PR["PRICE_REVISION<br/>70520000 · 1 línea por mes"]
+  T -->|"1"| PPA["PPA<br/>70530000 · MWh × precio"]
+  T -->|"1"| MK["MARKET_SETTLEMENT<br/>70530000 por planta<br/>desvíos negativos → Dr 705"]
+  INV --> X{"tax_code → impuestos"}
+  X -->|"14 · 6"| R["R21 / R10<br/>IVA → Cr 477"]
+  R -->|"cliente público ES"| F["+ face DIR3"]
+  X -->|"2"| RS["RISP<br/>tax = 0, sin 477<br/>retención 5 % → Dr 43000900"]
+  X -->|"1"| PT["PR06 · Portugal<br/>IVA 6 % + retención 5 %"]
+  X -->|"2"| MX["MR16 · México · MXN<br/>IVA 16 %"]
+  MX --> D1["MX5MILL 0,5 % base<br/>Dr 63100000"]
+  MX --> D2["ADV_AMORT 30 % gross<br/>Dr 43800000"]
+  </pre></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Variante</th><th>Señal en datos</th><th class="n">Casos</th><th>Efecto en factura</th><th>Efecto en asiento</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill SKIP">SKIP_PENDING_APPROVAL</span></td><td>certificación sin aprobar por la DF</td><td class="n">1</td><td>sin <code>invoice</code></td><td>sin <code>journal_entry</code></td></tr>
+      <tr><td><span class="pill INVOICE">R21 / R10</span></td><td>tax_code del contrato</td><td class="n">20</td><td>tax = net × 21 % / 10 %</td><td>Cr 47700000</td></tr>
+      <tr><td><span class="pill INVOICE">+ FACe</span></td><td>cliente público español</td><td class="n">18</td><td>3 códigos DIR3 + registro</td><td>—</td></tr>
+      <tr><td><span class="pill INVOICE">RISP</span></td><td>promotor empresario</td><td class="n">2</td><td>tax = 0; retention 5 %</td><td>Dr 43000900, sin 477</td></tr>
+      <tr><td><span class="pill INVOICE">PR06</span></td><td>sociedad 2100 (PT)</td><td class="n">1</td><td>IVA 6 % + retention 5 %</td><td>Dr 43000900 + Cr 477</td></tr>
+      <tr><td><span class="pill INVOICE">MR16</span></td><td>sociedad 3100, MXN</td><td class="n">2</td><td>deductions MX5MILL + ADV_AMORT</td><td>Dr 63100000 + Dr 43800000</td></tr>
+      <tr><td><span class="pill INVOICE">PRICE_REVISION</span></td><td>decreto aprobado</td><td class="n">2</td><td>una línea por mes desde la fecha de efectos</td><td>Cr 70520000 · CeCo</td></tr>
+      <tr><td><span class="pill INVOICE">MARKET_SETTLEMENT</span></td><td>liquidación del representante</td><td class="n">1</td><td>línea de desvíos con importe negativo</td><td>Dr 70530000 por los desvíos</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">4 · AR Cash</div>
+  <h2>Alternativas semánticas de aplicación de cobros</h2>
+  <p>Hay que explicar cada abono por completo. Lo que no cubren las aplicaciones va a un <code>residual</code> tipado, y el tipo fija la cuenta y el lado del asiento. Si el cliente paga de menos sin causa conocida, la aplicación es parcial, no hay residual y el resto de la factura queda abierto.</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  BL["bank_line<br/>ya en Dr 572 / Cr 555"] --> C{"¿customer?"}
+  C -->|"null · 2"| NC["NON_CUSTOMER<br/>applications = []"]
+  NC --> NC1["fianza → Cr 56500000"]
+  NC --> NC2["devolución IVA → Cr 47000000"]
+  NC --> NC3["seguro → Cr 75900000<br/>(no aparece en dev)"]
+  C -->|"cliente"| A{"amount vs Σ apps"}
+  A -->|"= · 25"| CL["Aplicación limpia<br/>1..N facturas<br/>Cr 430 por factura"]
+  CL -.-> PG["pagaré al vencimiento<br/>Cr 43100000 · PAGn<br/>(no aparece en dev)"]
+  A -->|"< · cobra menos"| LESS{"causa"}
+  LESS -->|"1"| PEN["PENALTY<br/>Dr 70590000"]
+  LESS -->|"1"| NET["NETTING_AP<br/>Dr 41000000 · socio proveedor<br/>aplicación parcial"]
+  LESS -->|"sin causa"| PAR["aplicación parcial<br/>sin residual"]
+  A -->|"apps = [] · cobra de más"| MORE{"causa"}
+  MORE -->|"1"| DUP["OVERPAYMENT_DUPLICATE<br/>Cr 43800000 · socio cliente"]
+  MORE -->|"2"| FAC["FACTORED_MISDIRECTED<br/>Cr 55300000 · FACTOR-BAE<br/>assignment = factura cedida"]
+  </pre></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Residual</th><th>Lado</th><th>Cuenta</th><th>Partner</th><th>Applications</th><th class="n">Casos</th><th>Ejemplo dev</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill CLEAN">— (limpio)</span></td><td>—</td><td>43000000</td><td>cliente</td><td>1..3 facturas</td><td class="n">25</td><td class="mono">BL0000276</td></tr>
+      <tr><td><span class="pill DR">PENALTY</span></td><td>Dr</td><td>70590000</td><td>—</td><td>sí</td><td class="n">1</td><td class="mono">BL0000161</td></tr>
+      <tr><td><span class="pill DR">NETTING_AP</span></td><td>Dr</td><td>41000000</td><td>proveedor (V…)</td><td>sí, parcial</td><td class="n">1</td><td class="mono">BL0000567</td></tr>
+      <tr><td><span class="pill CR">OVERPAYMENT_DUPLICATE</span></td><td>Cr</td><td>43800000</td><td>cliente</td><td>no</td><td class="n">1</td><td class="mono">BL0000808</td></tr>
+      <tr><td><span class="pill CR">FACTORED_MISDIRECTED</span></td><td>Cr</td><td>55300000</td><td>FACTOR-BAE</td><td>no</td><td class="n">2</td><td class="mono">BL0000085</td></tr>
+      <tr><td><span class="pill CR">NON_CUSTOMER</span></td><td>Cr</td><td>56500000 · 47000000 · 75900000</td><td>—</td><td>no; customer = null</td><td class="n">2</td><td class="mono">BL0000813</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid2">
+    <div class="card"><h3>PENALTY · BL0000161</h3><pre>apps  SU26-00035  46.999.466
+      SU26-00056  46.815.106
+res   PENALTY        212.795
+bank  93.601.777 = 93.814.572 − 212.795
+
+Dr 55500000  93.601.777
+Dr 70590000     212.795
+Cr 43000000  46.999.466  SU26-00035
+Cr 43000000  46.815.106  SU26-00056</pre></div>
+    <div class="card"><h3>NETTING_AP · BL0000567</h3><pre>apps  EN26-00014  43.885.431  (de 73.142.386)
+res   NETTING_AP     828.850  AP 26012023
+bank  43.056.581 = 43.885.431 − 828.850
+
+Dr 55500000  43.056.581
+Dr 41000000     828.850  V100173 · 26012023
+Cr 43000000  43.885.431  C200080 · EN26-00014</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">5 · Evaluación y huecos</div>
+  <h2>Qué puntúa el evaluador y qué falta en dev</h2>
+  <ul>
+    <li><b>ar_billing (10 %):</b> si <code>expected</code> no coincide, el ítem vale 0. En INVOICE, el 60 % es cabecera (<code>tax_code</code>, <code>due_date</code>, net, tax, retention, payable y los 3 DIR3 si hay FACe) y el 40 % el asiento.</li>
+    <li><b>ar_cash (15 %):</b> 15 % <code>customer</code>, 45 % <code>applications</code> como multiconjunto (factura|pagaré, importe), 20 % <code>residuals</code> como (type, amount) y 20 % el asiento. La cuenta del residual solo puntúa a través del asiento.</li>
+    <li><b>Variantes previstas que no aparecen en dev:</b> cobro de pagaré (<code>{"pagare": …}</code>, Cr 43100000), NON_CUSTOMER de seguro (75900000), códigos PR23/PRAUT, servicios extraordinarios con o sin conformidad y pago corto sin causa (aplicación parcial).</li>
+    <li><code>kind</code> solo vale <code>TRANSFER</code> en dev y no se puntúa.</li>
+    <li>PPA y MARKET_SETTLEMENT llevan sufijo <code>202606</code>: se facturan en julio sobre la energía de junio.</li>
+  </ul>
+  <p class="muted">Fuentes: participant/phase_dev/golden/ar_*.jsonl · POLITICAS_CONTABLES.md §3 · FORMATO_ENTREGA.md · score.py</p>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'loose', er: { useMaxWidth: false }, flowchart: { useMaxWidth: true } });
+</script>
+</body>
+</html>

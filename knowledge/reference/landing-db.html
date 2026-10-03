@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Base de llegada Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+/* Mismo sistema visual que data-sources.html */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0;font-weight:600}
+p{margin:0;max-width:72ch}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px;min-width:0}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent;border:0;padding:0}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .info{color:var(--info)} .neutral{color:var(--neutral)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0;align-content:start}
+pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0;display:grid;gap:6px}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:76ch}
+.muted{color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px}
+nav.toc a{font-family:var(--mono);font-size:.78rem;text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px}
+nav.toc a:hover{border-color:var(--accent)}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:4px;align-content:start}
+.lane.here{border:2px solid var(--accent);background:var(--accent-soft)}
+.lane b{font-family:var(--mono);font-size:.74rem;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.lane span{font-size:.86rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · propuesta v2 · capa de llegada · fuente: <a href="data-sources.html">data-sources.html</a></div>
+  <h1>Base de llegada: lo que dice cada fuente, en 8 tablas</h1>
+  <p>Una base DuckDB por fase. El ERP no se copia: se consulta con vistas sobre sus ficheros, que ya vienen en céntimos, con fechas ISO e ids de texto. Solo se materializa lo que llega en formatos heterogéneos (banco, bandejas y documentos), y se guarda <b>tal como lo dice cada fichero</b>, sin consolidar ni interpretar. La consolidación vive en la capa de análisis. DDL: <a href="landing-db.sql"><code>landing-db.sql</code></a>.</p>
+  <div class="kpis">
+    <div class="kpi"><b>8</b><span>tablas</span></div>
+    <div class="kpi"><b>25</b><span>vistas ERP (sin copia)</span></div>
+    <div class="kpi"><b>1</b><span>fichero DuckDB por fase</span></div>
+    <div class="kpi"><b>0,36 s</b><span>leer el diario completo</span></div>
+    <div class="kpi"><b>0</b><span>decisiones contables</span></div>
+  </div>
+  <nav class="toc" aria-label="Secciones">
+    <a href="#estrategia">1 · Estrategia</a><a href="#modelo">2 · Modelo</a><a href="#erp">3 · ERP</a><a href="#mapeo">4 · Qué va dónde</a><a href="#normalizacion">5 · Normalización</a><a href="#carga">6 · Carga</a><a href="#analisis">7 · Frontera con análisis</a><a href="#decisiones">8 · Decisiones</a>
+  </nav>
+</header>
+
+<!-- ============================ 1 ============================ -->
+<section id="estrategia">
+  <div class="eyebrow">1 · Estrategia</div>
+  <h2>Una pasada donde no se pierde nada; dos pasos donde sí</h2>
+  <p>El reto consiste en encontrar contradicciones: entre el PDF y el XML de un CFDI, entre el total impreso y la suma de líneas, entre el IBAN impreso y el de la ficha, o entre el número de una factura reenviada por otro canal y el original. Si se unificara de una pasada, el transformador tendría que elegir un valor y la señal se perdería. Por eso el criterio es por fuente.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Fuente</th><th>¿Se pierde información al unificar?</th><th>Estrategia</th><th>Dónde queda</th></tr></thead>
+    <tbody>
+      <tr><td>ERP</td><td>No: ya está en céntimos, con fechas ISO e ids</td><td><span class="pill ok">sin transformar</span></td><td>Vistas <code>erp.*</code></td></tr>
+      <tr><td>Banco (N43, camt, CSV)</td><td>No: comprobado 48/48 contra <code>.lines.jsonl</code></td><td><span class="pill ok">una pasada</span></td><td><code>bank_statement</code>, <code>bank_line</code></td></tr>
+      <tr><td><code>tasks/</code>, <code>message.json</code>, <code>item.json</code>, avisos</td><td>No</td><td><span class="pill ok">una pasada</span></td><td><code>task_item</code>, <code>inbound_item</code></td></tr>
+      <tr><td>Documentos (PDF, Facturae, CFDI, OCR, CSV FACe)</td><td><b>Sí</b>: conflictos entre adjuntos, valores impresos erróneos, OCR dudoso</td><td><span class="pill warn">dos pasos</span></td><td>Paso 1 aquí: <code>document</code>, <code>document_line</code>. Paso 2 en análisis: <code>ap_case</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="lanes">
+    <div class="lane"><b>Fuentes</b><span><code>phase_x/</code>, solo lectura</span></div>
+    <div class="lane here"><b>Llegada (esta base)</b><span>Parseo, tipos, formato canónico, procedencia y QC de la extracción. Un registro por fichero.</span></div>
+    <div class="lane"><b>Análisis</b><span>Casos unificados (<code>ap_case</code>…), resolución de entidades, conflictos y casaciones; después las reglas de política.</span></div>
+    <div class="lane"><b>Entrega</b><span>Asientos y JSONL de <code>FORMATO_ENTREGA.md</code></span></div>
+  </div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section id="modelo">
+  <div class="eyebrow">2 · Modelo</div>
+  <h2>Las 8 tablas</h2>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  source_file ||--o{ parse_issue : avisa
+  source_file ||--o{ task_item : define
+  source_file ||--o| bank_statement : "original y gemelo"
+  bank_statement ||--|{ bank_line : movimientos
+  source_file ||--o| inbound_item : "message/item/aviso"
+  inbound_item ||--o{ document : "adjuntos"
+  source_file ||--o| document : extrae
+  document ||--o{ document_line : enumera
+  bank_line {
+    text bank_line PK
+    date booking_date
+    bigint amount_cents
+    text text_full
+    text counterparty
+    text reference
+    json extra
+  }
+  inbound_item {
+    text item_id PK
+    text kind
+    timestamp received_at
+    text channel
+    text sender_domain
+    text billing_type
+    text contract
+  }
+  document {
+    int document_id PK
+    text item_id FK
+    text method
+    text title_raw
+    text issuer_tax_id_norm
+    text recipient_tax_id_norm
+    text doc_number_norm
+    date issue_date
+    bigint gross_cents
+    text iban_norm
+    text stamp_text
+    bool qc_totals_ok
+    json evidence
+  }
+  document_line {
+    int seq PK
+    text kind
+    text label
+    text ref
+    text po_ref
+    text delivery_ref
+    bigint quantity_milli
+    bigint unit_price_e4
+    int rate_bp
+    bigint amount_cents
+  }
+  </pre></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Tabla</th><th>Una fila por…</th><th class="n">Filas dev</th><th>Contenido</th></tr></thead>
+    <tbody>
+      <tr><td><code>source_file</code></td><td>fichero (sin <code>golden/</code>)</td><td class="n">817</td><td>Ruta, familia, formato, sha256, parser, estado</td></tr>
+      <tr><td><code>parse_issue</code></td><td>aviso</td><td class="n">variable</td><td>OCR dudoso, locale ambiguo, totales que no cuadran, gemelo distinto, adjunto ausente</td></tr>
+      <tr><td><code>task_item</code></td><td>clave a resolver</td><td class="n">396</td><td>305 AP · 26 AR · 32 cobros · 12 cuentas · 7 parejas · 8 cuentas IC · 6 pasos</td></tr>
+      <tr><td><code>bank_statement</code></td><td>cuenta × mes</td><td class="n">48</td><td>Saldos, controles <code>chain_ok</code> / <code>twin_ok</code></td></tr>
+      <tr><td><code>bank_line</code></td><td>movimiento</td><td class="n">1.062</td><td>Comunes en columnas; propio de cada formato en <code>extra</code></td></tr>
+      <tr><td><code>inbound_item</code></td><td>caso recibido</td><td class="n">339</td><td>305 mensajes AP · 26 partidas AR · 6 avisos · 2 exportaciones FACe</td></tr>
+      <tr><td><code>document</code></td><td>fichero extraído</td><td class="n">354</td><td>320 adjuntos AP · 26 documentos AR · 6 PDF de avisos · 2 CSV FACe</td></tr>
+      <tr><td><code>document_line</code></td><td>elemento enumerado</td><td class="n">variable</td><td>Líneas, cuotas, retenciones, resúmenes, capítulos, plantas, meses, referencias, filas FACe</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Regla para usar JSON: lo que una regla contable necesita va en columna tipada; lo específico de un formato (UUID del CFDI, códigos N43, clave de rastreo) y la evidencia por campo van en <code>extra</code> / <code>evidence</code>.</p>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section id="erp">
+  <div class="eyebrow">3 · ERP</div>
+  <h2>El ERP no se carga: se consulta</h2>
+  <p>25 vistas en el esquema <code>erp</code>: una por fichero más <code>erp.journal_lines</code>, que despliega las líneas del diario con su <code>line_ref = je_id#line</code>, la clave de la conciliación bancaria. Comprobado sobre dev: todas las vistas responden, los ids conservan los ceros (<code>0007350</code>, <code>04888</code>) y <code>journal_lines</code> devuelve 109.537 líneas con <code>line_ref</code> único.</p>
+<pre>SET VARIABLE phase_root = '/…/participant/phase_dev';
+SELECT line_ref, account, debit_cents, credit_cents, partner, assignment
+FROM erp.journal_lines
+WHERE account LIKE '572%' AND posting_date BETWEEN '2026-07-01' AND '2026-07-31';</pre>
+  <ul>
+    <li><b>Floats del ERP:</b> en <code>fx_rates.rate</code> la vista ya fuerza <code>DECIMAL(18,6)</code>. Los demás (<code>billing_history.production.price_eur_mwh</code>, <code>settlement.avg_price</code>, <code>sales_contracts.penalty_prob</code>) llegan como <code>DOUBLE</code> y se convierten con <code>CAST(… AS DECIMAL(18,4))</code> antes de operar con ellos.</li>
+    <li><b>Estructuras anidadas:</b> se mantienen como <code>STRUCT</code>/<code>LIST</code> de DuckDB y se despliegan con <code>UNNEST</code> en la consulta que las necesite.</li>
+    <li><b>Sin claves foráneas:</b> los errores humanos sembrados en el ERP se pueden ver tal cual.</li>
+  </ul>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section id="mapeo">
+  <div class="eyebrow">4 · Qué va dónde</div>
+  <h2>Cómo cada documento llena <code>document</code> y <code>document_line</code></h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Documento de origen</th><th>Cabecera (<code>document</code>)</th><th>Líneas (<code>document_line.kind</code>)</th></tr></thead>
+    <tbody>
+      <tr><td>Factura / rectificativa (PDF, Facturae, CFDI)</td><td>Emisor, destinatario, número, fechas, moneda, importes impresos, IBAN, leyendas</td><td><code>ITEM</code> (con <code>po_ref</code>, <code>delivery_ref</code>), <code>TAX</code>, <code>WITHHOLDING</code>, <code>GUARANTEE</code>, <code>REF</code> <code>CORRECTED_INVOICE</code> / <code>PO</code></td></tr>
+      <tr><td>CFDI con PDF + XML</td><td><b>Dos filas</b>, una por fichero, del mismo <code>item_id</code></td><td>Cada una con sus líneas</td></tr>
+      <tr><td>Proforma</td><td>Título, emisor, importes</td><td><code>ITEM</code>, <code>TAX</code></td></tr>
+      <tr><td>Extracto / recordatorio</td><td>Emisor, fecha de situación (<code>issue_date</code>), saldo (<code>gross_cents</code>)</td><td><code>REF</code> <code>LISTED_INVOICE</code> con importe, fecha y <code>status_raw</code></td></tr>
+      <tr><td>Carta de cesión (factoring)</td><td>Emisor, fecha de efectos en <code>period_start</code>, nombre del cesionario en <code>extra</code></td><td><code>REF</code> <code>IBAN_ASSIGNEE</code></td></tr>
+      <tr><td>Carta de cambio de cuenta</td><td>Emisor, fecha de efectos, sello o firma</td><td><code>REF</code> <code>IBAN_NEW</code>, <code>IBAN_OLD</code></td></tr>
+      <tr><td>Certificado art. 43</td><td>Titular y NIF; emisión y validez en <code>period_start</code> / <code>period_end</code></td><td><code>REF</code> <code>CERTIFICATE</code></td></tr>
+      <tr><td>Certificación / estimación de obra</td><td>Nº, mes, <code>stamp_text</code> (CONFORME), aprobador y fecha en <code>evidence</code></td><td><code>CHAPTER</code> + <code>SUMMARY</code> <code>CUMULATIVE</code>, <code>PREVIOUS</code>, <code>CURRENT</code></td></tr>
+      <tr><td>Parte mensual de servicio</td><td>Contrato, mes</td><td><code>SUMMARY</code> <code>FEE</code> + <code>EXTRA_SERVICE</code> con <code>status_raw</code> (conformidad)</td></tr>
+      <tr><td>Decreto de revisión de precios</td><td>Nº de decreto, fecha de efectos y de aprobación</td><td><code>SUMMARY</code> <code>FEE_NEW</code>, <code>FEE_OLD</code> + <code>MONTH</code> por mes facturable</td></tr>
+      <tr><td>Informe de producción PPA</td><td>Periodo, comprador</td><td><code>PLANT</code> (<code>mwh_milli</code>) + <code>SUMMARY</code> <code>SHARE</code> (<code>rate_bp</code>) y <code>PRICE</code> (<code>unit_price_e4</code>)</td></tr>
+      <tr><td>Liquidación de mercado</td><td>Periodo, representante</td><td><code>PLANT</code> (MWh e importe) + <code>SUMMARY</code> <code>DEVIATIONS</code></td></tr>
+      <tr><td>Aviso de pago (PDF)</td><td>Pagador, fecha valor (<code>issue_date</code>), moneda</td><td><code>REF</code> <code>LISTED_INVOICE</code> con importe, <code>REF</code> <code>PAYMENT_ORDER</code>, <code>SUMMARY</code> <code>TOTAL_TRANSFERRED</code></td></tr>
+      <tr><td>Exportación FACe (CSV)</td><td>Cliente y mes del nombre del fichero</td><td><code>ROW</code>: factura, fecha, importe, estado, importe pagado</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section id="normalizacion">
+  <div class="eyebrow">5 · Normalización</div>
+  <h2>Reglas de formato, iguales para todas las fuentes</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Dato</th><th>Entrada observada</th><th>Regla</th></tr></thead>
+    <tbody>
+      <tr><td>Importe textual</td><td><code>1.234,56</code> · <code>1,234.56</code> · <code>469994,66</code> · <code>-825,96</code></td><td>Locale por documento (por columna si mezcla); <code>Decimal</code> → céntimos; signo explícito</td></tr>
+      <tr><td>Importe N43</td><td>14 dígitos + D/H</td><td>Entero directo; D/H = 1 → negativo</td></tr>
+      <tr><td>Fecha</td><td><code>31/07/2026</code> · <code>2026-06-30</code> · <code>12 de julio de 2026</code> · <code>Jul 31, 2026</code> · <code>260703</code> · <code>(09/06)</code></td><td>ISO; el año de <code>(dd/mm)</code> sale de la fecha o del periodo del documento</td></tr>
+      <tr><td>NIF / VAT / RFC</td><td><code>ESA12359962</code> · <code>PT195174036</code> · <code>KMI91110719K</code></td><td>Mayúsculas, sin separadores ni prefijo de país UE; sin validar el dígito de control (es inválido a propósito)</td></tr>
+      <tr><td>IBAN</td><td><code>ES13 3460 …</code>, «– ES1334…»</td><td>Mayúsculas, sin separadores</td></tr>
+      <tr><td>Nº de documento</td><td><code>NC-2026/817</code>, <code>TR26/37377</code></td><td>Solo <code>[A-Z0-9]</code>. Quitar prefijos de serie queda para el análisis de duplicados</td></tr>
+      <tr><td>Cantidad · % · precio</td><td><code>7,5 m3</code> · <code>IVA 21%</code> · <code>142,65</code></td><td><code>_milli</code> + unidad · <code>_bp</code> · <code>_e4</code> + literal</td></tr>
+      <tr><td>Texto</td><td>latin-1 (N43), sellos superpuestos</td><td>UTF-8, NFC, espacios colapsados; el original queda en <code>full_text</code> / <code>raw_line</code></td></tr>
+      <tr><td>Email</td><td><code>facturacion@prefabricadosmolin.es</code></td><td>Minúsculas; dominio en <code>sender_domain</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section id="carga">
+  <div class="eyebrow">6 · Carga y control</div>
+  <h2>Orden, idempotencia y controles</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Orden</h3>
+      <ul>
+        <li><code>source_file</code>: inventario y sha256 de todo el árbol.</li>
+        <li>Vistas ERP (instantáneo).</li>
+        <li>Banco: original + gemelo por cuenta y mes.</li>
+        <li><code>inbound_item</code>, después <code>document</code> en el orden XML → PDF → OCR.</li>
+        <li><code>task_item</code> al final, comprobando que cada clave existe.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Idempotencia</h3>
+      <ul>
+        <li>La base se reconstruye entera por fase; no hay <code>UPDATE</code>.</li>
+        <li>Mismo sha256 + mismo <code>parser</code> ⇒ mismas filas. Se puede guardar en caché la extracción PDF/OCR por sha256.</li>
+        <li><code>phase_dev</code> y <code>phase_test</code> van en ficheros separados; <code>golden/</code> nunca se carga.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Controles</h3>
+      <ul>
+        <li><code>chain_ok</code> y <code>twin_ok</code> por extracto (hoy 48/48).</li>
+        <li><code>qc_line_math_ok</code>, <code>qc_lines_sum_ok</code>, <code>qc_totals_ok</code> por documento.</li>
+        <li>Cada adjunto declarado existe en disco; si no, <code>ATTACHMENT_MISSING</code>.</li>
+        <li>Cada clave de <code>task_item</code> tiene su fila (<code>inbound_item</code>, <code>bank_line</code>, <code>erp.bank_accounts</code>).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Errores</h3>
+      <ul>
+        <li>Un fichero que no se puede leer queda <code>FAILED</code> con su error; la carga sigue.</li>
+        <li>Un valor dudoso se carga con aviso en <code>parse_issue</code> y confianza baja en <code>evidence</code>.</li>
+        <li>Un campo ausente es <code>NULL</code>: nunca 0 ni un valor inventado.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section id="analisis">
+  <div class="eyebrow">7 · Frontera con análisis</div>
+  <h2>Paso 2: el caso unificado (orientativo, fuera de esta base)</h2>
+  <p>La capa de análisis construye un caso por clave de tarea a partir de las 8 tablas. Consolida los documentos de un mismo <code>item_id</code>, resuelve entidades y <b>registra los conflictos en lugar de resolverlos</b>. Las reglas de <code>POLITICAS_CONTABLES.md</code> solo leen el caso. Ejemplo para AP:</p>
+<pre>ap_case                          -- uno por doc_id de tasks/ap_documents.json
+  doc_id              VARCHAR    -- = inbound_item.item_id
+  document_ids        INTEGER[]  -- todos los ficheros del mensaje
+  primary_document_id INTEGER    -- XML si existe; si no, el PDF principal
+  -- valores consolidados (del documento principal)
+  issuer_tax_id, recipient_tax_id, doc_number_norm, issue_date, currency,
+  net_cents, tax_cents, gross_cents, withholding_cents, retention_cents, payable_cents,
+  iban_norm, sender_domain, channel, received_at
+  -- resolución de entidades (análisis)
+  company             VARCHAR    -- recipient_tax_id ↔ erp.companies
+  vendor_id           VARCHAR    -- issuer_tax_id ↔ erp.vendors (NULL si no existe)
+  match_method        VARCHAR    -- TAX_ID | NAME | EMAIL_DOMAIN | NONE
+  -- discrepancias entre fuentes, sin resolver
+  conflicts           STRUCT(field VARCHAR, values VARCHAR[], document_ids INTEGER[])[]
+                                 -- p. ej. gross_cents distinto entre CFDI XML y PDF
+  -- señales para las reglas
+  extraction_ok       BOOLEAN    -- sin parse_issue ERROR y qc_* coherentes
+  doc_kind_hint       VARCHAR    -- del título y el prefijo; la clasificación final la da la regla</pre>
+  <p class="muted">Con el mismo patrón: <code>ar_billing_case</code> (partida + documento + contrato + historial) y <code>receipt_case</code> (<code>bank_line</code> + avisos + FACe + partidas abiertas). Así se puede rehacer una regla sin volver a extraer, y ante un fallo de <code>score.py</code> se ve si el error está en el paso 1 (lectura) o en el 2 o la regla (decisión).</p>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section id="decisiones">
+  <div class="eyebrow">8 · Decisiones</div>
+  <h2>Por qué así y qué queda abierto</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Decisión</th><th>Motivo</th></tr></thead>
+    <tbody>
+      <tr><td>DuckDB en lugar de SQLite</td><td>Lee JSONL y estructuras anidadas sin copiarlas, es tipado y está instalado (1.5.5). Gracias a eso el ERP queda en 0 tablas.</td></tr>
+      <tr><td>8 tablas en lugar de 64</td><td>Solo se materializa lo que necesita parseo. El ERP ya está normalizado; dividirlo en tablas hijas no aportaba nada.</td></tr>
+      <tr><td>Un documento = un fichero</td><td>La comparación PDF↔XML, la detección de duplicados entre canales y el cotejo entre valor impreso y valor esperado necesitan cada versión por separado.</td></tr>
+      <tr><td><code>document_line</code> con <code>kind</code></td><td>Una sola forma para líneas, cuotas, resúmenes, plantas y referencias; los importes siguen tipados.</td></tr>
+      <tr><td>JSON solo para lo específico de cada formato y para la evidencia</td><td>Simplifica sin esconder valores que use una regla.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <p><b>Abierto</b></p>
+    <ul>
+      <li>Precisión de precios: ×10⁴ cubre lo visto en dev; si test trae más decimales se verá en <code>qc_line_math_ok</code>.</li>
+      <li><code>inbox/ar/notices/</code> y el DUA no existen en dev; tienen hueco (<code>inbound_item.kind = AR_NOTICE</code>, <code>document_line</code> <code>TAX</code>), pero falta validarlo con un ejemplo real.</li>
+      <li>El DDL está validado (se crea en DuckDB y las vistas ERP responden sobre dev), pero aún no hay cargador para las 8 tablas.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'loose', er: { useMaxWidth: false }, flowchart: { useMaxWidth: true } });
+</script>
+</body>
+</html>

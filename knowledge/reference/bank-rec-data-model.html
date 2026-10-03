@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conciliación bancaria Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+
+/* Layout: una columna de lectura (max 1080px) con diagramas a ancho completo y tablas con scroll propio */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0 0 6px;font-weight:600}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.POST{color:var(--ok)} .HOLD{color:var(--warn)} .REJECT{color:var(--bad)} .DUPLICATE{color:var(--info)} .NOT_INVOICE{color:var(--neutral)} .PPB{color:var(--warn)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.card pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg)}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:72ch}
+.muted{color:var(--muted)}
+</style>
+<style>
+.grid2.wide{grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))}
+.ADJ{color:var(--ok)} .NOADJ{color:var(--neutral)} .BANKS{color:var(--info)} .BOOKS{color:var(--warn)} .BOTH{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · phase_dev · golden/bank_rec.jsonl · julio 2026</div>
+  <h1>Modelo de datos de la conciliación bancaria</h1>
+  <p>Cada línea de <code>bank_rec.jsonl</code> concilia <b>una cuenta bancaria</b> en el mes: el extracto (<code>bank_line</code>) frente al diario en su cuenta 572 (<code>book_line = &lt;asiento&gt;#&lt;línea&gt;</code>). Guarda qué casa, qué queda sin casar y por qué, y los asientos de ajuste para lo que tiene que contabilizarse. Importes en céntimos enteros.</p>
+  <div class="kpis">
+    <div class="kpi"><b>12</b><span>cuentas bancarias</span></div>
+    <div class="kpi"><b>224</b><span>casaciones</span></div>
+    <div class="kpi"><b>225 · 293</b><span>líneas banco · libro casadas</span></div>
+    <div class="kpi"><b>61 · 9</b><span>sin casar banco · libro</span></div>
+    <div class="kpi"><b>56 · 118</b><span>ajustes · líneas</span></div>
+    <div class="kpi"><b>EUR · MXN · USD</b><span>10 · 1 · 1 cuentas</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">1 · Entidades</div>
+  <h2>Diagrama entidad-relación</h2>
+  <p>La raíz es la cuenta bancaria. Casaciones, partidas sin casar y ajustes son listas embebidas. Los ajustes <b>no tienen clave foránea</b> hacia las líneas: <code>ref</code> es una clave sintética que el evaluador no lee, y el vínculo con la partida que los origina es solo semántico, a través de <code>category</code>.</p>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  RECONCILIATION ||--o{ MATCH : "matches[]"
+  RECONCILIATION ||--o{ UNMATCHED_BANK : "unmatched_bank[]"
+  RECONCILIATION ||--o{ UNMATCHED_BOOK : "unmatched_book[]"
+  RECONCILIATION ||--o{ ADJUSTMENT : "adjustments[]"
+  ADJUSTMENT ||--|{ ADJ_LINE : "lines[]"
+  MATCH }o--|{ BANK_LINE : "bank_lines 1..2"
+  MATCH }o--|{ BOOK_LINE : "book_lines 1..36"
+  UNMATCHED_BANK }o--|| BANK_LINE : "bank_line"
+  UNMATCHED_BOOK }o--|| BOOK_LINE : "book_line"
+  ADJUSTMENT }o..o{ UNMATCHED_BANK : "por category"
+  ADJUSTMENT }o..o{ UNMATCHED_BOOK : "por category"
+  ADJUSTMENT }o..o{ MATCH : "diferencia de casacion"
+
+  RECONCILIATION {
+    string account PK "BIN-1100, CMA-1000, BANH-3100-USD"
+    string company
+    string gl_account "572000xx, unico por sociedad"
+    string currency "EUR, MXN, USD"
+    cents statement_opening
+    cents statement_closing "puede ser negativo"
+  }
+  MATCH {
+    list bank_lines
+    list book_lines
+    enum category "MATCH, FX_RATE_DIFFERENCE, FACTORING_CHARGES, LOAN_INTEREST"
+  }
+  UNMATCHED_BANK {
+    string bank_line
+    enum category
+    cents amount "signo del extracto"
+  }
+  UNMATCHED_BOOK {
+    string book_line "asiento#linea"
+    enum category
+    cents amount
+  }
+  ADJUSTMENT {
+    enum category
+    string ref "clave sintetica, no puntua"
+  }
+  ADJ_LINE {
+    string company
+    string account
+    cents debit "moneda funcional"
+    cents credit
+    string partner
+    string assignment
+    string cost_center
+    string wbs
+  }
+  BANK_LINE {
+    string bank_line PK "bank/cuenta/mes.lines.jsonl"
+    date booking_date
+    date value_date
+    cents amount
+    string currency
+    string text
+  }
+  BOOK_LINE {
+    string id PK "erp/journal_entries.jsonl"
+    string account "572 de la cuenta"
+  }
+  </pre></div>
+  <div class="grid2 wide">
+    <div class="card"><h3>Identidad</h3><pre>Clave del registro  = account (cuenta bancaria)
+gl_account          se repite entre sociedades:
+  57200001 = BIN-1000, BIN-1100, BIN-1200
+  57200002 = CMA-1000, CMA-1100, CMA-1200, CMA-1910
+→ la 572 se identifica por (company, gl_account)</pre></div>
+    <div class="card"><h3>Moneda</h3><pre>El extracto va en la divisa de la cuenta.
+El ajuste va en moneda funcional de la sociedad.
+
+BANH-3100-USD · comisión 18,00 USD (1800)
+  → Dr 62600000  27.713  (MXN)
+  → Cr 57200006  27.713</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">2 · Casación</div>
+  <h2>Formas y diferencias de casación</h2>
+  <p>Una casación no siempre es exacta. Cuando hay diferencia, lleva una categoría distinta de <code>MATCH</code> y genera un ajuste por esa diferencia, aunque los pares banco–libro sean correctos.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Forma</th><th class="n">Casos</th><th>Significado</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td>1 banco : 1 libro</td><td class="n">216</td><td>Caso normal</td><td class="mono">—</td></tr>
+      <tr><td>1 banco : N libro</td><td class="n">7</td><td>Una remesa de pagos contra varios asientos (N = 2, 4, 9, 19, 36)</td><td class="mono">BL0003019 → 36</td></tr>
+      <tr><td>N banco : 1 libro</td><td class="n">1</td><td>Un pago ejecutado en dos lotes</td><td class="mono">BL0004009 + BL0004010</td></tr>
+    </tbody>
+  </table></div>
+  <div class="scroll"><table>
+    <thead><tr><th>match.category</th><th class="n">Casos</th><th>Ajuste</th><th>Regla observada</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill ADJ">MATCH</span></td><td class="n">216</td><td>—</td><td>importes iguales</td></tr>
+      <tr><td><span class="pill ADJ">FX_RATE_DIFFERENCE</span></td><td class="n">5</td><td>Dr 66800000 o 76800000 / Cr 572</td><td>se ajusta la <b>misma</b> cuenta FX que usó el asiento de pago (4 × 668, 1 × 768)</td></tr>
+      <tr><td><span class="pill ADJ">FACTORING_CHARGES_NOT_BOOKED</span></td><td class="n">2</td><td>Dr 66500000 / Cr 55300000 FACTOR-BAE</td><td>assignment = factura cedida; no toca la 572</td></tr>
+      <tr><td><span class="pill ADJ">LOAN_INTEREST_NOT_BOOKED</span></td><td class="n">1</td><td>Dr 66200000 / Cr 572</td><td>cuota de préstamo con el interés sin registrar</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid2 wide">
+    <div class="card"><h3>FX con pérdida · BL0001807</h3><pre>banco  −195.243   TRANSF. EXTERIOR USD 2,400.00
+libro  −194.426   1000-2026-1600000046#2
+       (el pago ya llevaba Dr 66800000 1.655)
+dif        817
+
+Dr 66800000     817
+Cr 57200001     817</pre></div>
+    <div class="card"><h3>FX que reduce una ganancia · BL0001816</h3><pre>banco  −5.743.000  TRANSF. EXTERIOR GBP 51,453.65
+libro  −5.718.981  1000-2026-1600000052#2
+       (el pago llevaba Cr 76800000 35.174)
+dif        24.019
+
+Dr 76800000  24.019   ← se reduce la ganancia
+Cr 57200001  24.019</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">3 · Sin casar</div>
+  <h2>Alternativas semánticas de las partidas sin casar</h2>
+  <p>Hay dos ejes: <b>en qué lado</b> aparece la partida (extracto, libro o ambos) y <b>si se contabiliza</b>. Las partidas del libro sin ajuste no son errores: son partidas de conciliación que se explican solas en el mes siguiente.</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  U["Partida sin casar"] --> B["Lado banco<br/>unmatched_bank · 61"]
+  U --> L["Lado libro<br/>unmatched_book · 9"]
+  U --> W["Ambos lados<br/>WRONG_BANK_ACCOUNT"]
+  B --> BA["Con ajuste"]
+  B --> BN["Sin ajuste<br/>BANK_ERROR · 1<br/>se reclama al banco"]
+  BA --> F["BANK_FEE_NOT_BOOKED · 31<br/>Dr 62600000"]
+  BA --> DD["DIRECT_DEBIT_NOT_BOOKED · 17<br/>Dr 41000000 · socio V…"]
+  BA --> RD["RETURNED_DIRECT_DEBIT · 4<br/>Dr 430 + Dr 626 comisión"]
+  BA --> IN["INTEREST_NOT_BOOKED · 4<br/>Dr 572 · Dr 473 · Cr 762"]
+  BA --> CS["CARD_SETTLEMENT · 1<br/>Dr 62910000 CC-1000-DIR"]
+  BA --> PO["POOLING_NOT_BOOKED · 1<br/>Dr 55200000 · socio 1000"]
+  BA --> UR["UNRECORDED_RECEIPT · 1<br/>Dr 572 / Cr 55500000"]
+  L --> LA["Con ajuste<br/>BOOK_DUPLICATE · 1<br/>Dr 572 / Cr 400 por proveedor"]
+  L --> LN["Sin ajuste"]
+  LN --> OP["OUTSTANDING_PAYMENT · 1"]
+  LN --> TT["TRANSFER_IN_TRANSIT · 1"]
+  LN --> PP["PRIOR_PERIOD_BANK_ITEM · 4"]
+  LN --> FV["FX_REVALUATION · 1"]
+  W --> WA["banco en BIN-1100 + libro en CMA-1100<br/>1 ajuste: Dr 57200002 / Cr 57200001"]
+  </pre></div>
+  <div class="scroll"><table>
+    <thead><tr><th>Categoría</th><th>Lado</th><th>Signo</th><th class="n">Partidas</th><th class="n">Ajustes</th><th>Asiento</th><th>Socio / asignación</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill BANKS">BANK_FEE_NOT_BOOKED</span></td><td>banco</td><td>−</td><td class="n">31</td><td class="n">25</td><td>Dr 62600000 / Cr 572 <span class="muted">(aval: 66900000)</span></td><td>—</td></tr>
+      <tr><td><span class="pill BANKS">DIRECT_DEBIT_NOT_BOOKED</span></td><td>banco</td><td>−</td><td class="n">17</td><td class="n">14</td><td>Dr 41000000 / Cr 572</td><td>proveedor · nº factura</td></tr>
+      <tr><td><span class="pill BANKS">RETURNED_DIRECT_DEBIT</span></td><td>banco</td><td>−</td><td class="n">4</td><td class="n">2</td><td>Dr 43000000 + Dr 62600000 / Cr 572</td><td>cliente · recibo RC…</td></tr>
+      <tr><td><span class="pill BANKS">INTEREST_NOT_BOOKED</span></td><td>banco</td><td>+ y −</td><td class="n">4</td><td class="n">2</td><td>Dr 572 neto · Dr 47300000 19 % / Cr 76200000 bruto</td><td>—</td></tr>
+      <tr><td><span class="pill BANKS">CARD_SETTLEMENT_NOT_BOOKED</span></td><td>banco</td><td>−</td><td class="n">1</td><td class="n">1</td><td>Dr 62910000 / Cr 572</td><td>CeCo CC-1000-DIR</td></tr>
+      <tr><td><span class="pill BANKS">POOLING_NOT_BOOKED</span></td><td>banco</td><td>−</td><td class="n">1</td><td class="n">1</td><td>Dr 55200000 / Cr 572</td><td>socio 1000</td></tr>
+      <tr><td><span class="pill BANKS">UNRECORDED_RECEIPT</span></td><td>banco</td><td>+</td><td class="n">1</td><td class="n">1</td><td>Dr 572 / Cr 55500000</td><td>—</td></tr>
+      <tr><td><span class="pill NOADJ">BANK_ERROR</span></td><td>banco</td><td>−</td><td class="n">1</td><td class="n">0</td><td>se reclama al banco</td><td>—</td></tr>
+      <tr><td><span class="pill BOOKS">BOOK_DUPLICATE</span></td><td>libro</td><td>−</td><td class="n">1</td><td class="n">1</td><td>Dr 572 / Cr 40000000 × proveedor</td><td>proveedor · nº factura</td></tr>
+      <tr><td><span class="pill NOADJ">OUTSTANDING_PAYMENT</span></td><td>libro</td><td>−</td><td class="n">1</td><td class="n">0</td><td>el banco lo ejecuta el mes siguiente</td><td>—</td></tr>
+      <tr><td><span class="pill NOADJ">TRANSFER_IN_TRANSIT</span></td><td>libro</td><td>+</td><td class="n">1</td><td class="n">0</td><td>traspaso pendiente de abono</td><td>—</td></tr>
+      <tr><td><span class="pill NOADJ">PRIOR_PERIOD_BANK_ITEM</span></td><td>libro</td><td>−</td><td class="n">4</td><td class="n">0</td><td>ya salió en el extracto anterior</td><td>—</td></tr>
+      <tr><td><span class="pill NOADJ">FX_REVALUATION</span></td><td>libro</td><td>+</td><td class="n">1</td><td class="n">0</td><td>valoración, no es un movimiento</td><td>—</td></tr>
+      <tr><td><span class="pill BOTH">WRONG_BANK_ACCOUNT</span></td><td>ambos</td><td>−</td><td class="n">1 + 1</td><td class="n">1</td><td>Dr 572 correcta / Cr 572 errónea</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">4 · Ajustes</div>
+  <h2>Cardinalidad entre partidas y asientos</h2>
+  <p>El número de partidas y el de asientos casi nunca coinciden. Lo que el evaluador compara son las <b>líneas</b> de asiento, así que la forma de agrupar decide la puntuación.</p>
+  <div class="grid2 wide">
+    <div class="card"><h3>N partidas → 1 línea · comisiones</h3><pre>BIN-1000 · 2026-07-10 · "COMISION T…"
+  BL0001808  −3.200
+  BL0001811  −3.200
+  BL0001814  −3.200
+  BL0001817  −3.200
+→ 1 ajuste  FEE-BIN-1000-2026-07-10-COMISION T-3200
+  Dr 62600000  12.800
+  Cr 57200001  12.800
+Agrupa por cuenta + fecha + concepto + importe</pre></div>
+    <div class="card"><h3>N partidas → 1 asiento · devolución de recibo</h3><pre>CMA-1200
+  BL0000787  −49.869  recibo devuelto
+  BL0000788     −450  comisión de devolución
+→ RET-RC26-00280
+  Dr 43000000  49.869  C200041 · RC26-00280
+  Dr 62600000     450
+  Cr 57200002  50.319</pre></div>
+    <div class="card"><h3>N partidas → 1 asiento · intereses</h3><pre>CMA-1000
+  BL0003660  +403.000  intereses brutos
+  BL0003661   −76.570  retención 19 %
+→ INT-CMA-1000-202607
+  Dr 57200002  326.430
+  Dr 47300000   76.570
+  Cr 76200000  403.000</pre></div>
+    <div class="card"><h3>1 partida → N líneas · pago duplicado</h3><pre>BAE-1100
+  1100-2026-1600000723#4  −17.775.503
+→ CF110026062529 (se anula el pago)
+  Dr 57200003  17.775.503
+  Cr 40000000  12.504.802  V100004
+  Cr 40000000   3.004.872  V100009
+  Cr 40000000   2.265.829  V100078</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">5 · Enlaces</div>
+  <h2>Relación con otros módulos</h2>
+  <ul>
+    <li><b>AR Cash:</b> BL0000706 es <code>UNRECORDED_RECEIPT</code> aquí (Dr 572 / Cr 555) y en <code>ar_cash</code> es un cobro aplicado (Dr 555 / Cr 430). La 555 tiene que quedar a cero entre los dos.</li>
+    <li><b>AP:</b> <code>DIRECT_DEBIT_NOT_BOOKED</code> y <code>BOOK_DUPLICATE</code> liquidan o reabren partidas de proveedor. La asignación es el número de factura del proveedor.</li>
+    <li><b>Factoring:</b> <code>FACTORING_CHARGES_NOT_BOOKED</code> mueve la 553 de FACTOR-BAE, la misma cuenta que usa <code>FACTORED_MISDIRECTED</code> en AR Cash.</li>
+    <li><b>Intercompañía:</b> <code>POOLING_NOT_BOOKED</code> va contra la 552 con socio <code>1000</code>, la sociedad cabecera del cash pooling.</li>
+    <li><b>Trampa de duplicados:</b> el <code>BANK_ERROR</code> de CMA-1000 (−526.544) tiene el mismo importe que un adeudo legítimo. Solo uno se contabiliza.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">6 · Evaluación y huecos</div>
+  <h2>Qué puntúa el evaluador y qué falta en dev</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Componente</th><th class="n">Peso</th><th>Cómo se mide</th></tr></thead>
+    <tbody>
+      <tr><td>Casación</td><td class="n">45 %</td><td>F1 sobre pares (bank_line, book_line); una casación 1:N cuenta N pares</td></tr>
+      <tr><td>Partidas sin casar detectadas</td><td class="n">20 %</td><td>F1 sobre los ids de unmatched_bank ∪ unmatched_book</td></tr>
+      <tr><td>Categoría</td><td class="n">15 %</td><td>acierto de <code>category</code> en las partidas sin casar del golden</td></tr>
+      <tr><td>Ajustes</td><td class="n">20 %</td><td><code>je_match</code> sobre todas las líneas aplanadas: (cuenta, socio, CeCo, WBS) ± 2 céntimos, dividido por max(nº líneas)</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><b>No puntúan:</b> <code>ref</code>, <code>gl_account</code>, <code>currency</code>, <code>statement_opening/closing</code>, la agrupación en <code>adjustments[]</code> ni la <code>category</code> de las casaciones.</li>
+    <li><b>Sí puntúa la granularidad de las líneas:</b> partir una línea agregada en varias resta tanto en aciertos como en el denominador.</li>
+    <li><b>Variantes de la política que no aparecen en dev:</b> <code>BOOK_AMOUNT_ERROR</code>, comisión de aval (66900000) y <code>LOAN_INTEREST_NOT_BOOKED</code> como partida sin casar del lado banco.</li>
+  </ul>
+  <p class="muted">Fuentes: participant/phase_dev/golden/bank_rec.jsonl · bank/ · erp/journal_entries.jsonl · POLITICAS_CONTABLES.md §4 · FORMATO_ENTREGA.md · score.py</p>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'loose', er: { useMaxWidth: false }, flowchart: { useMaxWidth: true } });
+</script>
+</body>
+</html>
