@@ -260,7 +260,21 @@ function Accounts({ rows, core, toEur, cell, golden, sortByDiff, onClearCell }: 
     const cols: Column<TbRow>[] = [
       { id: 'company', header: 'Soc.', width: 72, cell: (r) => <Mono>{r.company}</Mono>, sortValue: (r) => r.company },
       { id: 'account', header: 'Cuenta', width: 96, cell: (r) => <Mono>{r.account}</Mono>, sortValue: (r) => r.account },
-      { id: 'name', header: 'Descripción', width: 'minmax(140px, 1fr)', cell: (r) => names.get(r.account) ?? '—' },
+      {
+        id: 'name',
+        header: 'Descripción',
+        width: 'minmax(140px, 1fr)',
+        cell: (r) => {
+          const name = names.get(r.account)
+          return name ? (
+            <span className={styles.ellipsis} title={name}>
+              {name}
+            </span>
+          ) : (
+            '—'
+          )
+        },
+      },
       { id: 'currency', header: 'Moneda', width: 76, cell: (r) => <Mono muted>{currency(r.company)}</Mono> },
       { id: 'recorded', header: 'Registrado', width: 140, align: 'right', cell: (r) => money(r.recorded, r), sortValue: (r) => eur(r, r.recorded) },
       { id: 'movement', header: 'Entrega', width: 140, align: 'right', cell: (r) => (r.after !== r.recorded ? money(r.after - r.recorded, r, { colorize: true }) : null), sortValue: (r) => Math.abs(toEur(r.company, r.after - r.recorded)) },

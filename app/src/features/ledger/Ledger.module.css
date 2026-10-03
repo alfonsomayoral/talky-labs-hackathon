@@ -194,3 +194,12 @@
   padding: 0 var(--space-2);
   color: var(--ink-3);
 }
+
+/* Long account names end in an ellipsis; the full name is in the title. */
+.ellipsis {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
