@@ -88,6 +88,23 @@ class PageImage:
 
 
 @dataclass(frozen=True)
+class ProcessingAid:
+    """Unverified machine reading; never a source block or factual evidence."""
+    page: int
+    text: str
+    provenance: dict[str, object]
+
+    def __post_init__(self):
+        if type(self.page) is not int or self.page < 1:
+            raise ValueError("aid page must be a positive integer")
+        if not isinstance(self.text, str):
+            raise ValueError("processing aid requires text")
+        if not isinstance(self.provenance, dict):
+            raise ValueError("processing aid requires structured provenance")
+        fingerprint(self.provenance)
+
+
+@dataclass(frozen=True)
 class ParsedDocument:
     path: str
     source_sha256: str
@@ -96,6 +113,7 @@ class ParsedDocument:
     blocks: tuple[ParsedBlock, ...]
     images: tuple[PageImage, ...] = ()
     warnings: tuple[str, ...] = ()
+    processing_aids: tuple[ProcessingAid, ...] = ()
 
     def __post_init__(self):
         source_path(self.path)
@@ -108,6 +126,10 @@ class ParsedDocument:
             raise ValueError("block identities must be unique")
         if any(not isinstance(i, PageImage) for i in self.images):
             raise ValueError("invalid page images")
+        if any(not isinstance(a, ProcessingAid) for a in self.processing_aids):
+            raise ValueError("invalid processing aids")
+        if any(a.page not in {b.page for b in self.blocks} for a in self.processing_aids):
+            raise ValueError("processing aid requires an original page block")
 
     def to_dict(self, *, include_images=True):
         return {"schema_version": 1, "path": self.path, "source_sha256": self.source_sha256,
@@ -116,7 +138,10 @@ class ParsedDocument:
                             "source_field": b.source_field} for b in self.blocks],
                 "images": [{"page": i.page, "media_type": i.media_type, "sha256": i.sha256,
                             **({"base64": base64.b64encode(i.data).decode()} if include_images else {})}
-                           for i in self.images], "warnings": list(self.warnings)}
+                           for i in self.images], "warnings": list(self.warnings),
+                **({"unverified_processing_aids": [
+                    {"page": a.page, "text": a.text, "provenance": a.provenance}
+                    for a in self.processing_aids]} if self.processing_aids else {})}
 
     @classmethod
     def from_dict(cls, value):
@@ -130,7 +155,8 @@ class ParsedDocument:
             images.append(PageImage(image["page"], image["media_type"], data))
         return cls(value["path"], value["source_sha256"], value["media_type"],
                    value["parser_version"], tuple(ParsedBlock(**b) for b in value["blocks"]),
-                   tuple(images), tuple(value.get("warnings", ())))
+                   tuple(images), tuple(value.get("warnings", ())),
+                   tuple(ProcessingAid(**a) for a in value.get("unverified_processing_aids", ())))
 
     @property
     def transformation_sha256(self):

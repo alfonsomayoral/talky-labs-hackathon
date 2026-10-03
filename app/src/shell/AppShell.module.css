@@ -1,0 +1,126 @@
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ground);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--sheet-radius);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--topbar-height);
+  padding: 0 var(--space-4) 0 var(--space-5);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.skipLink {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--ink-strong);
+  box-shadow: var(--shadow-popover);
+  transform: translateY(-200%);
+}
+
+.skipLink:focus-visible {
+  transform: none;
+}
+
+.content:focus-visible {
+  outline: none;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Peek loading */
+.peekLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+/* Shortcuts dialog */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.shortcutColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.shortcutGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.shortcutTitle {
+  color: var(--ink-3);
+  font-size: var(--text-11);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shortcutRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 28px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.shortcutRow dt {
+  color: var(--ink-2);
+}
+
+.shortcutRow dd {
+  display: inline-flex;
+  margin: 0;
+}
+
+/* Not found */
+.notFound {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}

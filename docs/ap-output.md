@@ -43,8 +43,11 @@ is the default; `overwrite=True` uses atomic replacement. Failed validation
 preserves an existing destination, and temporary files are always cleaned up.
 Serialization performs no projected-ledger insertion or consumption-state commit.
 
-The existing M0 comparator owns structural, accounting and optional golden
-evaluation. Keep golden access in that evaluator boundary, never in this builder
+`kalmora.output_validation` provides the shared delivery-contract check used by
+both export and the M0 comparator. The compatibility facade in
+`evaluation.structure` preserves evaluator callers; export imports no evaluator.
+The M0 comparator owns accounting diagnostics and optional golden evaluation.
+Keep golden access in that evaluator boundary, never in this builder
 or the engines. This core does not close #55: #41/#140 must supply all documents,
 preserve factual evidence through decisions/coding and demonstrate full July
 coverage and accounting comparison. A fixture export proves the deterministic

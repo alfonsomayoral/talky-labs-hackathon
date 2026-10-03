@@ -188,6 +188,9 @@ def _credit_imputation(*, company: str, vendor: str, currency: str, reconciliati
         originals[original["id"]] = original
         if not any(l["account"] == reconciliation_account and l.get("partner") == vendor for l in original["lines"]):
             raise ValueError("credit original belongs to another vendor/reconciliation account")
+        if any(l["account"].startswith("407") and (l["debit"] or l["credit"])
+               for l in original["lines"]):
+            raise ValueError("credit original contains applied advances; restoration requires resolved evidence")
         number = integer(ref.original_line, "original line number")
         matches = [l for i, l in enumerate(original["lines"], 1) if l.get("line", i) == number]
         if len(matches) != 1 or matches[0].get("currency", original.get("currency")) != currency:

@@ -16,7 +16,7 @@ import tempfile
 from .ap_rejections import REJECTION_CODES
 from .ap_holds import HOLD_CODES
 from .ap_tax import TaxCatalog
-from .evaluation.structure import check_structure
+from .output_validation import check_structure
 from .model.journal_entry import JournalEntry
 from .model.validation_context import ValidationContext
 from .money import company_local_currency
