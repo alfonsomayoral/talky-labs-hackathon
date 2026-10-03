@@ -28,6 +28,9 @@ class AdjustContext:
     entries: dict[str, JournalEntry]
     factoring: dict[str, dict]
     receipt_customer: Callable[[str], str | None]
+    # A direct debit is posted against its vendor invoice only when that invoice is posted in the
+    # history or received in this month's AP inbox; otherwise AP has nothing to clear yet.
+    invoice_known: Callable[[str, str | None], bool] = lambda vendor, invoice: True
 
 
 class Builder:
@@ -36,6 +39,7 @@ class Builder:
         self.local = company_local_currency(account.company)
         self.out: list[Adjustment] = []
         self.diagnostics: list[str] = []
+        self.skipped_debits: set[str] = set()
 
     def local_amount(self, amount: int, line: StatementLine) -> int:
         """Absolute amount in functional currency."""
@@ -70,6 +74,10 @@ def direct_debits(b: Builder, lines: list[StatementLine]) -> None:
     for x in lines:
         amount = b.local_amount(x.amount, x)
         vendor = (x.mandate or "").split("-")[0]
+        if not b.ctx.invoice_known(vendor, x.invoice):
+            b.skipped_debits.add(x.id)
+            b.diagnostics.append(f"deferred direct debit {x.id}: invoice {x.invoice} is neither posted nor in the AP inbox")
+            continue
         b.add(Category.DIRECT_DEBIT_NOT_BOOKED,
               [b.line(VENDOR, amount, partner=vendor, assignment=x.invoice), b.line(b.account.gl_account, credit=amount)],
               [x.id])
