@@ -18,6 +18,8 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from kalmora.facts import DocumentFacts, _decode_value, atomic_json
+from .contracts import fingerprint
+from .image_reviews import validate_review
 
 
 FROZEN_THRESHOLDS = {
@@ -161,13 +163,14 @@ def _xml_path(path):
 
 class SourceAudit:
     """Read only explicitly selected/anchored original bytes, not model text."""
-    def __init__(self, root, manifest, parsed_documents=None, transformation_hashes=None):
+    def __init__(self, root, manifest, parsed_documents=None, transformation_hashes=None, image_reviews=None):
         self.root = Path(root).resolve()
         self.allowed = {x["path"]: x for x in manifest.get("source_anchors", [])}
         self.allowed.update({a["path"]: a for c in manifest["cases"] for a in c["attachments"] + [c["message"]]})
         self._content = {}
         self.parsed_documents = parsed_documents or {}
         self.transformation_hashes = transformation_hashes or {}
+        self.image_reviews = image_reviews or {}
 
     def source(self, document, expected_hash=None):
         document = _source_path(document)
@@ -254,6 +257,13 @@ class SourceAudit:
             if image_evidence or not text.strip():
                 if not image_evidence:
                     return 'unsupported', 'Image-only evidence requires an explicit image hash'
+                review = validate_review(observed, self.transformation_hashes.get(document), self.image_reviews)
+                if review == 'REJECTED':
+                    return 'unsupported', 'Original-image review rejects this exact quotation/value'
+                if review == 'VERIFIED':
+                    if not _value_supported(observed, quote, label):
+                        return 'unsupported', 'Reviewed quotation does not support the observed value'
+                    return 'grounded', 'Independent exact original-image quotation review'
                 if not label or label["evidence"].get("verification") != "manual_image_transcription":
                     return "unreviewed", "Image-only value requires manual source annotation"
                 if label["evidence"].get("page") != page:
@@ -393,6 +403,29 @@ def _critical(label):
         return bool(label["critical"])
     field = canonical_field(label["field"])
     return field in CRITICAL_HEADERS or field.rsplit(".", 1)[-1] in {"amount", "unit_price", "quantity"} or label.get("unit") == "currency_major_decimal"
+
+
+def _missing_abstention(capture, field, document, source_hash):
+    """Compare an explicit unknown with reviewed absence; never create a fact."""
+    if not isinstance(capture, dict):
+        return False
+    states = []
+    items = capture.get('unknown_states', [])
+    if not isinstance(items, (list, tuple)):
+        return False
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if not isinstance(item.get('field'), str) or not isinstance(item.get('document'), str):
+            continue
+        try:
+            if (canonical_field(item['field']) == field and _source_path(item['document']) == document
+                    and item.get('source_sha256') == source_hash):
+                states.append(item)
+        except (KeyError, ValueError, TypeError):
+            continue
+    return bool(states) and all(item.get('status') == 'MISSING' and isinstance(item.get('reason'), str)
+                                and item['reason'].strip() for item in states)
 
 
 def _ratio(numerator, denominator):
@@ -558,7 +591,7 @@ def _runtime(case_ids, reports, contract):
 
 def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_results=None,
                     candidate_sets=None, run_reports=None, scope="holdout", output_path=None,
-                    parsed_documents=None, transformation_hashes=None):
+                    parsed_documents=None, transformation_hashes=None, image_reviews=None):
     """Produce a JSON report; ``passed`` requires correctness AND genuine live accounting.
 
     ``captures`` maps case aliases to M0 DocumentFacts / serialized lists or a
@@ -579,7 +612,7 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
     if scope == "holdout" and (not annotations.get("sealed_before_live_evaluation") or annotations.get("selection_sha256") != manifest["selection_sha256"]):
         violations.append({"code": "unsealed_holdout_annotations"})
     violations.extend(validate_annotation_sources(manifest, annotations, source_root))
-    audit = SourceAudit(source_root, manifest, parsed_documents, transformation_hashes)
+    audit = SourceAudit(source_root, manifest, parsed_documents, transformation_hashes, image_reviews)
     counters = defaultdict(lambda: [0, 0])
     case_results, field_counts, format_counts = {}, defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
     unsupported, unknown, reviewed_predictions, correct_predictions = 0, 0, 0, 0
@@ -593,7 +626,7 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
             predictions = []
             violations.append({"case_id": cid, "code": "invalid_capture", "reason": str(error)})
         expected_slots = defaultdict(list)
-        outcomes, present, exact, grounded = [], 0, 0, 0
+        outcomes, present, exact, grounded, abstentions = [], 0, 0, 0, 0
         used = set()
         for label in labels:
             field = canonical_field(label["field"])
@@ -612,9 +645,15 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
                 matches.append(equals)
                 proofs.append(proof == "grounded" and equals)
             observed = bool(candidates)
-            correct = any(matches)
+            abstained = (not observed and label.get('state') == 'absent' and _missing_abstention(
+                captures.get(cid), field, doc, label['evidence']['source_sha256']))
+            if label.get('state') == 'absent':
+                counters['reviewed_absence_abstention'][0] += abstained
+                counters['reviewed_absence_abstention'][1] += 1
+            correct = any(matches) or abstained
             proven = any(proofs)
-            present += observed
+            present += observed or abstained
+            abstentions += abstained
             exact += correct
             grounded += proven
             counters["required_exact"][0] += correct
@@ -628,7 +667,8 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
             format_counts[fmt][0] += correct
             format_counts[fmt][1] += 1
             outcomes.append({"field": field, "document": doc, "present": observed, "exact": correct, "grounded": proven,
-                             "critical": _critical(label), "candidate_count": len(candidates)})
+                             "critical": _critical(label), "candidate_count": len(candidates),
+                             "correct_missing_abstention": bool(abstained)})
         for index, predicted in enumerate(predictions):
             slot_labels = expected_slots.get((predicted["field"], predicted["evidence"]["document"]), [])
             if slot_labels:
@@ -660,7 +700,9 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
                 violations.append({"case_id": cid, "field": predicted["field"], "code": "unreviewed_observation", "reason": reason})
         case_results[cid] = {"required": len(labels), "completeness": _ratio(present, len(labels)),
                              "exact": _ratio(exact, len(labels)), "grounded": _ratio(grounded, len(labels)),
-                             "returned_values": len(predictions), "fields": outcomes}
+                             "returned_values": len(predictions), "fields": outcomes,
+                             "correct_missing_abstentions": abstentions,
+                             "unknown_states": captures.get(cid, {}).get('unknown_states', []) if isinstance(captures.get(cid), dict) else []}
         if Decimal(present) / len(labels) < Decimal(FROZEN_THRESHOLDS["case_required_field_completeness_min"]):
             violations.append({"case_id": cid, "code": "case_completeness_gate"})
     for metric, threshold in [("critical_exact", "critical_header_money_tax_line_amount_exact_min"),
@@ -697,6 +739,7 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
     report = {"schema_version": 1, "scope": scope, "passed": not violations,
               "capture_correctness_passed": correctness_passed, "live_capture_confirmed": not runtime_issues,
               "manifest_sha256": manifest_hash, "annotations_sha256": annotation_hash,
+              "image_reviews_sha256": fingerprint(image_reviews or {}),
               "selection_sha256": manifest["selection_sha256"], "thresholds": FROZEN_THRESHOLDS,
               "metrics": {key: _ratio(*value) for key, value in counters.items()},
               "per_field": {key: _ratio(*value) for key, value in sorted(field_counts.items())},
