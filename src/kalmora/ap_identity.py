@@ -80,10 +80,10 @@ class IdentityCatalog:
             raise TypeError("identity facts require Fact/Evidence")
         evidence = tuple(f.evidence for f in facts)
         if not facts:
-            return IdentityMatch("MISSING", None, (), evidence)
+            return IdentityMatch("UNKNOWN", None, (), evidence)
         tokens = set()
         for fact in facts:
-            if fact.value is None or fact.value == "":
+            if fact.value is None or (isinstance(fact.value, str) and not fact.value.strip()):
                 tokens.add(None)
             else:
                 tokens.add(normalize_tax_identifier(fact.value))
@@ -108,9 +108,9 @@ class IdentityCatalog:
                 expected_company: str | None) -> APIdentityResult:
         """Expected company comes explicitly from task/confirmed PO, never inbox guess.
 
-        None facts mean extraction has not resolved the field; an empty list or
-        evidenced None means it is absent. A known supplier's absent affiliation
-        remains unknown rather than automatically authorizing every company.
+        None or no observed facts mean extraction has not resolved the field.
+        An evidenced None or blank value establishes absence. A known supplier's
+        absent affiliation remains unknown rather than authorizing every company.
         """
         if expected_company is not None and expected_company not in self._companies:
             raise ValueError("expected company must exist in supplied master")

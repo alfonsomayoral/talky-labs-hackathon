@@ -94,7 +94,7 @@ def reconcile(data: PhaseData, *, recorded: Ledger, upstream: Upstream,
         if upstream.ap_coverage.month != ctx.month:
             raise ValueError("AP receipt coverage belongs to a different phase month")
         for receipt in upstream.ap_coverage.receipts:
-            if not ctx.pair(receipt.company, receipt.issuer):
+            if receipt.company not in ctx.directory.companies or (receipt.issuer is not None and not ctx.pair(receipt.company, receipt.issuer)):
                 raise ValueError("AP receipt must identify a configured company pair")
     projection = upstream.prior_projection.project() if upstream.prior_projection is not None else recorded.project()
     writer = _ProjectionWriter(projection, original_entries, ctx.validation)
@@ -175,6 +175,10 @@ def reconcile(data: PhaseData, *, recorded: Ledger, upstream: Upstream,
                      "ap_coverage_complete": upstream.ap_coverage.complete if upstream.ap_coverage else None,
                      "bank_delivery_complete": upstream.banks.complete if upstream.banks else None,
                      "shared_contract_validator_supplied": contract_validator is not None,
+                     "dependency_provenance": deepcopy(dict(upstream.provenance)),
+                     "integration_mode": "simulated" if upstream.provenance.get("kind") == "golden_fixture" else "producer_deliveries" if upstream.provenance else "undeclared",
+                     "real_flow_verified": False,
+                     "real_flow_gate": "#159 requires independently verified real AP and bank outputs",
                      "output_contract": "FORMATO_ENTREGA.md / IC",
                      "emission_semantics": "incremental over before_ic; original incidents retained on replay"})
     if digest(tuple(recorded.iter_entries())) != original_hash:

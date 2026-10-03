@@ -1,207 +1,143 @@
-# M5 — Intercompany reconciliation
+# M5 intercompany module — isolated dependency validation
 
-Refs #18, #19, #88, #89, #90, #91, #92, #93, #94. This implementation does **not** close these issues by itself.
+Refs #18, #19, #88, #89, #90, #91, #92, #93, #94, #159.
 
-## Boundary and accounting model
+## Scope and boundaries
 
-`kalmora.ic` is an independent Python module. It consumes the existing `PhaseData`,
-`Ledger`, `RateTable`, `Evidence`, `validate_entry`, and `RunRecorder`. It does not
-replace their models, edit the shared CLI, implement document extraction, or own
-AP/bank/scorer work. It uses no LLM, third-party dependency, or database engine.
+`kalmora.ic` reuses `PhaseData`, `Ledger`, `RateTable`, `Evidence`, `validate_entry`
+and `RunRecorder`. It does not implement AP, banks, extraction, LLMs or the shared
+#35 comparator. It never reads reference files. Main is not a delivery target.
 
-The original ERP is immutable. The module produces three position snapshots:
-recorded, before IC (with actual caller-supplied deliveries), and corrected. Each
-keeps company/account/raw partner/assignment separate, while a second index maps
-master-backed partner aliases to company pairs. Source `id#line` references remain
-in the audit. EUR comparison and local ledger amounts are distinct quantities.
-Known local-only FX revaluations do not change foreign loan principal. An external
-UTE partner is excluded from task pairs; no 50% consolidation is generated.
+Positions retain company/account/raw partner/assignment, local cents, document
+amounts, comparable EUR cents and original book-line evidence. Master-backed
+V-IC aliases are not inferred by removing prefixes. Invoice, pooling/interest,
+loan and UTE accounts remain separate. There is no 50% UTE consolidation output.
 
-`reconcile(data, recorded=ledger, upstream=Upstream(...))` returns findings,
-diagnostics, an independent projected Ledger, snapshots, and lineage. A missing
-interface stays `None`; the audit is incomplete rather than fabricated. An
-explicit empty producer delivery is different from a missing one. A prior
-projection, when provided, must contain all original entries byte-for-byte after
-shared Ledger normalization, and every added entry must have producer ownership.
-When omitted, the baseline is explicitly the recorded ledger, not an assertion
-that another engine has completed its work.
+The ERP is immutable. Snapshots distinguish recorded, before IC and corrected
+positions. `Ledger.project()` and explicit event/stage owners prevent repeat
+posting. A prior projection must contain every original entry unchanged.
 
-## Rules
+## Contracts
 
-| Issue | Implementation | Evidence and safety behavior |
-| --- | --- | --- |
-| #88 | `positions.py` | 433/403/400900, 552, 2423/1633, 5521/5522; aliases only from active masters; raw keys and book references retained. |
-| #89 | `positions.py`, `calculation.py` | EUR document amounts, exact Decimal/RateTable conversion, local MXN projection, FX valuation separated. |
-| #90 | `invoices.py` | Complete AP receipt coverage is required to infer nonreceipt. Expense uses issued net, never VAT-inclusive gross; invoice-date FX; explicit or uniquely evidenced historical cost allocation; 400900 counterparty is issuer company. |
-| #91 | `interest.py` | Supplied principal/rate/start/end, actual calendar days/360, both parties checked independently, comparison EUR versus local correction. No hardcoded phase or amount. |
-| #92 | `corrections.py` | Unique compatible mirror for wrong partner; full duplicate reversal including taxes, assignment and cost objects. Same reference with conflicting financial contents is blocked; FX revaluations are excluded. |
-| #93 | `pooling.py` | Detect missing original ERP side and match the actual statement. Link an explicit bank-owned correction; IC always emits no pooling journal. |
-| #94 | `engine.py`, standalone CLI, evaluation tool | Organizer JSONL fields plus audit; optional shared contract validator hook, separate evaluation of all required fields. |
+`reconcile(data, recorded=ledger, upstream=Upstream(...))` consumes:
 
-Invoice decisions run after reclassification, so a wrong-party invoice does not
-also cause an in-transit accrual. Existing accruals, including carried prior-month
-accruals, are checked for amount and allocation. Conflicting partial accruals are
-left to their owner, not overwritten. Existing external interest corrections are
-recognized; partial/conflicting corrections remain explicit blockers. An interest
-posting with the wrong partner is not interpreted as zero numeric accrual.
+- `ap_entries`: explicit `OwnedEntry(event_id, stage, entry, evidence)` objects.
+  An absent delivery is `None`, not a fabricated empty success.
+- `ap_coverage`: `ReceiptCoverage(month, complete, receipts, producer, evidence,
+  unresolved_documents)`. Every received invoice counts, including HOLD, REJECT,
+  DUPLICATE and unposted documents. A `Receipt` contains company, issuer,
+  reference, received_on and evidence. An explicitly unknown issuer (`None`)
+  is a possible match by company/reference and blocks an absence inference for
+  that reference. Missing recipient/reference/date prevents complete coverage.
+- `banks`: `BankDelivery(producer, complete, entries, pooling_links, evidence)`.
+  A pooling link maps an original statement ID to the bank entry's event/stage.
+- `prior_projection`: optional full append-only Ledger, never a replacement ERP.
+- `invoice_allocations`, `interest_allocations`: explicit supported allocations
+  where unique historical evidence is insufficient.
+- `valuation_entry_ids`: optional explicitly identified local-only FX entries.
+- `provenance`: producer/source metadata, including `golden_fixture` when used.
 
-The existing shared validator requires a cost object for lender account 76210000.
-When the lender needs adjustment, the caller must provide a supported allocation;
-M5 does not weaken that validator. Each generated entry is balanced and validated
-against company, account, partner and cost-object masters.
+The JSON adapter is `load_upstream(path)`, schema_version 1. It accepts the same
+contracts for real and simulated producers. A producer declaration does not
+prove that the real pipeline has run. `complete` means the modular inputs and
+rules have no blocking diagnostics, **not** exact reference acceptance or M5
+closure. The audit and run record separately retain integration_mode and
+real_flow_verified=false; #159 is the real-flow gate.
 
-## AP, bank and projection hand-off
+## Rules and ownership
 
-The public input dataclasses live in `model.py` (inside the M5 package, not a
-replacement for the shared data model). The JSON adapter is `load_upstream(path)`.
-It only decodes producer facts; it never runs their engines. Its schema is:
+Invoice nonreceipt needs complete receipt coverage, not merely absence from the
+journal. Net expense, supported receiver allocation and invoice-date FX determine
+Dr expense / Cr 40090000 with the issuer company. Reported difference and expense
+can differ by VAT. Existing accruals, including earlier periods, are recognized;
+partial/conflicting accruals are not overwritten.
 
-```json
-{
-  "schema_version": 1,
-  "prior_projection": null,
-  "ap_entries": null,
-  "ap_coverage": null,
-  "banks": null,
-  "invoice_allocations": [],
-  "interest_allocations": {},
-  "valuation_entry_ids": []
-}
-```
+Interest uses supplied principal, basis points, dates and actual calendar days
+on act/360, independently for both parties. Comparison EUR and local MXN postings
+are distinct. Known local-only revaluation never changes document principal.
 
-Null entries are intentionally **not a completed example**. The providers must
-supply the following real information before integration can pass:
+Wrong trading partner requires a unique compatible opposite mirror. The signed
+reported amount is the residual left in the intended pair (debit minus credit
+in EUR), not the absolute size of the misplaced posting. Reclassification adds
+the opposite leg. Tests cover both cash directions, both company orientations
+and a local-MXN/document-EUR case without any July-specific sign rule.
 
-* `prior_projection`: optional path to a full append-only JSONL ledger, resolved
-  relative to the manifest, including shared `provenance: {event_id, stage}`.
-* `ap_entries`: list of `{event_id, stage, entry, evidence}` from #55. `entry` is
-  the normal shared Ledger journal shape; `evidence` is the shared Evidence
-  shape `{document, field, page?, quote?}`.
-* `ap_coverage`: `{month, complete, producer, evidence, receipts,
-  unresolved_documents}`. Each receipt has `{company, issuer, reference,
-  received_on, evidence}`. The AP owner certifies a complete IC receipt inventory
-  through close, not merely successfully posted invoices. Receipts may be held
-  or rejected by AP but still prove that an invoice was received. Unresolved
-  documents prevent `complete=true`; company/issuer are group company codes.
-* `banks`: `{producer, complete, evidence, entries, pooling_links}`. Entries use
-  the owned-entry shape above. `pooling_links` maps original statement line ID to
-  `[event_id, stage]` of a supplied bank entry. M5 checks its projection,
-  responsible company, partner, bank account and amount before marking resolved.
-* `invoice_allocations`: list of `{issuer, receiver, reference, account,
-  cost_center, wbs, evidence}`. Expense account and one appropriate cost object
-  are required. Mixed historical allocations are not resolved by guessing.
-* `interest_allocations`: company-to-`{account, cost_center, wbs, evidence}` map.
-* `valuation_entry_ids`: optional explicit IDs of upstream local-only FX entries
-  whose source enum differs from existing `CLOSE_FX` / `FX_REVAL` conventions.
+A duplicate reverses the whole posting, including taxes, assignments and CC/WBS.
+Pooling is observed in the original ERP, tied to its statement and consumed bank
+correction, but always has `adjustment: []` in IC. Its owner remains banks.
 
-The existing reader rejects `golden` paths and symlink escapes. Source documents
-remain original and can live in a different read-only tree. Missing AP coverage
-prevents #90 output; missing bank correction keeps the original pooling finding
-with an empty adjustment and a diagnostic naming the statement and owner issues.
+## Authorized fixture adapter (#159)
 
-`contract_validator(record) -> list[str]`, when supplied to `reconcile`, consumes
-the shared output validator without implementing #32. Without it, M5 serializes
-the organizer's existing five IC fields and always uses shared accounting
-validation. #32's owner proposed using the organizer format directly; that is not
-represented here as an already-closed issue. The #35 shared comparison hook is
-an evaluation-time integration, not a solver import or a replacement scorer.
+`tools/m5_fixture.py` is a separate development/evaluation-side adapter. Its only
+readable reference members are `phase_dev/golden/ap.jsonl` and
+`phase_dev/golden/bank_rec.jsonl`. It cannot read IC expected output. It verifies
+source files against the unchanged original ZIP and records the actual members
+opened, SHA-256 values, phase, month, coverage and producer provenance.
 
-## Reproducible commands
+AP receipt coverage reconciles the exact task, result and message ID sets.
+Every message date must exist; there is no fallback to an invoice date. Historical
+AP log receipts are also retained. Coverage is independent of projection scope.
+For July this means all 305 tasks/results/messages, 141 historical IC receipts,
+7 current identified IC receipts and 2 explicitly unknown-issuer receipts.
 
-Run in an independent checkout based on `backend`, never in another agent's
-working directory. Python >=3.12 is required by the repository.
+The explicit `--ap-projection-scope intercompany` projects all 6 IC-relevant
+entries from 242 posted AP fixtures. The other 236 are inventoried as out of
+scope, not silently claimed as posted. `full` scope is supported but rejects
+invalid reference entries: the current non-IC advance line with missing partner
+is not repaired, excused or smuggled into M5. This is not a full AP engine test.
+All 12 bank accounts and all 56 supplied bank corrections are consumed.
+
+The pooling link comes from the bank unmatched ID, signed amount/currency,
+agreement and unique same-date opposite ERP mirror. The projection header uses
+that independently supported mirror reference. The original bank fixture ref is
+retained in evidence. No IC reference supplies the link. Original line dimensions
+are copied; missing document dimensions in flat bank output are not fabricated.
+
+## Reproduction
+
+Use a separate checkout of the M5 branch and Python >=3.12:
 
 ```bash
-python -m pip install -e . --no-build-isolation
-python -m compileall -q src
+python -m pip install -e .
+python -m compileall -q src tools
 python -m unittest discover -s tests -v
 kalmora doctor
 git diff --check
-```
-
-Use a solver-only extraction of the original package (no reference directory or
-scorer). The delivery includes a preparation script. The original archive is
-never changed. Its bytes may be hashed for lineage, not read for decisions.
-
-```bash
 python tools/m5_prepare_inputs.py --package /path/participant.zip --out /tmp/m5-inputs
-python -m kalmora.ic \
-  --phase /tmp/m5-inputs/participant/phase_dev \
-  --out /tmp/m5-output --recorded-only \
-  --package /path/participant.zip \
-  --backend-commit "$(git rev-parse origin/backend)"
+python tools/m5_fixture.py --package /path/participant.zip \
+  --phase /tmp/m5-inputs/participant/phase_dev --out /tmp/m5-fixtures \
+  --ap-projection-scope intercompany
+python tools/m5_run_isolated.py --phase /tmp/m5-inputs/participant/phase_dev \
+  --upstream /tmp/m5-fixtures/upstream.json --out /tmp/m5-isolated \
+  --backend-commit "$(git merge-base HEAD upstream/backend)" --check-replay
 ```
 
-Exit **3** means incomplete external integration, not a successful milestone.
-The partial output and diagnostics are still written. Replace `--recorded-only`
-with `--upstream /path/actual-producer-deliveries.json` for the integrated run.
-`--write-projection` additionally writes the full corrected journal. Default
-outputs are `ic.jsonl`, `audit.json`, `projection.adjustments.jsonl`, and `runs/`.
-The delta includes externally owned entries as well as IC entries; do not apply
-that delta on top of a ledger that already contains them without shared ownership
-checks. Replay against a prior IC projection emits no second adjustment; fresh
-runs against the same original inputs reproduce the same complete proposed delta.
+The isolated process installs an open-audit guard before importing M5. ZIP,
+reference and evaluator reads are denied, including symlinks; a denied probe
+confirms the guard is active. Fresh repeated runs must have identical IC bytes.
+Replaying on the corrected projection emits no further IC corrections and keeps
+the projected ledger unchanged. The original ERP hash is conserved throughout.
 
-For real solver-input integration:
+Standalone production-style invocation remains `python -m kalmora.ic --phase ...
+--out ... --upstream ... --backend-commit ...`. `--recorded-only` explicitly
+acknowledges missing dependencies and exits 3. The output includes `ic.jsonl`,
+audit snapshots, producer-owned projection delta and RunRecorder metadata.
 
-```bash
-KALMORA_IC_PHASE=/tmp/m5-inputs/participant/phase_dev \
-  python -m unittest discover -s tests -p test_ic_real.py -v
-```
+## Evaluation and closure
 
-## Evaluation and delivery gates
+Freeze source and `ic.jsonl` hashes before evaluating. The separate
+`tools/m5_evaluate.py` consumes the actual shared `compare_ic`/`load_scorer` APIs,
+runs the original scorer unchanged and checks signed amount, pair, responsible,
+company, accounting lines and reference-provided assignment/tax/currency fields.
+Use `--require-shared`. IC expected data is never fed back as solver input.
 
-Freeze solver code and output hashes before evaluating. Only the separate
-`tools/m5_evaluate.py` evaluation process opens the original scorer/reference.
-It reports original IC metrics and independently checks pair, cause, amount,
-responsible, journal company/account/partner/cost object and cents. This is an M5
-supplement, not a new shared scorer. The #35 output may be consumed as an explicit,
-hash-bound shared report when that producer is available.
+Current simulated output matches all fields of all 5 reference rows, including
+the repaired sign and the net transit accrual. It also reports 3 additional
+source-supported nonreceived invoices. Therefore it contains 8 rows / 7 IC
+entries and scores 0.8615; **exact acceptance is not proven**. The extra rows
+are not suppressed using the reference answer. See `m5-review.md`.
 
-The optional pre-existing organizer validation test also belongs to evaluation:
-
-```bash
-KALMORA_PARTICIPANT_ZIP=/path/participant.zip \
-  python -m unittest discover -s tests -v
-```
-
-Synthetic cases prove local interfaces and edge cases, not actual AP/bank
-completion. Keep tasks/epics/milestone open until real dependencies and all output
-fields meet their acceptance criteria. PRs target `backend`, use English text
-and `Refs` while incomplete. Review and CI precede squash merge. No remote write,
-review, merge, or CI success may be inferred from local tests.
-
-## Live integration update (2026-10-03)
-
-Remote `backend` advanced to `292bd0b7bac5b5c7e337452a77f9b4c0e75acd81`
-while M5 was being implemented. #32 is now deprecated/closed and the shared #35
-comparator is integrated/closed. The earlier dependency discussion above describes
-input boundaries, not the latest GitHub state.
-
-The current `IcRow.adjustment` type reuses `JournalLine`. Serialization therefore
-preserves existing `assignment`, `tax_code`, `currency` and `amount_doc` dimensions,
-in addition to company/account/debit/credit/partner/cost objects. Internal journal
-IDs and source-book references remain in the audit, not in the submission.
-
-The separate evaluator imports the actual
-`kalmora.evaluation.compare.compare_ic` and
-`kalmora.evaluation.scorer.load_scorer` interfaces when available. Use
-`--require-shared` on the current backend to make their absence a hard error:
-
-```bash
-python tools/m5_evaluate.py \
-  --package /path/participant.zip \
-  --participant-phase /tmp/m5-inputs/participant/phase_dev \
-  --submission /tmp/m5-output --out /tmp/m5-evaluation \
-  --freeze /path/solver-freeze.json --require-shared
-```
-
-The loader verifies the unchanged scorer against a manifest hash read from the
-original archive. The report records the shared modules' Git blob hashes and
-reconciles their result with the independently invoked organizer CLI. An existing
-native #35 report can alternatively be supplied through `--shared-report`; its
-`provenance.submission_sha256["ic.jsonl"]` must match this exact submission.
-
-The supplemental audit additionally compares every line's company and source
-assignment dimensions, and does not equate the official score with acceptance.
-Known remaining findings and exact execution scope are in `m5-review.md`.
+M5, both epics and #159 stay open. Real AP receipt coverage, real bank correction
+ownership and the real end-to-end run remain separate gates. Publication and
+unit tests do not substitute for them. PRs target upstream backend with English
+text and Refs; review and checks precede any squash merge.

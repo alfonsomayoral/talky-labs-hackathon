@@ -45,7 +45,9 @@ def invoices_in_transit(ctx: Context, before_entries: tuple[dict, ...]) -> tuple
     if coverage.month != ctx.month:
         raise ValueError("AP receipt coverage belongs to a different phase month")
     received = {(r.issuer, r.company, r.reference) for r in coverage.receipts
-                if r.received_on <= ctx.last.isoformat()}
+                if r.issuer is not None and r.received_on <= ctx.last.isoformat()}
+    possible_receipts = {(r.company, r.reference): r for r in coverage.receipts
+                         if r.issuer is None and r.received_on <= ctx.last.isoformat()}
     for entry in before_entries:
         if entry.get("posting_date", "") > ctx.last.isoformat():
             continue
@@ -72,6 +74,12 @@ def invoices_in_transit(ctx: Context, before_entries: tuple[dict, ...]) -> tuple
         if identity in received:
             continue
         issuer, receiver, ref = identity
+        uncertain = possible_receipts.get((receiver, ref))
+        if uncertain is not None:
+            diagnostics.append(Diagnostic("AP_RECEIPT_IDENTITY_AMBIGUOUS",
+                f"{receiver}/{ref}: a received document has unknown issuer; nonreceipt is not established",
+                (55, 90), evidence=(uncertain.evidence,)))
+            continue
         versions.sort(key=lambda item: (item[0]["posting_date"], item[0]["id"]))
         entry, control, income = versions[0]
         amounts = {(ctx.eur(e, c), -sum(ctx.eur(e, l) for l in inc)) for e, c, inc in versions}

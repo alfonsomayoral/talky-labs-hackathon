@@ -86,10 +86,12 @@ def main(argv=None) -> int:
         audit["metadata"]["ic_jsonl_sha256"] = sha256(output / "ic.jsonl")
         atomic_json(output / "audit.json", audit)
         code = 0 if result.complete else 3
-        recorder.report.update(exit_code=code, integration_complete=result.complete,
+        recorder.report.update(exit_code=code, modular_contracts_complete=result.complete,
+                               integration_mode=result.metadata["integration_mode"], real_flow_verified=False,
                                findings=len(result.findings), diagnostics=[d.code for d in result.diagnostics],
                                ic_jsonl_sha256=audit["metadata"]["ic_jsonl_sha256"])
-        print(json.dumps({"complete": result.complete, "records": len(result.findings),
+        print(json.dumps({"complete": result.complete, "integration_mode": result.metadata["integration_mode"],
+                          "real_flow_verified": False, "records": len(result.findings),
                           "diagnostics": [d.code for d in result.diagnostics], "out": str(output)}))
         return code
 

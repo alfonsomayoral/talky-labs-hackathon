@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from .ap_tax import PostingDecision, fiscal_line, local_amount, nonnegative, require_posting
 from .model.journal_line import JournalLine
+from .model.ap_component_scope import APComponentScope
 from .money import RateTable, integer, round_cents
 
 _COUNTRIES = {"IRPF15": "ES", "IRPF7": "ES", "IRPF19": "ES",
@@ -121,6 +122,8 @@ class WithholdingResult:
     retention_doc: int
     retention_local: int
     components: tuple[WithholdingComponent, ...]
+    scope: APComponentScope | None = None
+    catalog_codes: tuple[tuple[str, WithholdingCode], ...] = ()
 
     @property
     def deduction_doc(self) -> int:
@@ -135,6 +138,7 @@ def calculate_ap_withholdings(*, company: str, country: str, vendor: str,
                               currency: str, invoice_date: str, invoice_number: str,
                               decision: PostingDecision, bases: Iterable[WithholdingBase],
                               catalog: WithholdingCatalog, guarantee: ContractGuarantee | None = None,
+                              invoice_id: str | None = None,
                               rates: RateTable | None = None) -> WithholdingResult:
     """Unsigned credits to deduct from supplier gross; no final journal posting.
 
@@ -143,6 +147,8 @@ def calculate_ap_withholdings(*, company: str, country: str, vendor: str,
     base. Return no zero-amount journal lines. Reverse credit notes downstream.
     """
     require_posting(decision)
+    if invoice_id is not None and (not isinstance(invoice_id, str) or not invoice_id):
+        raise ValueError("resolved withholding invoice identity must be nonempty text")
     local_amount(0, company, currency, invoice_date, rates)
     expected_country = "MX" if company == "3100" else "PT" if company == "2100" else "ES"
     if country != expected_country:
@@ -186,4 +192,5 @@ def calculate_ap_withholdings(*, company: str, country: str, vendor: str,
     retention = [c for c in components if c.kind == "GUARANTEE"]
     return WithholdingResult(sum(c.amount_doc for c in withholding), sum(c.amount_local for c in withholding),
                              sum(c.amount_doc for c in retention), sum(c.amount_local for c in retention),
-                             tuple(components))
+                             tuple(components), APComponentScope(company, vendor, currency, invoice_id,
+                                                                 invoice_date, decision), tuple(sorted(catalog._codes.items())))

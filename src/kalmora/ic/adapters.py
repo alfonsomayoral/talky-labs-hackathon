@@ -51,4 +51,4 @@ def load_upstream(path: Path) -> Upstream:
         allocations[identity] = allocation(row)
     return Upstream(prior, ap, coverage, banks, allocations,
                     {company: allocation(row) for company, row in payload.get("interest_allocations", {}).items()},
-                    frozenset(payload.get("valuation_entry_ids", [])))
+                    frozenset(payload.get("valuation_entry_ids", [])), payload.get("provenance", {}))

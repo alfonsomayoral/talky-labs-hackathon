@@ -25,22 +25,28 @@ def event_key(cause: str, *identity: object) -> str:
 @dataclass(frozen=True)
 class Receipt:
     company: str
-    issuer: str
+    # None preserves an unidentified supplier: a possible receipt, never proof of absence.
+    issuer: str | None
     reference: str
     received_on: str
     evidence: Evidence
 
     def __post_init__(self):
         date.fromisoformat(self.received_on)
-        if not self.company or not self.issuer or not self.reference:
-            raise ValueError("receipt requires company, issuer and reference")
+        if not self.company or not self.reference or (self.issuer is not None and not self.issuer):
+            raise ValueError("receipt requires company/reference and a nonempty issuer or explicit None")
         if not isinstance(self.evidence, Evidence):
             raise TypeError("receipt requires Evidence")
 
 
 @dataclass(frozen=True)
 class ReceiptCoverage:
-    """AP certifies the inventory, not IC. complete=False never implies absence."""
+    """AP certifies all company/reference/date observations, not just postings.
+
+    A null issuer is a possible match by recipient/reference and prevents an
+    absence inference for that reference. Missing company/reference/date belongs
+    in unresolved_documents, which is incompatible with complete=True.
+    """
     month: str
     complete: bool
     receipts: tuple[Receipt, ...]
@@ -121,6 +127,8 @@ class Upstream:
     invoice_allocations: Mapping[tuple[str, str, str], Allocation] = field(default_factory=dict)
     interest_allocations: Mapping[str, Allocation] = field(default_factory=dict)
     valuation_entry_ids: frozenset[str] = frozenset()
+    # Producer declaration travels with the same contracts for real and simulated inputs.
+    provenance: Mapping[str, object] = field(default_factory=dict)
 
     @classmethod
     def missing(cls) -> Upstream:
@@ -145,6 +153,7 @@ class Finding:
     event_id: str
     pair: tuple[str, str]
     cause: str
+    # Cause-defined observed amount; wrong-partner is the signed intended-pair residual.
     amount: int
     responsible: str
     amount_currency: str
@@ -156,7 +165,7 @@ class Finding:
 
     def __post_init__(self):
         integer(self.amount)
-        if self.amount < 0 or len(set(self.pair)) != 2 or self.responsible not in self.pair:
+        if len(set(self.pair)) != 2 or self.responsible not in self.pair:
             raise ValueError("invalid IC finding identity, amount or responsible")
         if self.cause not in {"INVOICE_IN_TRANSIT", "INTEREST_DAY_COUNT", "WRONG_TRADING_PARTNER",
                               "DUPLICATE_POSTING", "POOLING_NOT_BOOKED"}:

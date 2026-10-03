@@ -38,6 +38,9 @@ class Context:
         wbs = {w["id"]: {**w, "company": p["company"]}
                for p in self.data.table("projects") for w in p.get("wbs", [])}
         partners = set(self.directory.aliases)
+        # Shared policy §1 assigns this literal to factoring (55300000).
+        # Bank deliveries can contain those valid non-IC adjustments too.
+        partners.add("FACTOR-BAE")
         partners.update(r["id"] for r in self.data.table("vendors"))
         partners.update(r["id"] for r in self.data.table("customers"))
         self.validation = {"companies": self.directory.companies,

@@ -143,17 +143,17 @@ def required_field_audit(reference, submitted, *, currencies=None):
             "all_required_fields_exact": not structural and not duplicates and not unexpected and all(r["required_fields_exact"] for r in detailed),
             "structural_errors": structural, "duplicate_submission_keys": duplicates,
             "unexpected_rows": unexpected, "rows": detailed,
-            "additional_field_scope": "assignment is compared above as extra reference data; retained in projection/audit, absent from organizer example line shape"}
+            "additional_field_scope": "all reference line dimensions beyond the common fields are compared, including assignment/tax/currency/amount_doc when present"}
 
 
 
 def shared_comparison(scorer_path, manifest_path, reference, submitted, submission_hash, *, required=False):
     """Consume the actual #35 public functions; never implement their scoring code."""
     try:
-        from kalmora.evaluation import compare, explain, exceptions, scorer
+        from kalmora.evaluation import compare, explain, scorer
     except ModuleNotFoundError as exc:
         if exc.name not in {"kalmora.evaluation", "kalmora.evaluation.compare", "kalmora.evaluation.explain",
-                            "kalmora.evaluation.exceptions", "kalmora.evaluation.scorer"}:
+                            "kalmora.evaluation.scorer"}:
             raise
         if required:
             raise RuntimeError("The real #35 comparator is unavailable in this checkout") from exc
@@ -161,7 +161,7 @@ def shared_comparison(scorer_path, manifest_path, reference, submitted, submissi
     official, identity_info = scorer.load_scorer(scorer_path, manifest_path)
     result = compare.compare_ic(official, reference, submitted)
     sources = {}
-    for module in (compare, explain, exceptions, scorer):
+    for module in (compare, explain, scorer):
         path = Path(module.__file__)
         data = path.read_bytes()
         sources[module.__name__] = {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(),
@@ -182,6 +182,10 @@ def evaluate(args):
         unchanged = all(sha(root / p) == digest for p, digest in freeze["sha256"].items())
         if not unchanged:
             raise ValueError("Solver differs from the supplied pre-evaluation freeze")
+        if freeze.get("submission_sha256") != sha(submitted_path):
+            raise ValueError("Submission differs from the supplied pre-evaluation freeze")
+    solver_audit = json.loads((args.submission / "audit.json").read_text())
+    integration_mode = solver_audit.get("metadata", {}).get("integration_mode", "undeclared")
     phase_prefix = f"participant/{args.phase_name}"
     with tempfile.TemporaryDirectory(prefix="m5-evaluation-") as folder:
         reference_root = Path(folder)
@@ -229,7 +233,7 @@ def evaluate(args):
         if not shared_result.get("reconciliation", {}).get("ok"):
             raise ValueError("Shared #35 comparator reported a reconciliation failure")
         (output / "shared-35.json").write_text(json.dumps(shared, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    report = {"schema_version": 1, "evaluation_only": True, "created_utc": datetime.now(timezone.utc).isoformat(),
+    report = {"schema_version": 1, "evaluation_only": True, "integration_mode": integration_mode, "real_flow_verified": False, "created_utc": datetime.now(timezone.utc).isoformat(),
               "phase_name": args.phase_name, "archive_sha256": sha(args.package), "submission_sha256": sha(submitted_path),
               "scorer_sha256": hashlib.sha256(scorer).hexdigest(), "reference_ic_sha256": hashlib.sha256(reference_bytes).hexdigest(),
               "solver_freeze": freeze, "solver_unchanged_since_freeze": unchanged,
@@ -240,7 +244,7 @@ def evaluate(args):
               "milestone_acceptance_proven": False,
               "note": "Reference observations are evaluation findings, never rules or parameters fed back to the frozen solver"}
     (output / "evaluation.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    text = ["# M5 — Separate evaluation", "", f"Official IC score: **{official['ic']['score']}**.",
+    text = ["# M5 — Separate evaluation", "", f"Integration mode: **{integration_mode}**; real flow verified: **False**.", "", f"Official IC score: **{official['ic']['score']}**.",
             f"Detected: **{official['ic']['detected']} / {official['ic']['differences']}**.",
             f"All required fields exact: **{audit['required_fields_exact_rows']} / {audit['expected_rows']}** reference rows.",
             "", "| Pair | Cause | Expected amount | Actual amount | Required fields |", "| --- | --- | ---: | ---: | --- |"]
@@ -259,8 +263,12 @@ def evaluate(args):
         for extra in row.get("additional_reference_line_fields", []):
             text.append(f"{label}: line {extra['company']}/{extra['account']} field `{extra['field']}`: "
                         f"expected `{extra['expected']}`, actual `{extra['actual']}`.")
-    if audit["structural_errors"] or audit["duplicate_submission_keys"] or audit["unexpected_rows"]:
-        text.append("Additional structural, duplicate-key or unexpected-row failures are recorded in evaluation.json.")
+    for extra in audit["unexpected_rows"]:
+        for row in extra["rows"]:
+            text.append(f"Unexpected row: {' / '.join(extra['pair'])} — {extra['cause']}; amount={row.get('amount')}; responsible={row.get('responsible')}.")
+    text.append(f"Whole-output exact acceptance: **{audit['all_required_fields_exact']}** (extra rows are failures even when every reference row matches).")
+    if audit["structural_errors"] or audit["duplicate_submission_keys"]:
+        text.append("Additional structural or duplicate-key failures are recorded in evaluation.json.")
     text += ["", "## Integration is separate from score", "",
         "No reference row was injected into the solver. A matching empty pooling adjustment does not prove that the bank-owned correction was supplied.",
         "The solver audit contains the actual dependency diagnostics. A local supplemental field audit does not replace the real shared #35 producer.",

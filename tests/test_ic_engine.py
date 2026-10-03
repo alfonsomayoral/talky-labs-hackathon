@@ -132,6 +132,21 @@ class InvoiceTests(SyntheticFixture):
               (Receipt("1100", "1000", "INV", "2028-02-29", E),), "AP-test", E))
         self.assertEqual(self.solve([issued()], u).records, [])
 
+    def test_unknown_issuer_matching_reference_blocks_absence_inference(self):
+        coverage = ReceiptCoverage("2028-02", True,
+            (Receipt("1100", None, "INV", "2028-02-20", E),), "AP-test", E)
+        result = self.solve([issued()], replace(self.allocation(), ap_coverage=coverage))
+        self.assertEqual(result.records, [])
+        self.assertFalse(result.complete)
+        self.assertIn("AP_RECEIPT_IDENTITY_AMBIGUOUS", [d.code for d in result.diagnostics])
+
+    def test_unknown_issuer_other_reference_does_not_invent_nonreceipt_or_receipt(self):
+        coverage = ReceiptCoverage("2028-02", True,
+            (Receipt("1100", None, "UNRELATED", "2028-02-20", E),), "AP-test", E)
+        result = self.solve([issued()], replace(self.allocation(), ap_coverage=coverage))
+        self.assertTrue(result.complete)
+        self.assertEqual(result.findings[0].cause, "INVOICE_IN_TRANSIT")
+
     def test_receipt_after_close_does_not_remove_transit(self):
         u = replace(self.allocation(), ap_coverage=ReceiptCoverage("2028-02", True,
               (Receipt("1100", "1000", "INV", "2028-03-01", E),), "AP-test", E))
@@ -268,8 +283,48 @@ class CorrectionTests(SyntheticFixture):
         r = self.solve(entries, u)
         f = next(f for f in r.findings if f.cause == "WRONG_TRADING_PARTNER")
         self.assertEqual(f.pair, ("1000", "1100"))
-        self.assertEqual(f.amount, 333)
+        self.assertEqual(f.amount, -333)
         self.assertEqual([(l["partner"], l["debit"], l["credit"]) for l in f.emitted_adjustment], [("1200", 0, 333), ("1000", 333, 0)])
+
+    def test_wrong_partner_signed_residual_both_directions_and_company_orientations(self):
+        for responsible, peer in (("1100", "1000"), ("1000", "1100")):
+            for amount in (719, -719):
+                with self.subTest(responsible=responsible, amount=amount):
+                    reference = "SYNTHETIC-MIRROR"
+                    entries = [entry("MISASSIGNED", responsible,
+                        [line("55200000", amount, "1200"), line("57200001", -amount)], reference),
+                        entry("MIRROR", peer,
+                        [line("55200000", -amount, responsible), line("57200001", amount)], reference)]
+                    result = self.solve(entries)
+                    finding, = result.findings
+                    self.assertEqual(finding.cause, "WRONG_TRADING_PARTNER")
+                    self.assertEqual(finding.amount, -amount)
+                    self.assertEqual(finding.amount_currency, "EUR")
+                    self.assertEqual(finding.details["corrected_event_residual_eur_cents"], 0)
+                    self.assertEqual(finding.responsible, responsible)
+                    # Signed intended pair position is nonzero before, zero after.
+                    def pair_sum(book):
+                        return sum(l["debit"] - l["credit"] for e in book.entries for l in e["lines"]
+                                   if l["account"] == "55200000" and
+                                   ((e["company"] == responsible and l.get("partner") == peer) or
+                                    (e["company"] == peer and l.get("partner") == responsible)))
+                    self.assertEqual(pair_sum(self.book), -amount)
+                    self.assertEqual(pair_sum(result.projection), 0)
+                    self.assertEqual(self.solve(list(reversed(entries))).records, result.records)
+
+    def test_wrong_partner_uses_compatible_eur_not_local_mxn(self):
+        for amount in (719, -719):
+            with self.subTest(amount=amount):
+                entries = [entry("MISASSIGNED-MXN", "3100", [
+                    line("55200000", amount * 20, "1200", currency="EUR", amount_doc=abs(amount)),
+                    line("57200001", -amount * 20)], "FX-MIRROR"),
+                    entry("MIRROR-EUR", "1000", [line("55200000", -amount, "3100"),
+                    line("57200001", amount)], "FX-MIRROR")]
+                finding, = self.solve(entries).findings
+                self.assertEqual(finding.amount, -amount)
+                self.assertEqual(finding.amount_currency, "EUR")
+                self.assertEqual(finding.details["misassigned_signed_local_cents"], amount * 20)
+                self.assertEqual(finding.proposed["lines"][1]["amount_doc"], abs(amount))
 
     def test_invoice_wrong_partner_uses_vendor_master_not_company_alias(self):
         i, r = issued(tax=0), received(partner="V-OTHER")
@@ -536,7 +591,7 @@ class EndToEndSyntheticTests(SyntheticFixture):
         self.assertEqual(sum(bool(row["adjustment"]) for row in r.records), 4)
         self.assertEqual({f.cause: f.amount for f in r.findings}, {
             "INVOICE_IN_TRANSIT": 121, "INTEREST_DAY_COUNT": 60,
-            "WRONG_TRADING_PARTNER": 333, "DUPLICATE_POSTING": 100, "POOLING_NOT_BOOKED": 777})
+            "WRONG_TRADING_PARTNER": -333, "DUPLICATE_POSTING": 100, "POOLING_NOT_BOOKED": 777})
         for row in r.records:
             self.assertEqual(set(row), {"pair", "cause", "amount", "responsible", "adjustment"})
             self.assertIn(row["responsible"], row["pair"])

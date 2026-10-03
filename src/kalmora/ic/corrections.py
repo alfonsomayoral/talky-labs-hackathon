@@ -99,11 +99,22 @@ def wrong_partners(ctx: Context) -> tuple[list[Finding], list[Diagnostic]]:
                 expected_partner = vendor["id"]
             corrected["partner"] = expected_partner
             adjustment = ctx.new_entry(event, entry["company"], [reverse_line(line), corrected], reference=reference)
-            findings.append(Finding(event, pair, "WRONG_TRADING_PARTNER", abs(line["debit"] - line["credit"]),
-                entry["company"], ctx.directory.currency(entry["company"]), adjustment,
+            # The erroneous leg is absent from the intended pair. Its peer is
+            # the signed residual left in that pair (debit minus credit in EUR).
+            # Sorting the pair or reversing the cash direction must not lose the
+            # sign. The reclassification contributes the opposite signed leg.
+            residual_eur = ctx.eur(peer, mirror)
+            findings.append(Finding(event, pair, "WRONG_TRADING_PARTNER", residual_eur,
+                entry["company"], "EUR", adjustment,
                 (ctx.evidence(entry, line), ctx.evidence(peer, mirror), Evidence("POLITICAS_CONTABLES.md", "§6")),
                 {"old_partner": line["partner"], "expected_partner": expected_partner, "expected_company": expected, "reference": reference,
-                 "source_book_line": line.get("book_line"), "adjustment_currency": ctx.directory.currency(entry["company"])}))
+                 "source_book_line": line.get("book_line"),
+                 "amount_basis": "signed remaining mirror in the intended pair, debit minus credit",
+                 "original_pair_residual_eur_cents": residual_eur,
+                 "correction_to_intended_pair_eur_cents": ctx.eur(entry, line),
+                 "corrected_event_residual_eur_cents": residual_eur + ctx.eur(entry, line),
+                 "misassigned_signed_local_cents": line["debit"] - line["credit"],
+                 "adjustment_currency": ctx.directory.currency(entry["company"])}))
     return findings, diagnostics
 
 
