@@ -132,6 +132,11 @@ def normalize_value(field, value, *, unit=None, date_order="DMY"):
         return _type(value)
     if tail.endswith("_date") or tail in {"valid_until"}:
         return _date(value, date_order)
+    if tail.endswith("_rate"):
+        result = _number(value, unit)
+        if isinstance(value, str) and value.strip().endswith('%') and unit != 'integer_e4':
+            result /= 100
+        return result
     if (field in MONEY_FIELDS or tail in {"amount", "unit_price", "quantity", "deposit_percent"}
             or unit in {"currency_major_decimal", "source_decimal", "source_measure_decimal", "integer_cents", "integer_milli", "integer_e4", "percent"}):
         return _number(value, unit)
@@ -301,12 +306,15 @@ def _value_supported(observed, quote, label):
         return bool(label and label.get("state") == "absent")
     if isinstance(value, bool):
         return False  # Unreviewed semantic flags are not proven by a random quote.
-    if field in MONEY_FIELDS or field.rsplit(".", 1)[-1] in {"amount", "unit_price", "quantity"}:
+    if field in MONEY_FIELDS or field.rsplit(".", 1)[-1] in {"amount", "unit_price", "quantity"} or field.endswith('_rate'):
         try:
-            normalized = _number(value, observed.get("unit"))
-            for token in re.findall(r"[-−+]?\d[\d.,]*(?:\s+(?:EUR|USD|MXN|GBP))?", str(quote)):
+            normalized = normalize_value(field, value, unit=observed.get("unit"))
+            for token in re.findall(r"[-−+]?\d[\d.,]*(?:\s*(?:%|EUR|USD|MXN|GBP))?", str(quote)):
                 try:
-                    if _number(token) == normalized:
+                    supported = normalize_value(field, token)
+                    if field.endswith('_rate') and 'TaxRate' in observed['evidence'].get('field', '') and '%' not in token:
+                        supported /= 100
+                    if supported == normalized:
                         return True
                 except (ValueError, InvalidOperation):
                     pass
@@ -425,6 +433,16 @@ def validate_annotation_sources(manifest, annotations, source_root):
     return errors
 
 
+def _exact_cost(value):
+    """Machine-recorded prices use Decimal syntax, including scientific notation."""
+    if isinstance(value, (bool, float)):
+        raise ValueError('Cost requires an exact decimal value')
+    result = Decimal(str(value))
+    if not result.is_finite():
+        raise ValueError('Cost must be finite')
+    return result
+
+
 def _runtime(case_ids, reports, contract):
     results, issues, times, costs = {}, [], [], []
     for cid in case_ids:
@@ -466,10 +484,10 @@ def _runtime(case_ids, reports, contract):
                 if (pricing.get("currency") != "USD" or pricing.get("unit") != "per_token"
                         or not pricing.get("provenance")):
                     raise ValueError("USD pricing/unit/provenance missing")
-                rates = [_number(pricing[k]) for k in ("input_rate", "output_rate")]
+                rates = [_exact_cost(pricing[k]) for k in ("input_rate", "output_rate")]
                 if any(r < 0 for r in rates):
                     raise ValueError("negative price")
-                estimate = _number(call["estimated_cost"])
+                estimate = _exact_cost(call["estimated_cost"])
                 if estimate <= 0:
                     raise ValueError("zero-cost capture cannot establish paid live provenance")
                 if estimate != sum((rate * count for rate, count in zip(rates, counts)), Decimal(0)):

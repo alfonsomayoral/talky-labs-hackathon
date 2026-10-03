@@ -5,10 +5,12 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from decimal import Decimal
 
 from kalmora.documents.evaluation import (FROZEN_THRESHOLDS, SourceAudit, _runtime,
     _semantic, canonical_field, evaluate_sample, normalize_value, validate_annotation_sources)
 from kalmora.facts import DocumentFacts, Evidence, Fact
+from kalmora.runlog import RunRecorder
 
 
 class EvaluationTests(unittest.TestCase):
@@ -194,6 +196,32 @@ class EvaluationTests(unittest.TestCase):
         for path in ['../outside', 'phase_test/inbox/a', 'golden/a']:
             with self.assertRaises(ValueError):
                 audit.source(path)
+
+    def test_actual_runrecorder_scientific_prices_reproduce_cost(self):
+        metadata = {'case_id': 'T', 'capture_mode': 'captured_live', 'transport_mode': 'default',
+                    'response_source': 'provider_api'}
+        with RunRecorder(self.root / 'reports', ['synthetic-test'], metadata) as recorder:
+            recorder.record_call('openai', 'gpt-6-luna', 100, 20, {
+                'currency': 'USD', 'unit': 'per_token', 'provenance': 'test-config',
+                'input_rate': Decimal('1.25E-7'), 'output_rate': Decimal('5E-7')})
+        runtime, issues = _runtime(['T'], {'T': recorder.report}, self.manifest['evaluation_contract'])
+        self.assertEqual(issues, [])
+        self.assertEqual(Decimal(runtime['total_estimated_usd']), Decimal('0.0000225'))
+        recorder.report['calls'][0]['pricing']['input_rate'] = float('nan')
+        self.assertTrue(_runtime(['T'], {'T': recorder.report}, self.manifest['evaluation_contract'])[1])
+
+    def test_normalized_rate_ratio_is_grounded_in_percent_quote(self):
+        source = b'FACTURA INV-A dated 03/07/2026 total 1.234,50 EUR supplier TAX-A IVA 21%'
+        (self.root / self.path).write_bytes(source)
+        self.sha = hashlib.sha256(source).hexdigest()
+        case = self.manifest['cases'][0]
+        case['attachments'][0]['sha256'] = case['message']['sha256'] = self.sha
+        for label in self.labels:
+            label['evidence']['source_sha256'] = self.sha
+        captures = self.capture()
+        captures['T']['fields']['tax_rate_e4'] = [{'value': 2100, 'evidence': {
+            'document': self.path, 'field': 'text', 'quote': 'IVA 21%', 'page': None}}]
+        self.assertTrue(self.report(captures)['capture_correctness_passed'])
 
 
 class SealedOriginalTests(unittest.TestCase):
