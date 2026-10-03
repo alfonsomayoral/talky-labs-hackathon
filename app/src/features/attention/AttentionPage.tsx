@@ -23,7 +23,7 @@ import {
 import { ATTENTION_KINDS, TASK_KEYS, type DerivedRun } from '@/domain/types'
 import { useDerivedRun } from '@/engine'
 import { formatDateTime, formatNumber } from '@/lib/format'
-import { shouldIgnoreHotkey } from '@/lib/keyboard'
+import { shouldIgnoreHotkey, usePageShortcuts } from '@/lib/keyboard'
 import { PageActions } from '@/shell/PageActions'
 import { useActiveItemId, useOpenItem } from '@/shell/useOpenItem'
 import { TASK_LABEL } from '@/domain/catalog/labels'
@@ -74,6 +74,12 @@ const FAMILY_META: Record<Family, { title: string; description: string; icon: Re
 type FamilyView = 'all' | 'world' | 'doubt'
 
 const NO_OVERRIDES: Override[] = []
+
+const ATTENTION_SHORTCUTS = [
+  { label: 'Aceptar la recomendación', keys: ['A'] },
+  { label: 'Posponer', keys: ['P'] },
+  { label: 'Añadir una nota', keys: ['N'] },
+]
 
 export default function AttentionPage() {
   const { data, status, error } = useDerivedRun()
@@ -199,6 +205,7 @@ function AttentionQueue({ run }: { run: DerivedRun }) {
   }
 
   // ------------------------------------------------------------ keyboard: j/k, Enter, a, p, n
+  usePageShortcuts('Atención', ATTENTION_SHORTCUTS)
   const onKey = (e: KeyboardEvent) => {
     if (shouldIgnoreHotkey(e) || e.shiftKey) return
     const inList = e.target === document.body || (e.target instanceof Node && !!listRef.current?.contains(e.target))
