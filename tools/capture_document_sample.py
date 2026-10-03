@@ -147,7 +147,8 @@ async def capture(args):
     with global_recorder:
         mux = RecorderMux(global_recorder)
         client = AsyncLLMClient(config, mux)
-        extractor, resolver = LLMDocumentExtractor(client), LLMSemanticResolver(client)
+        extractor = LLMDocumentExtractor(client, include_processing_aids=not args.omit_ocr_aids)
+        resolver = LLMSemanticResolver(client)
         extraction_config = RecordingConfig.from_adapter(extractor)
         resolution_config = RecordingConfig.from_adapter(resolver)
         router = DocumentRouter(root / 'phase_dev')
@@ -236,6 +237,7 @@ def main():
     parser.add_argument('--max-output-tokens', type=int, default=None)
     parser.add_argument('--image-detail', choices=('auto', 'low', 'high'), default='high')
     parser.add_argument('--pdf-ocr', action='store_true', help='Render scanned PDF pages and include unverified local OCR aids')
+    parser.add_argument('--omit-ocr-aids', action='store_true', help='Preserve OCR in source archive but exclude it from extraction prompts')
     parser.add_argument('--pdf-renderer', help='Explicit pdftoppm executable, otherwise discover on PATH')
     parser.add_argument('--tesseract', help='Explicit Tesseract executable, otherwise discover on PATH')
     parser.add_argument('--input-usd-per-million', type=Decimal, default=Decimal('0.125'))
