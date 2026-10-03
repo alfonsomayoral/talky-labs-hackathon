@@ -48,6 +48,11 @@ del subcomando. Las llamadas LLM futuras registrarán proveedor, modelo, tokens,
 caché y tarifas explícitas; si faltan datos, el coste queda desconocido. Las
 ejecuciones actuales sin llamadas LLM registran coste cero del programa.
 
+## Entorno local
+
+[Levantar backend, MCP, agente de chat y front](docs/local-setup.md): comandos,
+variables de entorno y problemas frecuentes.
+
 ## Roadmap
 
 [Guía de interfaces y reproducción de M0](docs/m0-backend.md).
