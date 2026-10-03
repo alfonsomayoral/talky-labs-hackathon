@@ -8,6 +8,12 @@ repair historical journals. A complete source inventory is required, including
 manual 407 movements. An unresolved movement potentially belonging to the vendor
 returns `UNKNOWN` with no usable balances, preventing an invented free capacity.
 
+The complete AP register is checked alongside the complete journal. An observed
+invoice application with a missing posting link or no corroborating 407 movement
+cannot leave a deposit available. Unknown document types do not prove absence.
+Linked posting clocks must agree before excluding a future movement; direct
+document-currency applications must match the header's advance residual.
+
 An original 407 debit requires a literal PO/position assignment, matching
 company/vendor/document currency, an existing position, a PO predating the
 deposit, and an affiliated vendor master. Any observed supplier/407 partner must
@@ -41,10 +47,11 @@ neither PO existence nor historical balance authorizes those decisions.
 
 The source regression reconstructs July's three foreign advances and their full
 consumption from the original ERP, retaining the three null-partner reference
-diagnostics. Nine focused regressions cover cutoff, immutable sources, exact
+diagnostics. Twelve focused regressions cover cutoff, immutable sources, exact
 scope/reference, foreign/local distinctions, missing/ambiguous history,
 inconsistent carrying amounts, source/header contradictions, input permutations,
-same-day grouping and unattributed manual movements. No golden,
+same-day grouping, broken application links, contradictory posting clocks and
+unattributed manual movements. No golden,
 provider or source modification is used. This resolves the baseline adapter;
 credit receipt/advance restoration and full-phase evaluation remain separate.
 
