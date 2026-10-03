@@ -51,6 +51,45 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(facts["line.1.amount"][0].value, "1.325,28")
         self.assertEqual(facts["line.1.amount"][0].evidence.quote, source_rows[0])
 
+    def test_accepts_saco_unit_only_as_a_printed_literal(self):
+        printed = row("Cemento CEM II 25 kg – AL-006347 (18/08)", "19", "saco",
+                      "5,62", "106,78")
+        document = source([(1, "\n".join([HEADER, printed, "Base imponible 106,78"]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 1)
+        self.assertEqual(result.rows[0].unit, "saco")
+        self.assertEqual(result.to_facts(document)["line.1.uom"][0].value, "saco")
+
+    def test_certification_totals_and_invoice_header_fields_are_not_detail_rows(self):
+        document = source([(1, "\n".join([
+            "Certificación nº: 05",
+            "Periodo: 01/07/2026 – 31/07/2026",
+            HEADER,
+            row("Encofrado y desencofrado de muros", "288", "m2", "24,37", "7.018,56"),
+            row("Colocación de ferralla", "14.210", "kg", "0,35", "4.973,50"),
+            row("Vertido y vibrado de hormigón", "487,5", "m3", "15,04", "7.332,00"),
+            row("Forjado reticular ejecutado", "150", "m2", "42,74", "6.411,00"),
+            "Certificado a origen 70.739,93 EUR Base imponible 25.735,06",
+            "Certificado anterior -45.004,87 EUR IVA ISP (0%) 0,00",
+            "Importe de esta certificación 25.735,06 EUR TOTAL FACTURA 25.735,06 EUR",
+            "Retención garantía 5 % -1.286,75",
+            "Total a pagar 24.448,31 EUR",
+        ]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 4)
+        self.assertEqual([item.description for item in result.rows], [
+            "Encofrado y desencofrado de muros", "Colocación de ferralla",
+            "Vertido y vibrado de hormigón", "Forjado reticular ejecutado",
+        ])
+        self.assertEqual(len(result.to_facts(document)), 20)
+        self.assertNotIn("Certificado a origen", [row.description for row in result.rows])
+
     def test_portuguese_wrapped_description_and_malformed_currency_abstain(self):
         wrapped = source([(1, "\n".join([
             PT_HEADER,

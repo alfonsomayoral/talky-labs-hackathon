@@ -17,7 +17,7 @@ from .contracts import ParsedDocument
 _UNIT = (
     r"(?:t|tn|ton|tons|tonelada|toneladas|h|hr|hrs|hora|horas|kg|kgs|kilogramo|kilogramos|"
     r"m|ml|km|m2|m²|m3|m³|u|ud|uds|un|uns|unidad|unidades|unit|units|pieza|piezas|pza|pzas|"
-    r"caja|cajas|caixa|caixas|pa|lote|lotes|día|dias|dia|mes|meses|servicio|servicios|viaje|viajes)"
+    r"caja|cajas|caixa|caixas|saco|sacos|pa|lote|lotes|día|dias|dia|mes|meses|servicio|servicios|viaje|viajes)"
     r"\.?"
 )
 _QUANTITY = r"[+-]?\d[\d.,]*"
