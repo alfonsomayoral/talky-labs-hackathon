@@ -22,8 +22,8 @@ class OpenItemKey(NamedTuple):
     company: CompanyCode
     account: AccountCode
     partner: PartnerCode | None
-    """Counterparty. ``None`` appears only in historical data (a known source discrepancy,
-    e.g. API004469 on account 407); validation still requires a partner on adjustments."""
+    """Counterparty. Source records may lack it; validation still requires a
+    partner on adjustments to open-item accounts."""
 
     assignment: str | None
     """Source or clearing document (invoice number, ``order/position``, ``PAG<n>``)."""

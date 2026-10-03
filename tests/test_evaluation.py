@@ -79,13 +79,53 @@ class EvaluationFormatTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'does not match manifest'):
                 load_scorer(scorer, manifest)
 
-    def test_known_exception_does_not_hide_an_unbalanced_entry(self):
+    def test_reused_identifier_does_not_exempt_an_unbalanced_entry(self):
         row = {"doc_id": "API004469", "journal_entry": {"company": "1100", "lines": [
             {"account": "40700000", "debit": 100, "credit": 0},
             {"account": "57200001", "debit": 0, "credit": 99}]}}
-        errors = check_submission({"ap": [row]}, "2026-07", {"ap": {"API004469"}})
-        self.assertTrue(any(item["code"] == "KNOWN_EXCEPTION" for item in errors))
+        errors = check_submission({"ap": [row]}, "2026-09", {"ap": {"API004469"}})
+        self.assertTrue(any(item["code"] == "ENTRY_RULE" and "partner" in item["message"] for item in errors))
         self.assertTrue(any(item["code"] == "ENTRY_RULE" and "unbalanced" in item["message"] for item in errors))
+        self.assertTrue(all(item["code"] != "KNOWN_EXCEPTION" for item in errors))
+
+    def test_partner_detection_is_independent_of_identifier_month_and_line_position(self):
+        for ident, month in (("NEW-1", "2026-07"), ("NEW-2", "2026-09"), ("NEW-3", "2027-02")):
+            for lines in ([{"account": "40700000", "debit": 100, "credit": 0},
+                           {"account": "57200001", "debit": 0, "credit": 100}],
+                          [{"account": "57200001", "debit": 0, "credit": 100},
+                           {"account": "40700000", "debit": 100, "credit": 0}]):
+                with self.subTest(ident=ident, month=month, lines=lines):
+                    row = {"doc_id": ident, "journal_entry": {"company": "1100", "lines": lines}}
+                    errors = check_submission({"ap": [row]}, month, {"ap": {ident}})
+                    self.assertEqual([item["code"] for item in errors], ["ENTRY_RULE"])
+                    self.assertIn("partner", errors[0]["message"])
+
+    def test_reference_defect_is_detected_from_content_even_without_submitted_row(self):
+        reference = {"doc_id": "UNSEEN-REF", "journal_entry": {"company": "1100", "lines": [
+            {"account": "40700000", "debit": 100, "credit": 0},
+            {"account": "40000000", "debit": 0, "credit": 100, "partner": "V9"}]}}
+        ids = {"ap": {"UNSEEN-REF"}}
+        for subs in ({"ap": []}, {"ap": [reference]}):
+            errors = check_submission(subs, "2026-09", ids, {"ap": [reference]})
+            ref_errors = [item for item in errors if item["code"] == "REFERENCE_ENTRY_RULE"]
+            self.assertEqual(len(ref_errors), 1)
+            self.assertEqual(ref_errors[0]["entity"], "UNSEEN-REF")
+            self.assertIn("partner", ref_errors[0]["message"])
+            if subs["ap"]:
+                self.assertTrue(any(item["code"] == "ENTRY_RULE" for item in errors))
+
+    def test_correct_submission_keeps_reference_problem_separate(self):
+        reference = {"doc_id": "ARBITRARY", "journal_entry": {"company": "1100", "lines": [
+            {"account": "40700000", "debit": 100, "credit": 0},
+            {"account": "40000000", "debit": 0, "credit": 100, "partner": "V9"}]}}
+        corrected = json.loads(json.dumps(reference))
+        corrected["journal_entry"]["lines"][0]["partner"] = "V9"
+        ids = {"ap": {"ARBITRARY"}}
+        errors = check_submission({"ap": [corrected]}, "2026-09", ids, {"ap": [reference]})
+        self.assertEqual([item["code"] for item in errors], ["REFERENCE_ENTRY_RULE"])
+        self.assertEqual(check_submission({"ap": [corrected]}, "2026-09", ids), [])
+        errors = check_submission({"ap": [reference]}, "2026-09", ids, {"ap": [corrected]})
+        self.assertEqual([item["code"] for item in errors], ["ENTRY_RULE"])
 
     def test_golden_from_another_month_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -113,6 +153,9 @@ class OrganizerComparatorTests(unittest.TestCase):
             self.assertEqual(golden['headline']['total'], 100.0)
             self.assertTrue(golden['reconciliation_ok'])
             self.assertEqual(golden['separation']['violations'], [])
+            self.assertEqual(golden['diagnostic_counts'].get('REFERENCE_ENTRY_RULE'), 1)
+            self.assertEqual(golden['diagnostic_counts'].get('ENTRY_RULE'), 1)
+            self.assertNotIn('KNOWN_EXCEPTION', golden['diagnostic_counts'])
             empty = root / 'empty'; empty.mkdir()
             floor = evaluate(phase, empty, phase)
             self.assertEqual(floor['headline']['total'], 3.54)

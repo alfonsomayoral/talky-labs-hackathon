@@ -92,7 +92,7 @@ A new `kalmora.evaluation` package owns the golden reader, the comparator and a 
 ### D4 (Q4). Gaps surface as labelled diagnostics that never change the official score
 
 - **Company:** probe shows a journal entry on the wrong company still scores 1.0 in `je_match`. Compare the entry-level company (AP, ar_billing, close) and the line-level company (ar_cash, bank_rec, ic) against the golden, since golden carries them at different levels.
-- **API004469 / 1100-2026-5100000822:** probe shows a correct line with the creditor partner scores 0.5 against golden `partner=null`. Annotated as a `known_exception` linked to `discrepancies.json`, shown explicitly, never hidden or compensated.
+- **Reference policy violations:** run `validate_entry` on every actual reference entry and report `REFERENCE_ENTRY_RULE`, independently of submitted entries and their IDs. Submitted violations retain `ENTRY_RULE`; a faulty reference never exempts them. API004469 / 1100-2026-5100000822 is an audited example: a correct supplier partner scores 0.5 in journal-line matching against golden `partner=null`. This is detected from reference content, not from an exception list, and never hidden or compensated.
 - **Partner convention on `55500000`:** 33 golden lines carry no partner and the scorer requires that. Reported as a `scorer_convention` note, not as an exception, so a legitimate partner on a 555 line is explained and not blamed on the solver silently.
 - **Entries:** unbalanced or malformed submitted entries (via `validate_entry`), non-integer amounts, bad dates, missing keys that the scorer silently defaults.
 - **Items:** missing and extra entities per module.
@@ -141,7 +141,7 @@ No contracts module. Structure checks are diagnostics inside the comparator.
 
 ## Implementation and evidence
 
-Code: `src/kalmora/evaluation/` (`scorer`, `compare`, `explain`, `diagnostics`, `boundary`, `report`, `exceptions`) and `kalmora evaluate`; row types in `src/kalmora/output_models/`. Differences from the plan:
+Code: `src/kalmora/evaluation/` (`scorer`, `compare`, `explain`, `diagnostics`, `boundary`, `report`, `structure`) and `kalmora evaluate`; row types in `src/kalmora/output_models/`. From v0.1.1, there is no ID-based exception table. Differences from the plan:
 
 - D4 also reports **unscored fields** per entity (`unscored`): AP `document_type`/`currency`/`action` and journal presence, AR invoice `date`/`currency`/`deductions`, cash residual `invoice`, bank adjustment `category` and `company`, IC `amount`/`responsible`, close row count and journal presence. Balance dimensions beyond company/account are **not** compared.
 - Entity detail uses one-entity slices of the original functions where the module is an average (ar_billing, ar_cash, bank_rec, AP parts); AP decision F1, IC, close and the trial balance repeat the scorer's rule and are reconciled against the original number.
