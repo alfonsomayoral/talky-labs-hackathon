@@ -67,7 +67,8 @@ def _raw_name_allowed(name: str) -> bool:
     # Literal source labels can retain Unicode, spaces, case and XML hierarchy.
     if not name or len(name) > 160 or any(not char.isprintable() for char in name):
         return False
-    parts = name.split('.')
+    # Final punctuation belongs to a printed label, not an empty hierarchy node.
+    parts = name.rstrip('.').split('.')
     return len(parts) <= 8 and all(part.strip() and part == part.strip()
                                   and part.casefold().replace(' ', '_') not in FORBIDDEN_PARTS
                                   for part in parts)

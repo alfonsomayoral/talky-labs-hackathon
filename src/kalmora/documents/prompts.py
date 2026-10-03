@@ -1,5 +1,5 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v2"
+EXTRACTION_PROMPT_VERSION = "document-observations-v3"
 RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v1"
 SCHEMA_VERSION = "document-interpretation-v1"
 
@@ -30,6 +30,10 @@ fiscal_validity must quote the printed disclaimer text. Bank-account observation
 account assignments. Accounting-owned fields remain forbidden.
 Use a short exact quote containing the value, never an entire table or a rewritten
 supplier name. Preserve the original value including capitalization and punctuation.
+Dates require a quote containing the literal date itself: never cite an anaphoric
+phrase such as "a partir de dicha fecha" for a date printed elsewhere. If the
+literal date cannot be located, preserve the unknown instead of inferring it.
+Source labels may retain final punctuation, e.g. raw.S/Ref., without renaming it.
 Do not omit observed line details.
 document_type_hint is the literal observed document title, not a policy decision.
 Missing, ambiguous or contradictory fields belong in unknowns with status

@@ -67,6 +67,22 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
 
+    async def test_raw_heading_final_punctuation_and_direct_date_grounding(self):
+        text = "S/Ref. PO-123 Fecha 14/07/2026 a partir de dicha fecha"
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client({"observations": [
+                observation("raw.S/Ref.", "PO-123", "S/Ref. PO-123"),
+                observation("notice_date", "14/07/2026", "Fecha 14/07/2026")], "unknowns": []}, directory)
+            artifact = await LLMDocumentExtractor(client).extract_with_response(document(text))
+            self.assertEqual(artifact.facts.fields["raw.S/Ref."][0].value, "PO-123")
+        for name, value, quote in [("notice_date", "14/07/2026", "a partir de dicha fecha"),
+                                    ("raw.account.", "PO-123", "S/Ref. PO-123"),
+                                    ("raw.journal_entry.", "PO-123", "S/Ref. PO-123")]:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({"observations": [observation(name, value, quote)], "unknowns": []}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(document(text))
+
     async def test_literal_raw_and_distinct_table_namespaces_are_grounded_and_counted(self):
         from kalmora.documents.replay import validate_facts
         text = "CSV REF-9 Régimen 601 Estado Pendiente Amount 100,00 Qty 2 IBAN ES123 Disclaimer Sin validez fiscal"
