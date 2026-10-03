@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109",
+  "originals_policy": "Preserve source bytes and public scorer; never repair golden silently",
+  "dependencies": {
+    "32": "teammate output contracts pending",
+    "35": "teammate comparator pending"
+  },
+  "decisions": [
+    {
+      "id": "DOC_LOCAL_CURRENCY",
+      "status": "resolved",
+      "evidence": [
+        "FORMATO_ENTREGA.md common amounts convention",
+        "phase_dev/golden/ap.jsonl API004482: currency USD, net 240000; expense/payable journal 193767 EUR",
+        "roadmap-auditado.md §3"
+      ],
+      "convention": "Document fields net/tax/gross/payable and AP lines.amount retain document currency. Journal debit/credit use company local currency. Store both currencies and conversions explicitly; IC amount may be EUR while adjustment is MXN.",
+      "issues": [
+        31,
+        32
+      ],
+      "acceptance": "Separate document and local amount fields; FX provenance/date/rounding remain traceable; no blanket header conversion"
+    },
+    {
+      "id": "LINE_ROUNDING",
+      "status": "resolved",
+      "evidence": [
+        "POLITICAS_CONTABLES.md §1: conversion rounded per line; balancing difference absorbed by vendor/customer",
+        "FORMATO_ENTREGA.md: integer cents and ±2 cents journal comparison",
+        "POLITICAS_CONTABLES.md §3.1: PPA truncates to cent"
+      ],
+      "convention": "Use Decimal-based explicit calculation modes. FX rounds per line; vendor/customer absorbs rounding difference. PPA truncates. Scorer tolerance is a comparison allowance, never calculation policy.",
+      "issues": [
+        31,
+        32,
+        61
+      ],
+      "acceptance": "Test positive/negative rounding boundaries and PPA truncation; arithmetic remains integer cents after conversion"
+    },
+    {
+      "id": "SWIFT_API004253_DEBIT_768",
+      "status": "known_exception",
+      "evidence": [
+        "phase_dev/golden/bank_rec.jsonl SWIFT-API004253: 76800000 debit",
+        "roadmap-auditado.md §3 and M3-12: historical investigation required"
+      ],
+      "convention": "Preserve this observed sign in audit evidence. Do not derive a general rule from an income account appearing on debit. Business explanation remains unresolved until historical FX/bank/journal evidence is reviewed in M3.",
+      "issues": [
+        70,
+        77
+      ],
+      "acceptance": "M3 documents historical amount/rate evidence and explicitly resolves or retains this exception before bank reconciliation closure"
+    },
+    {
+      "id": "CLOSE_AGGREGATION",
+      "status": "resolved",
+      "evidence": [
+        "phase_dev/golden/close.jsonl: 76 rows",
+        "score.py close aggregation: 64 keys",
+        "evidencia-revision.json close_scoring_keys=64"
+      ],
+      "convention": "Keep individual close rows and journals; report both raw row count and scorer-key aggregates. Aggregate equality cannot prove per-item completeness.",
+      "issues": [
+        35,
+        104
+      ],
+      "acceptance": "Comparator reports item differences and aggregate differences independently; no row is silently deduplicated"
+    },
+    {
+      "id": "SCORER_FIELD_GAPS",
+      "status": "followup",
+      "evidence": [
+        "score.py task score functions and je_match",
+        "roadmap-auditado.md §6"
+      ],
+      "convention": "Public score is preserved. Contract/comparator must additionally validate AP document_type/action and nonposted consistency; AR invoice date/currency/deductions; cash residual invoice and chronology; bank adjustment ownership/category/currency; IC amount/responsible; close individual rows/journal/date/cost object; balance dimensions beyond society/account.",
+      "issues": [
+        32,
+        35
+      ],
+      "acceptance": "Teammate integration adds required-field and journal checks separately from scorer metrics; M0 stays open until these dependencies merge"
+    },
+    {
+      "id": "JE_COMPANY_MATCH",
+      "status": "followup",
+      "evidence": [
+        "score.py je_match key omits company",
+        "roadmap-auditado.md §6 final paragraph"
+      ],
+      "convention": "Validate company explicitly in every journal/adjustment and in balance impact. A journal with correct accounts and amounts in the wrong company must fail internal validation even if je_match accepts it.",
+      "issues": [
+        32,
+        35
+      ],
+      "acceptance": "Negative fixture with wrong company fails contract/comparator; public scorer remains unchanged"
+    },
+    {
+      "id": "SYNTHETIC_NIF",
+      "status": "resolved",
+      "evidence": [
+        "README.md synthetic-data conventions",
+        "roadmap audit: synthetic identifiers are not production tax identities"
+      ],
+      "convention": "Preserve raw NIF and use master/source identity correspondence. Do not reject a synthetic tax identity merely because a production checksum fails; recipient NIF presence and addressee identity remain required policy checks.",
+      "issues": [
+        29,
+        30,
+        45
+      ],
+      "acceptance": "Document facts retain literal NIF and provenance; no normalization overwrites source evidence"
+    },
+    {
+      "id": "ADVANCE_PARTNER_API004469",
+      "status": "known_exception",
+      "evidence": [
+        "POLITICAS_CONTABLES.md §1 requires supplier partner in 407",
+        "phase_dev/golden/ap.jsonl API004469, journal 1100-2026-5100000822: first 40700000 line partner=null; creditor V100121"
+      ],
+      "convention": "Preserve source golden; keep strict supplier-partner validation for account 40700000. Report this golden inconsistency explicitly rather than weakening policy or repairing source.",
+      "issues": [
+        32,
+        35,
+        54
+      ],
+      "acceptance": "Comparator exposes missing supplier partner as policy discrepancy; document the historical advance allocation evidence before AP closure"
+    }
+  ]
+}
