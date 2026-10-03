@@ -198,6 +198,10 @@ Alternatives: stdlib-only content-stream parsing (fragile); `pypdf` text (no pos
 
 ## Implementation and evidence (engine, PDF reading excluded)
 
+Preparatory AR observation boundary (#56): see [ar-observations.md](ar-observations.md)
+for the versioned normalized contract, deterministic adapter and development
+sample. Automatic AR extraction/capture and final integration remain pending.
+
 Status: engine implemented in `src/kalmora/billing/`; document reading is owned by another team member and enters through `inputs.py` (one typed facts object per item). Approved scope changes against the plan above:
 
 **Note on Q3 (reading).** The reader is not part of this change. The team's ADR 0002 (document LLM boundary) selects `pypdf` and typed model interpretation for document reading, which supersedes the `pdfplumber` choice recorded in Q3 and risk R5 above. The engine only depends on the facts contract in `billing/inputs.py`.
