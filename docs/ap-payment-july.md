@@ -10,19 +10,19 @@ the NOT_INVOICE actions.
 
 | Check | Match | Mismatch | Unknown |
 |---|---|---|---|
-| NOT_INVOICE action (12 golden) | 10 | 2 | — |
-| payment_block + payee (305 tasks) | 282 | 0 | 23 |
+| NOT_INVOICE action (12 golden) | 11 | 1 | — |
+| payment_block + payee (305 tasks) | 283 | 0 | 22 |
 
-The FACTOR payee (API004175, V100092 registered factor) and all 281 null
+The FACTOR payee (API004175, V100092 registered factor) and all 282 null
 cases match. July has no expired certificate or embargo case; the synthetic
 tests cover those rules.
 
 Unexplained mismatches: none. The gaps are all upstream unknowns:
 
-- **2 actions.** API005195 (bank letter) is classified UNKNOWN because the
-  extraction has no title hint. API005600 (art. 43 certificate) failed
-  extraction. Neither is hardcoded.
-- **21 payment unknowns.** 15 attachments failed extraction and 6 more were
+- **1 action.** API005600 (art. 43 certificate) failed extraction. The bank
+  letter API005195 is typed from its `notice_type_hint` and emits
+  UPDATE_BANK_DETAILS.
+- **20 payment unknowns.** Attachments that failed extraction or were
   classified UNKNOWN, so there is no document type.
 - **2 payment unknowns.** API005601 and API005602 have no resolved
   company/vendor scope.
