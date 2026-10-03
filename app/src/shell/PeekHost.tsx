@@ -32,7 +32,8 @@ export function PeekHost() {
       {itemId && (
         <Suspense
           fallback={
-            <div className={styles.peekLoading}>
+            <div className={styles.peekLoading} role="status">
+              <span className="sr-only">Cargando la partida…</span>
               <Skeleton width={200} height={18} />
               <Skeleton lines={5} />
             </div>

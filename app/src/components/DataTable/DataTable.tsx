@@ -207,12 +207,11 @@ export function DataTable<T>({
     ...(height != null ? { height, maxHeight: 'none' } : null),
   } as CSSProperties
 
-  const rowCount = indexById.size
   return (
     <div
       ref={scrollRef}
       role="grid"
-      aria-rowcount={rowCount + 1}
+      aria-rowcount={items.length + 1}
       aria-activedescendant={selectedIndex != null ? rowDomId(selectedIndex) : undefined}
       tabIndex={0}
       className={clsx(styles.root, className)}
@@ -227,7 +226,7 @@ export function DataTable<T>({
           return (
             <div key={col.id} role="columnheader" aria-sort={ariaSort} className={clsx(styles.cell, styles[col.align ?? 'left'])}>
               {col.sortValue ? (
-                <button type="button" tabIndex={-1} className={clsx(styles.sortButton, active && styles.sorted)} onClick={() => onHeaderClick(col)}>
+                <button type="button" className={clsx(styles.sortButton, active && styles.sorted)} onClick={() => onHeaderClick(col)}>
                   <span className={styles.headerText}>{col.header}</span>
                   {active && (sort?.direction === 'asc' ? <ArrowUp aria-hidden /> : <ArrowDown aria-hidden />)}
                 </button>
@@ -251,9 +250,9 @@ export function DataTable<T>({
             if (it.kind === 'group') {
               const isCollapsed = collapsed.has(it.key)
               return (
-                <div key={v.key} role="row" className={styles.group} style={offset}>
+                <div key={v.key} role="row" aria-rowindex={v.index + 2} className={styles.group} style={offset}>
                   <div role="gridcell" aria-colspan={columns.length} className={styles.groupCell}>
-                    <button type="button" tabIndex={-1} className={styles.groupButton} aria-expanded={!isCollapsed} onClick={() => toggleGroup(it.key)}>
+                    <button type="button" className={styles.groupButton} aria-expanded={!isCollapsed} onClick={() => toggleGroup(it.key)}>
                       <ChevronRight aria-hidden className={clsx(styles.chevron, !isCollapsed && styles.open)} />
                       <span className={styles.groupLabel}>{renderGroup ? renderGroup(it.key, it.rows) : it.key}</span>
                       <span className={clsx(styles.groupCount, 'tabular')}>{formatNumber(it.rows.length)}</span>
@@ -269,6 +268,7 @@ export function DataTable<T>({
                 key={v.key}
                 id={rowDomId(v.index)}
                 role="row"
+                aria-rowindex={v.index + 2}
                 aria-selected={selected}
                 className={clsx(styles.row, styles.dataRow, selected && styles.selected, onOpen && styles.clickable)}
                 style={offset}

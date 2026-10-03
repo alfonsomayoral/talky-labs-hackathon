@@ -21,8 +21,9 @@ function NavItem({ entry, badge, urgent }: { entry: NavEntry; badge?: number; ur
       <Icon aria-hidden className={styles.entryIcon} />
       <span className={styles.entryLabel}>{entry.label}</span>
       {badge != null && badge > 0 && (
-        <span className={clsx(styles.badge, urgent && styles.badgeUrgent, 'tabular')} aria-label={`${badge} pendientes`}>
+        <span className={clsx(styles.badge, urgent && styles.badgeUrgent, 'tabular')}>
           {formatNumber(badge)}
+          <span className="sr-only"> pendientes{urgent ? ', con urgentes' : ''}</span>
         </span>
       )}
     </NavLink>
@@ -52,8 +53,12 @@ export function Sidebar() {
       <nav className={styles.nav} aria-label="Principal">
         {NAV.map((section, i) => (
           <div key={section.title ?? i} className={styles.section}>
-            {section.title && <div className={styles.sectionTitle}>{section.title}</div>}
-            <ul className={styles.entries}>
+            {section.title && (
+              <div id={`nav-section-${i}`} className={styles.sectionTitle}>
+                {section.title}
+              </div>
+            )}
+            <ul className={styles.entries} aria-labelledby={section.title ? `nav-section-${i}` : undefined}>
               {section.entries.map((entry) => (
                 <li key={entry.to}>
                   <NavItem entry={entry} badge={entry.badge === 'attention' ? attention : undefined} urgent={urgent} />
