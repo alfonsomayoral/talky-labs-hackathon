@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   validate:
-    if: github.repository == 'juan-fernandez-gotherlabs/talky-labs-hackathon'
+    if: github.repository == 'juan-fernandez-gotherlabs/talky-labs-hackathon' || github.repository == 'alfonsomayoral/talky-labs-hackathon'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
