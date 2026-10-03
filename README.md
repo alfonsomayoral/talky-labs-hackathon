@@ -22,6 +22,15 @@ Los paquetes originales se guardan en `data/`, las entregas e informes en
 excluyen de Git. Los datos originales y el scorer del organizador se preservan;
 el solver no puede consultar `golden/`.
 
+Registrar una copia de julio con hashes por archivo y mes obtenido de las entradas:
+
+```bash
+.venv/bin/kalmora import-package /ruta/participant.zip --destination data/julio
+```
+
+El destino debe ser nuevo: cada importación conserva los originales y escribe
+`manifest.json`; se omiten los metadatos `__MACOSX`.
+
 ## Roadmap
 
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
