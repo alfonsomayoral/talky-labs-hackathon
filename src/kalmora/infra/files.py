@@ -53,25 +53,38 @@ class FilePackageStore:
 
 
 class FileRunStore:
-    """Reads the reports ``RunRecorder`` writes to ``outputs/runs``."""
+    """Reads the reports ``RunRecorder`` writes to ``outputs/runs``. A run may also have a bundle folder
+    ``outputs/runs/<run_id>/`` (deliverables, trace, ``manifest.json``); a bundle alone is listed too."""
 
     def __init__(self, directory: Path) -> None:
         self._directory = Path(directory)
 
+    def _read(self, path: Path) -> dict[str, Any] | None:
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
     def list(self) -> list[dict[str, Any]]:
-        runs = []
-        for path in self._directory.glob("*.json"):
-            try:
-                runs.append(json.loads(path.read_text(encoding="utf-8")))
-            except (OSError, ValueError):
-                continue
-        return sorted(runs, key=lambda r: r.get("started_at", ""), reverse=True)
+        runs: dict[str, dict[str, Any]] = {}
+        for path in [*self._directory.glob("*.json"), *self._directory.glob("*/manifest.json")]:
+            run = self._read(path)
+            if run is not None and run.get("run_id") and run["run_id"] not in runs:
+                runs[run["run_id"]] = {**run, "has_files": (self._directory / str(run["run_id"])).is_dir()}
+        return sorted(runs.values(), key=lambda r: r.get("started_at", ""), reverse=True)
 
     def get(self, run_id: str) -> dict[str, Any]:
-        path = self._directory / f"{run_id}.json"
-        if not _RUN_ID.match(run_id) or not path.is_file():
+        root = self.files_root(run_id)
+        for path in (self._directory / f"{run_id}.json", root / "manifest.json"):
+            if path.is_file():
+                return json.loads(path.read_text(encoding="utf-8"))
+        raise DomainError("run.not_found", f"No run '{run_id}'.")
+
+    def files_root(self, run_id: str) -> Path:
+        if not _RUN_ID.match(run_id) or not ((self._directory / f"{run_id}.json").is_file()
+                                            or (self._directory / run_id).is_dir()):
             raise DomainError("run.not_found", f"No run '{run_id}'.")
-        return json.loads(path.read_text(encoding="utf-8"))
+        return self._directory / run_id
 
 
 class FileSubmissionStore:

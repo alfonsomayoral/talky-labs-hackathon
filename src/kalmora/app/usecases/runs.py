@@ -7,7 +7,7 @@ from ..ports import EvaluationGateway, PhaseRepository, RunStore, SubmissionStor
 from ..types import Envelope
 from . import phase_envelope, plain_envelope
 
-RUN_FIELDS = ("run_id", "command", "status", "started_at", "ended_at", "elapsed_seconds", "cost")
+RUN_FIELDS = ("run_id", "command", "status", "started_at", "ended_at", "elapsed_seconds", "cost", "has_files", "dataset", "month")
 
 
 class ListRuns:
@@ -25,6 +25,20 @@ class GetRun:
 
     def __call__(self, run_id: str) -> Envelope:
         return plain_envelope(self._runs.get(run_id))
+
+
+class StartRun:
+    """Launches the configured close command on a loaded phase; the run is followed with ``GetRun``."""
+
+    def __init__(self, repo: PhaseRepository, closer: Any) -> None:
+        self._repo, self._closer = repo, closer
+
+    def __call__(self, phase: str) -> Envelope:
+        if self._closer is None:
+            raise DomainError("run.unavailable", "No close command is configured (kalmora serve --close-command).")
+        location = self._repo.location(phase)
+        month = self._repo.meta(phase, [])["month"]
+        return plain_envelope({"run_id": self._closer.start(phase, location, month)})
 
 
 class GetSubmission:
