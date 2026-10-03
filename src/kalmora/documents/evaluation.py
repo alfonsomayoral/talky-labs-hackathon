@@ -261,8 +261,8 @@ class SourceAudit:
                 if not quote or not label["evidence"].get("quote"):
                     return "unsupported", "Image proof requires a manually transcribed quote"
                 manual = _text(label["evidence"]["quote"])
-                if _text(quote) not in manual and manual not in _text(quote):
-                    return "unsupported", "Image quote is not supported by the sealed transcription"
+                if _text(quote) not in manual:
+                    return "unreviewed", "Additional image quote text requires independent visual review"
                 if not _value_supported(observed, quote, label):
                     return "unsupported", "Image transcription does not support observed value"
                 return "grounded", "Sealed manual image/page/field annotation"

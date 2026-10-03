@@ -212,6 +212,9 @@ class EvaluationTests(unittest.TestCase):
                          'quote': '1.234,50 EUR'}}
         self.assertEqual(audit.proof(prediction, label)[0], 'grounded')
         self.assertEqual(audit.proof(prediction)[0], 'unreviewed')
+        prediction['evidence']['quote'] = '1.234,50 EUR approved by an invented manager'
+        self.assertEqual(audit.proof(prediction, label)[0], 'unreviewed')
+        prediction['evidence']['quote'] = '1.234,50 EUR'
         prediction['evidence']['field'] = 'image:' + '0' * 64
         self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
         prediction['evidence']['field'] = 'image:' + image_hash
