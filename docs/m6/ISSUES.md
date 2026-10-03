@@ -1,0 +1,24 @@
+# M6 issue-by-issue status
+
+All listed issues remain **OPEN**. This file reports development evidence, not
+issue closure, independent approval or real-flow acceptance. Existing PR #197
+remains a draft pending review and unresolved accounting acceptance.
+
+| Issue | Delivered modular implementation/evidence | Remaining evidence or acceptance |
+|---|---|---|
+| #95 M6-01 | Saved original service periods, historical carry-over, receipt coverage including HOLD, PO/GR-IR/IC exclusion controls; 76 documentary observations | Full discrete-service coverage and original-document acceptance review; real #137/M1/M5 handoffs |
+| #96 M6-02 | Historical median daily-rate and separately documented discrete monthly exposure estimators; cost-object samples and min/max sensitivity | Material estimation discrepancies remain; no target-calibrated retuning |
+| #97 M6-03 | 54 detailed accrual rows/45 keys, CC/PEP and supplier retained; aggregate and strict line comparison | Reference is 57 rows/45 keys; two missing/two extra identities and amount/cost-object differences need resolution |
+| #98 M6-04 | Positive/negative prepaid movements, existing 480, monthly allocation and last residual; nine July identities; boundary tests | Five 1–2-cent reference rounding differences require review; real AP receipt/posting coverage |
+| #99 M6-05 | Shared CertificationFacts/Chapter, original current certification delta, customer and chapter PEP; exact July amount | Real M2 pending-certificate delivery, not fixture SKIP status |
+| #100 M6-06 | FX after dependency projection; USD/GBP, EUR-to-MXN loan/interests and USD bank; eight reference amounts exact | Six extra open historical USD credit notes and strict document-currency representation need reconciliation; real producer positions |
+| #101 M6-07 | After-cash ageing and required-minus-existing 490; threshold, insolvency, guarantees, exclusions and reversal tests; exact July amount | Real M3/M4 applications and ageing completeness; external review |
+| #102 M6-08 | Minimal shared CloseType extension; invoice-by-invoice 430-to-436 in declaration month only; multiple invoices/rerun/prior-month tests | July has no such event; real-flow variation evidence and review |
+| #103 M6-09 | Month-end-only entry validation; historical reversals read; no new day-one reversals; ERP immutability and idempotence tests | Real pipeline rerun/event-stage ownership evidence |
+| #104 M6-10 | Frozen-output evaluator, original/pre/final books, strict and aggregate differences, per-account impact, replay and real CI logs | Overall scorer 78.507%, not full accounting acceptance; review and real integration |
+| #171 M6-11 | Explicit real-compatible contract and mock/real substitution tests | Actual M1–M5-to-M6 execution with no golden_fixture dependencies, producer versions, positive coverage and reviewed output: NOT RUN |
+
+Epics #20 (accruals), #21 (prepaids/WIP), #22 (FX/customers), #23 (export/validation)
+and milestone 7 remain open. No automatic closing keywords are used in this PR.
+CI proves tested code behavior; it does not replace the missing accounting or
+real-flow acceptance evidence.
