@@ -52,6 +52,20 @@ El **Asistente** (`/asistente` o `⌘J`) responde con el motor local. En desarro
 
 `⌘K` busca cualquier id (documento, línea bancaria, asiento, proveedor, cliente o cuenta) y `?` muestra los atajos.
 
+## Recorrido de demo
+
+Sobre julio con la referencia: en `/dev/data`, carga `phase_dev` y crea la referencia, o en **Ejecuciones → Nuevo cierre** elige la carpeta de julio y pulsa «Abrir referencia». Cada URL se puede pegar tal cual; entre pantallas, `g` + letra (`g a` Atención, `g 4` Bancos, `g c` Comparar, `g e` Entregables, `g i` Asistente).
+
+| Paso | URL | Qué enseñar |
+| --- | --- | --- |
+| 1. Resumen | `/` | La frase de apertura: el agente resuelve 663 de 726 partidas sin intervención (91,3 %). Los indicadores, el proceso en orden de AP a Cierre y «Te necesitan» |
+| 2. Atención | `/atencion` | Primera tarjeta, en «Posible fraude»: `API005229`, IBAN distinto al de la ficha, 353.571,27 €. Está retenida (`HOLD`, `BANK_DETAILS_CHANGED`): el agente no paga y propone confirmar el cambio por teléfono. `a`, `p` y `n` registran la decisión sin tocar la entrega |
+| 3. Panel de partida | `/tareas/ap?item=ap:API004128` | Factura 2026-001968 de Desmontes y Obras Pro, 30.232,16 €. En Razonamiento, la cascada §2.2 con sus 14 comprobaciones superadas. En Asiento, las 7 líneas cuadradas, con el IVA autorrepercutido y la retención de garantía del 5 %. También se abre con `⌘K` y el id |
+| 4. Bancos N:1 | `/tareas/bancos/BIN-1200?item=bank_rec:BIN-1200/BL0004009` | La nómina en dos lotes, `BL0004009` y `BL0004010`, casada con un solo apunte de la 572: −683.761,68 €. A la izquierda, el puente de saldo del extracto al libro y la vista enfrentada banco/libro |
+| 5. Comparar | `/comparar` | Subnotas por tarea al 100 % y ninguna diferencia, porque es la referencia. Con una ejecución del agente, aquí aparece cada partida que difiere y en qué campo |
+| 6. Entregables | `/entregables` | Entrega «Lista»: 6/6 ficheros validados, 0 asientos descuadrados y nota 100,00, calculada igual que `score.py`. «Descargar entrega (.zip)» baja el zip con las 6 JSONL, `manifest.json` y `overrides.jsonl` |
+| 7. Asistente | `/asistente` | Pulsa «¿Qué partidas tengo que revisar?»: 56 pendientes, 11,6 M€ y 2 de posible fraude, con las partidas enlazadas al panel. Se abre desde cualquier pantalla con `⌘J` |
+
 ## Contrato con el backend
 
 [`CONTRACT.md`](CONTRACT.md): el paquete de ejecución (`deliverables/` obligatorio; `manifest.json` y `trace/` opcionales) y la API (`/api/datasets`, `/api/runs` con SSE). Con solo las 6 JSONL, la app deriva partidas, atención, balance, validaciones y nota.
