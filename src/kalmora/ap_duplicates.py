@@ -135,9 +135,6 @@ def duplicate_result(
             continue
         if prior.amount_cents != current.amount_cents:
             continue
-        if (prior.service_period is None) != (current.service_period is None):
-            unknown("SERVICE_PERIOD_UNKNOWN")
-            continue
         if prior.status not in STATUSES:
             unknown("STATUS_UNKNOWN")
             continue
@@ -151,7 +148,8 @@ def duplicate_result(
                     (current.company, current.vendor, current.currency, current.document_type)
                     or normalize_number(root.number, prefixes) != number
                     or root.amount_cents != current.amount_cents
-                    or root.service_period != current.service_period
+                    or None not in (root.service_period, current.service_period)
+                    and root.service_period != current.service_period
                     or _earlier(root, prior) is not True
                     or _earlier(root, current) is not True):
                 unknown("DUPLICATE_ROOT_UNKNOWN")

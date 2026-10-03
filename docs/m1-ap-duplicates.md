@@ -44,7 +44,8 @@ invoice amount. Identity conflicts fail. No golden data is read.
 
 Negative/reissue conclusions require `inventory_complete=True`. Missing
 amount/currency/status or same-day ordering can still block that conclusion.
-One known service period and one missing period cannot establish equal coverage.
+Only two distinct explicit service periods exclude a match: ERP history never
+records one, so a missing period does not block vendor/number/amount identity.
 An earlier matching record with unknown amount can also block selecting a later
 document as the *first* duplicate. Scope-mismatched and future records do not.
 
