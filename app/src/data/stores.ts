@@ -62,6 +62,8 @@ export interface RunState {
   /** Bundles served by the dev middleware (`/__runs`) or the backend API. */
   listRemoteRuns(): Promise<{ id: string; label: string; source: 'dev' | 'api' }[]>
   loadRemoteRun(id: string): Promise<RunBundle>
+  /** True when the backend can launch a close and stream it (its provider implements startRun). */
+  canStartApiRun(): boolean
   /** Starts a close on the backend (requires VITE_API_URL); resolves with the run id. Events stream via subscribeRun. */
   startApiRun(datasetId: string): Promise<string>
   subscribeRun(runId: string, onEvent: (e: MessageEvent) => void): () => void
@@ -260,9 +262,11 @@ export const useRunStore = create<RunState>()((set, get) => ({
       return addRun(await provider.loadRun(runId, meta))
     }),
 
+  canStartApiRun: () => remoteProviders.api.enabled() && Boolean(remoteProviders.api.startRun),
+
   async startApiRun(datasetId) {
     const api = remoteProviders.api
-    if (!api.enabled() || !api.startRun) throw new Error('VITE_API_URL no está definida: importa un paquete de ejecución')
+    if (!api.enabled() || !api.startRun) throw new Error('El backend no lanza el cierre: ejecútalo con su CLI y carga la ejecución desde Ejecuciones')
     return api.startRun(datasetMeta(datasetId))
   },
 

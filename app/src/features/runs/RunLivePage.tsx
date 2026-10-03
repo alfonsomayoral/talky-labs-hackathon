@@ -19,7 +19,6 @@ import { filesPresent, runPath } from './taskMeta'
 import s from './RunLivePage.module.css'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
-const apiConfigured = Boolean(import.meta.env.VITE_API_URL)
 
 const ROW_UNIT: Record<TaskKey, string> = {
   ap: 'documentos',
@@ -264,6 +263,7 @@ export default function RunLivePage() {
   const ready = useSessionReady()
   const run = useRunStore((st) => st.runs.find((r) => r.id === runId) ?? null)
   const datasetLoading = useDatasetStore((st) => st.status === 'loading')
+  const apiConfigured = useRunStore((st) => st.canStartApiRun())
 
   if (run) return <StoredRun run={run} />
   if (!ready || datasetLoading)
@@ -280,7 +280,7 @@ export default function RunLivePage() {
         title="Ejecución no encontrada"
         description={
           <>
-            No hay ninguna ejecución <Mono>{runId}</Mono> en los datos activos, y sin VITE_API_URL no hay backend al que preguntar.
+            No hay ninguna ejecución <Mono>{runId}</Mono> en los datos activos, y no hay ningún backend que la esté ejecutando.
           </>
         }
         action={<ButtonLink to="/ejecuciones">Ver ejecuciones</ButtonLink>}
