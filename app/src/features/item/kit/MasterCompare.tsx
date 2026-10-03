@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/format'
 import { fileExtension } from './evidence'
 import { useAsync } from './useAsync'
 import styles from './MasterCompare.module.css'
+import { textDiff } from '@/lib/textDiff'
 
 export interface CompareRow {
   label: string
@@ -65,7 +66,7 @@ export function MasterCompare({ rows, title = 'Documento frente a la ficha', not
                   <Icon aria-label={state === 'equal' ? 'Coincide' : state === 'different' ? 'No coincide' : 'Sin dato'} />
                 </td>
                 <td className={styles.label}>{r.label}</td>
-                <td>{cell(r.document, r.mono)}</td>
+                <td>{state === 'different' && r.document && r.master ? <Changed text={r.document} reference={r.master} mono={r.mono} /> : cell(r.document, r.mono)}</td>
                 <td>
                   {cell(r.master, r.mono)}
                   {r.note && <span className={styles.note}>{r.note}</span>}
@@ -81,6 +82,19 @@ export function MasterCompare({ rows, title = 'Documento frente a la ficha', not
 }
 
 const cell = (v: string | null, mono?: boolean) => (v === null ? <span className={styles.none}>—</span> : mono ? <Mono>{v}</Mono> : v)
+
+/** The document value with the part that differs from the master highlighted. */
+function Changed({ text, reference, mono }: { text: string; reference: string; mono?: boolean }) {
+  const d = textDiff(text, reference)
+  const body = (
+    <>
+      {d.before}
+      {d.changed && <mark className={styles.changed}>{d.changed}</mark>}
+      {d.after}
+    </>
+  )
+  return mono ? <Mono>{body}</Mono> : body
+}
 
 const domainOf = (email: string | null | undefined) => (email && email.includes('@') ? email.split('@').pop()!.trim().toLowerCase() : null)
 

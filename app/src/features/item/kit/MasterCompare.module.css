@@ -86,3 +86,12 @@ tr[data-state='different'] .label {
   font-size: var(--text-11);
   color: var(--ink-3);
 }
+
+/* The characters that differ from the master. */
+.changed {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--danger-border);
+  color: var(--danger-ink);
+  font-weight: var(--weight-semibold);
+}
