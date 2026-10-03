@@ -29,6 +29,11 @@ def observation(name, value, quote, *, block="page.1", kind="OBSERVED", page=Non
             "image_page":page, "image_sha256":image_hash}
 
 
+def group(values, quote, *, block='page.1', page=None, image_hash=None):
+    return {'values': [{'field': name, 'value': value, 'kind': 'OBSERVED'} for name, value in values],
+            'block_id': block, 'quote': quote, 'image_page': page, 'image_sha256': image_hash}
+
+
 def proof(candidate="A", **changes):
     return {"candidate_id":candidate, "candidate_attribute":"description", "candidate_value":"Steel bolts",
             "source_value":"Bolt M12", "block_id":"page.1", "quote":"Bolt M12 2 unit 50,00 100,00",
@@ -66,6 +71,59 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
         config = LLMConfig("gpt-6-luna", Decimal("1"), Decimal("0.000001"),
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
+
+    async def test_grouped_values_match_flat_evidence_and_preserve_conflicts(self):
+        quote = 'Bolt M12 2 unit 50,00 100,00'
+        values = [('line.1.description', 'Bolt M12'), ('line.1.quantity', '2'),
+                  ('line.1.unit_price', '50,00'), ('line.1.amount', '100,00')]
+        payloads = [{'observations': [observation(name, value, quote) for name, value in values], 'unknowns': []},
+                    {'observations': [], 'unknowns': [], 'groups': [group(values, quote)]}]
+        results = []
+        with tempfile.TemporaryDirectory() as directory:
+            for payload in payloads:
+                client, _, _ = self.setup_client(payload, directory)
+                results.append((await LLMDocumentExtractor(client).extract(document())).to_dict())
+            self.assertEqual(results[0], results[1])
+            payload = {'observations': [observation('net', '100,00', 'Net 100,00')],
+                       'unknowns': [], 'groups': [group([('net', '200,00')], 'Correction Net 200,00')]}
+            client, _, _ = self.setup_client(payload, directory)
+            facts = await LLMDocumentExtractor(client).extract(document(document().blocks[0].text + '\nCorrection Net 200,00'))
+            self.assertEqual([fact.value for fact in facts.fields['net']], ['100,00', '200,00'])
+
+    async def test_group_does_not_relax_value_date_field_or_image_grounding(self):
+        cases = [(group([('net', '999,00')], 'Net 100,00'), document()),
+                 (group([('notice_date', '14/07/2026')], 'a partir de dicha fecha'), document('Fecha 14/07/2026 a partir de dicha fecha')),
+                 (group([('account', '100,00')], 'Net 100,00'), document()),
+                 (group([('net', '100,00')], 'Net 100,00', block='missing'), document()),
+                 (group([('net', '100,00')], 'Net 100,00', page=1, image_hash='0' * 64),
+                  replace(document(), images=(PageImage(1, 'image/png', b'synthetic-image'),)))]
+        for grouped, source in cases:
+            with self.subTest(grouped=grouped), tempfile.TemporaryDirectory() as directory:
+                client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': [grouped]}, directory)
+                with self.assertRaises(DocumentInterpretationError):
+                    await LLMDocumentExtractor(client).extract(source)
+
+    async def test_twenty_six_image_rows_keep_final_row_and_reject_gap(self):
+        rows = [f'Widget-{index} 1 unit {index}.00 {index}.00' for index in range(1, 27)]
+        image = PageImage(1, 'image/png', b'synthetic-full-26-row-page')
+        source = replace(document('\n'.join(rows)), images=(image,))
+        groups = [group([(f'line.{index}.description', f'Widget-{index}'),
+                         (f'line.{index}.quantity', '1'), (f'line.{index}.uom', 'unit'),
+                         (f'line.{index}.unit_price', f'{index}.00'),
+                         (f'line.{index}.amount', f'{index}.00')], quote,
+                        page=1, image_hash=image.sha256) for index, quote in enumerate(rows, 1)]
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': groups}, directory)
+            artifact = await LLMDocumentExtractor(client).extract_with_response(source)
+            self.assertEqual(artifact.facts.fields['line_count'][0].value, 26)
+            self.assertEqual(artifact.facts.fields['line.26.amount'][0].value, '26.00')
+            self.assertEqual(artifact.facts.fields['line.26.amount'][0].evidence.field, 'image:' + image.sha256)
+            self.assertEqual(len([key for key in artifact.facts.fields if key.startswith('line.')]), 130)
+            # A gap immediately before the final row must not masquerade as a
+            # complete contiguous invoice. Counts do not assert source completeness.
+            client, _, _ = self.setup_client({'observations': [], 'unknowns': [], 'groups': groups[:24] + groups[25:]}, directory)
+            with self.assertRaises(DocumentInterpretationError):
+                await LLMDocumentExtractor(client).extract(source)
 
     async def test_raw_heading_final_punctuation_and_direct_date_grounding(self):
         text = "S/Ref. PO-123 Fecha 14/07/2026 a partir de dicha fecha"
