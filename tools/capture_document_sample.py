@@ -132,7 +132,14 @@ async def capture(args):
                        args.output_usd_per_million / Decimal(1_000_000), args.pricing_provenance,
                        reasoning_effort=args.reasoning_effort, concurrency=2, timeout_seconds=60,
                        max_attempts=2, max_output_tokens=args.max_output_tokens,
-                       model_output_capacity_tokens=128_000)
+                       model_output_capacity_tokens=128_000,
+                       image_detail=args.image_detail)
+    processor = None
+    if args.pdf_ocr:
+        from kalmora.documents.ocr import PDFVisionConfig, PDFVisionProcessor
+        processor_config = PDFVisionConfig(**{name: value for name, value in
+            (("renderer", args.pdf_renderer), ("tesseract", args.tesseract)) if value})
+        processor = PDFVisionProcessor(root / 'phase_dev', processor_config)
     args.output.mkdir(parents=True, exist_ok=True)
     global_recorder = RunRecorder(args.output / 'reports', sys.argv,
                                    {'partition': args.partition, 'manifest_sha256': hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
@@ -170,6 +177,13 @@ async def capture(args):
                             item = {'path': entry['path'], 'sha256': entry['sha256'], 'status': 'completed'}
                             try:
                                 document = router.parse(Path(entry['path']).relative_to('phase_dev').as_posix())
+                                if processor is not None:
+                                    document = await asyncio.to_thread(processor.process, document,
+                                        artifact_dir=directory / 'pdf-tools' / entry['sha256'])
+                                source_archive = directory / 'sources' / (entry['sha256'] + '.json')
+                                atomic_json(source_archive, document.to_dict(include_images=True))
+                                item.update(transformation_sha256=document.transformation_sha256,
+                                    parsed_document_sha256=hashlib.sha256(source_archive.read_bytes()).hexdigest())
                                 artifact = await recorded.extract_with_response(document)
                                 item.update(recording_key=recorded.key(document), cache_hit=artifact.provenance['cache_hit'])
                                 atomic_json(directory / 'artifacts' / (entry['sha256'] + '.json'), exact_json(artifact.to_dict()))
@@ -213,6 +227,10 @@ def main():
     parser.add_argument('--model', default='gpt-6-luna')
     parser.add_argument('--reasoning-effort', default='low')
     parser.add_argument('--max-output-tokens', type=int, default=None)
+    parser.add_argument('--image-detail', choices=('auto', 'low', 'high'), default='high')
+    parser.add_argument('--pdf-ocr', action='store_true', help='Render scanned PDF pages and include unverified local OCR aids')
+    parser.add_argument('--pdf-renderer', help='Explicit pdftoppm executable, otherwise discover on PATH')
+    parser.add_argument('--tesseract', help='Explicit Tesseract executable, otherwise discover on PATH')
     parser.add_argument('--input-usd-per-million', type=Decimal, default=Decimal('0.125'))
     parser.add_argument('--output-usd-per-million', type=Decimal, default=Decimal('0.50'))
     parser.add_argument('--pricing-provenance', default='https://developers.openai.com/api/docs/pricing 2026-10-03; Luna standard short-context USD/M input 0.10 x cache-write ceiling 1.25, output 0.50; conservative estimate, not invoice')
