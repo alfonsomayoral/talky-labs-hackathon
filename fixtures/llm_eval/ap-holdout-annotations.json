@@ -1,0 +1,3267 @@
+{
+  "schema_version": 1,
+  "purpose": "Sealed holdout evaluator ground truth, never solver/model input",
+  "review_date": "2026-10-03",
+  "selection_sha256": "02e51e54b38d39dc044b1afad85f3caf01d8140419aaf4629dacb378d1619d00",
+  "sealed_before_live_evaluation": true,
+  "source_precedence": "Original text/XML and manual rendered-image review; ERP only for explicitly named source-backed semantic checks; no golden, model responses or scores",
+  "value_conventions": {
+    "money": "Decimal strings, currency major units; displayed sign preserved",
+    "quantities": "Decimal strings for every displayed quantity; absent quantities never invented",
+    "dates": "ISO after explicitly declared source-context DMY/MDY normalization",
+    "image": "Manual page/row transcription; never a PDF-text substring claim",
+    "bank_accounts": "No plaintext bank-account labels",
+    "tables": "Invoice lines, supplementary detail_lines and statement rows are distinct domains; complete quantity/amount coverage in every visible holdout table"
+  },
+  "cases": [
+    {
+      "case_id": "H01",
+      "doc_id": "API004232",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "INVOICE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+          "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "FACTURA"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "0037331",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "header.invoice_number",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Nº Factura: 0037331"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-02",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "header.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Fecha: 02/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "due_date",
+          "state": "present",
+          "value": "2026-07-12",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "header.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Vencimiento: 12/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "A41453394",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "supplier.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: A41453394"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "A12359962",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "buyer.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: A12359962"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "15248.96",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Base imponible 15.248,96"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "3202.28",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "IVA 21% s/ 15.248,96 3.202,28"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "18451.24",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "TOTAL FACTURA 18.451,24 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 1,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "15248.96",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Suministro de gasóleo A mediante tarjetas – 06/2026 (14 tarjetas) 15.248,96"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "purchase_order_reference",
+          "state": "absent",
+          "value": null,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "header.and.table",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "absence_basis": "Entire original page/relevant header and structured nodes reviewed; absence is not a parser failure."
+          },
+          "critical": true
+        },
+        {
+          "field": "detail_line_count",
+          "state": "present",
+          "value": 14,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.body",
+            "page": 2,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "detail_lines[1].quantity",
+          "state": "present",
+          "value": "1115.61",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row1.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1115,61"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[1].amount",
+          "state": "present",
+          "value": "1584.17",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row1.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1.584,17"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[2].quantity",
+          "state": "present",
+          "value": "1227.69",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row2.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1227,69"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[2].amount",
+          "state": "present",
+          "value": "1743.33",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row2.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1.743,33"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[3].quantity",
+          "state": "present",
+          "value": "512.16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row3.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "512,16"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[3].amount",
+          "state": "present",
+          "value": "727.27",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row3.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "727,27"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[4].quantity",
+          "state": "present",
+          "value": "1327.40",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row4.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1327,40"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[4].amount",
+          "state": "present",
+          "value": "1884.92",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row4.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1.884,92"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[5].quantity",
+          "state": "present",
+          "value": "1419.66",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row5.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1419,66"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[5].amount",
+          "state": "present",
+          "value": "2015.92",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row5.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "2.015,92"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[6].quantity",
+          "state": "present",
+          "value": "843.89",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row6.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "843,89"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[6].amount",
+          "state": "present",
+          "value": "1198.33",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row6.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1.198,33"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[7].quantity",
+          "state": "present",
+          "value": "699.44",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row7.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "699,44"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[7].amount",
+          "state": "present",
+          "value": "993.21",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row7.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "993,21"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[8].quantity",
+          "state": "present",
+          "value": "384.81",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row8.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "384,81"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[8].amount",
+          "state": "present",
+          "value": "546.44",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row8.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "546,44"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[9].quantity",
+          "state": "present",
+          "value": "1565.04",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row9.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1565,04"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[9].amount",
+          "state": "present",
+          "value": "2222.37",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row9.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "2.222,37"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[10].quantity",
+          "state": "present",
+          "value": "446.35",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row10.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "446,35"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[10].amount",
+          "state": "present",
+          "value": "633.82",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row10.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "633,82"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[11].quantity",
+          "state": "present",
+          "value": "500.35",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row11.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "500,35"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[11].amount",
+          "state": "present",
+          "value": "710.50",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row11.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "710,50"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[12].quantity",
+          "state": "present",
+          "value": "1467.41",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row12.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1467,41"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[12].amount",
+          "state": "present",
+          "value": "2083.73",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row12.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "2.083,73"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[13].quantity",
+          "state": "present",
+          "value": "472.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row13.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "472,31"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[13].amount",
+          "state": "present",
+          "value": "670.69",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row13.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "670,69"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "detail_lines[14].quantity",
+          "state": "present",
+          "value": "1011.60",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row14.measurement",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1011,60"
+          },
+          "critical": true,
+          "unit": "source_measure_decimal"
+        },
+        {
+          "field": "detail_lines[14].amount",
+          "state": "present",
+          "value": "1436.48",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004232/factura_0037331.pdf",
+            "source_sha256": "5b6f1fb6b8216cecd4730b21de38f1ab54d781741fe304eff5a5e1890e2406ba",
+            "field": "annex.table.row14.amount",
+            "page": 2,
+            "verification": "manual_text_and_render",
+            "quote": "1.436,48"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        }
+      ],
+      "notes": [
+        "Invoice summary and annex detail are separate tables; preserve both without adding annex values to invoice gross or silently reconciling them. Annex measurement unit is not printed; no liters unit is invented."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H02",
+      "doc_id": "API004283",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "INVOICE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+          "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+          "field": "Invoices/Invoice/InvoiceHeader/InvoiceDocumentType and InvoiceClass",
+          "page": null,
+          "verification": "manual_xml_node_review",
+          "raw_node_values": {
+            "InvoiceDocumentType": "FC",
+            "InvoiceClass": "OO"
+          }
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "26030599",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/InvoiceHeader/InvoiceNumber",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "26030599"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-02",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/InvoiceIssueData/IssueDate",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "2026-07-02"
+          },
+          "critical": true
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "A25324057",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Parties/SellerParty/TaxIdentification/TaxIdentificationNumber",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "A25324057"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "B60331798",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Parties/BuyerParty/TaxIdentification/TaxIdentificationNumber",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "B60331798"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "376.79",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/InvoiceTotals/TotalGrossAmount",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "376.79"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "79.13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/InvoiceTotals/TotalTaxOutputs",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "79.13"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "455.92",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/InvoiceTotals/InvoiceTotal",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "455.92"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 2,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine",
+            "page": null,
+            "verification": "manual_xml_node_review"
+          },
+          "critical": false,
+          "unit": "nodes"
+        },
+        {
+          "field": "purchase_order_reference",
+          "state": "absent",
+          "value": null,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/AdditionalData",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "absence_basis": "Entire original page/relevant header and structured nodes reviewed; absence is not a parser failure."
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[1].description",
+          "state": "present",
+          "value": "Tornillería y fijaciones varias – AL-085293 (19/06)",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[1]/ItemDescription",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "Tornillería y fijaciones varias – AL-085293 (19/06)"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "present",
+          "value": "3.000",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[1]/Quantity",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "3.000"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[1].unit_price",
+          "state": "present",
+          "value": "53.510000",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[1]/UnitPriceWithoutTax",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "53.510000"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "160.53",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[1]/TotalCost",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "160.53"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[2].description",
+          "state": "present",
+          "value": "Herramienta manual variada – AL-085291 (24/06)",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[2]/ItemDescription",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "Herramienta manual variada – AL-085291 (24/06)"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[2].quantity",
+          "state": "present",
+          "value": "2.000",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[2]/Quantity",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "2.000"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[2].unit_price",
+          "state": "present",
+          "value": "108.130000",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[2]/UnitPriceWithoutTax",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "108.130000"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[2].amount",
+          "state": "present",
+          "value": "216.26",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004283/facturae_26030599.xml",
+            "source_sha256": "2f77067c29f3be5deffb79a2eba9cf2f4596022da8938ba19adf71f535e549b3",
+            "field": "Invoices/Invoice/Items/InvoiceLine[2]/TotalCost",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "216.26"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        }
+      ],
+      "notes": [],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H03",
+      "doc_id": "API004558",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "INVOICE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+          "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "FACTURA"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "2026/142",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "header.invoice_number",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Nº Factura: 2026/142"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-19",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "header.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Fecha: 2026-07-19"
+          },
+          "critical": true
+        },
+        {
+          "field": "due_date",
+          "state": "present",
+          "value": "2026-08-03",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "header.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Vencimiento: 2026-08-03"
+          },
+          "critical": true
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "ESTH6202017FX",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "supplier.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: ESTH6202017FX"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "KMI91110719K",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "buyer.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: KMI91110719K"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "26263.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Base imponible 26.263,31"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "4202.13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "IVA 16% s/ 26.263,31 4.202,13"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "30465.44",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "TOTAL FACTURA 30.465,44 MXN"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "withholding_displayed",
+          "state": "present",
+          "value": "-5428.63",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "totals.withholding_displayed",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Retención ISR/IVA 10% -5.428,63"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "payable",
+          "state": "present",
+          "value": "25036.81",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "totals.payable",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Total a pagar 25.036,81 MXN"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "26263.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Honorarios por asesoría fiscal 26.263,31"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 1,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "absent",
+          "value": null,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/factura_2026-142.pdf",
+            "source_sha256": "9f38991dffea8d4cb4106c49f0d5f70bd185f4de82a82129a835b83c91b1e151",
+            "field": "table.row1.quantity",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "absence_basis": "Entire original page/relevant header and structured nodes reviewed; absence is not a parser failure."
+          },
+          "critical": true
+        },
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "2026/142",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/@Folio",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "2026/142"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-19",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/@Fecha",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "2026-07-19T10:00:00"
+          },
+          "critical": true,
+          "unit": "date"
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "ESTH6202017FX",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Emisor/@Rfc",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "ESTH6202017FX"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "KMI91110719K",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Receptor/@Rfc",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "KMI91110719K"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "26263.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/@SubTotal",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "26263.31"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "4202.13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Impuestos/@TotalImpuestosTrasladados",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "4202.13"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "payable",
+          "state": "present",
+          "value": "25036.81",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/@Total",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "25036.81"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "withholding",
+          "state": "present",
+          "value": "5428.63",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Impuestos/@TotalImpuestosRetenidos",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "5428.63"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "present",
+          "value": "1.000",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Conceptos/Concepto[1]/@Cantidad",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "1.000"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[1].unit_price",
+          "state": "present",
+          "value": "26263.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Conceptos/Concepto[1]/@ValorUnitario",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "26263.31"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "26263.31",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004558/797ECA1D-34DA-48EA-AB25-78FC9697E912.xml",
+            "source_sha256": "9ccfa8c10664b4077f99b8ed0fab076ec7c317729b47d46c2a8bd60cd019819f",
+            "field": "/Comprobante/Conceptos/Concepto[1]/@Importe",
+            "page": null,
+            "verification": "manual_xml_node_review",
+            "quote": "26263.31"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "MXN"
+        }
+      ],
+      "notes": [
+        "CFDI Total is payable after withheld taxes; it is not the PDF pre-withholding TOTAL FACTURA. This is a semantic distinction, not an invented discrepancy. PDF does not show a quantity but XML explicitly supplies it."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H04",
+      "doc_id": "API005588",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "CREDIT_NOTE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+          "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "NOTA DE CRÉDITO"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "NC-2026/817",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "header.invoice_number",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Fatura N.º: NC-2026/817"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "header.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Data: 16/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "PT195174036",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "supplier.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: PT195174036"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "PT530581901",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "buyer.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF: PT530581901"
+          },
+          "critical": true
+        },
+        {
+          "field": "corrects_invoice",
+          "state": "present",
+          "value": "2026/815",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "footer.corrected_invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Rectifica la factura nº 2026/815."
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "-825.96",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Incidência -825,96"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "-189.97",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "IVA 23% s/ -825,96 -189,97"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "-1015.93",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "TOTAL -1.015,93 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "withholding_displayed",
+          "state": "present",
+          "value": "206.49",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "totals.withholding_displayed",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Retenção IRS 25% 206,49"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "payable",
+          "state": "present",
+          "value": "-809.44",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "totals.payable",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Total a pagar -809,44 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "-825.96",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Regularización de precio – Honorários – serviços de contabilidade e fisc -825,96"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "absent",
+          "value": null,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "table.quantity",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "absence_basis": "Entire original page/relevant header and structured nodes reviewed; absence is not a parser failure."
+          },
+          "critical": true
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 1,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005588/invoice_NC-2026-817.pdf",
+            "source_sha256": "8ca3fa8f742415dc5f5cfa4d38e1065e08b882e7ed2e81a57df2c86ae678f6c3",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        }
+      ],
+      "notes": [
+        "Withholding on the credit note is displayed positive; do not flip it merely because invoice amounts are negative."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H05",
+      "doc_id": "API005592",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "PROFORMA",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+          "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "FACTURA PROFORMA"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "PF-5015",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "title.number",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "FACTURA PROFORMA Nº PF-5015"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-20",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "header.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Fecha: 20/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "A41691415",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "supplier.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "NIF A41691415"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "7172.14",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Base imponible: 7.172,14 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "1506.14",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "IVA 21 %: 1.506,14 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "8678.28",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Total: 8.678,28 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 2,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "fiscal_validity",
+          "state": "present",
+          "value": false,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "disclaimer",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Documento sin validez fiscal."
+          },
+          "critical": false
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "present",
+          "value": "2030",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "table.row1.quantity",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2030"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "2679.60",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2.679,60 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[2].quantity",
+          "state": "present",
+          "value": "962",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "table.row2.quantity",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "962"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[2].amount",
+          "state": "present",
+          "value": "4492.54",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005592/proforma_API005592.pdf",
+            "source_sha256": "e7e13ea4183455049cca616e7d4113efac3c557d95858f42e29c9020e6270560",
+            "field": "table.row2.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "4.492,54 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        }
+      ],
+      "notes": [
+        "Unit column is absent in this short proposal; quantities are unit-unspecified source decimals."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H06",
+      "doc_id": "API005597",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "VENDOR_STATEMENT",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+          "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "EXTRACTO DE CUENTA / RECORDATORIO DE PAGO"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "as_of_date",
+          "state": "present",
+          "value": "2026-06-30",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "header.as_of",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "situación a 30/06/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement_row_count",
+          "state": "present",
+          "value": 5,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "statement_outstanding_balance",
+          "state": "present",
+          "value": "41944.42",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "totals.statement_outstanding_balance",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Saldo pendiente según nuestros registros: 41.944,42 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[1].invoice_reference",
+          "state": "present",
+          "value": "2026-016784",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row1.invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2026-016784"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[1].document_date",
+          "state": "present",
+          "value": "2026-03-03",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row1.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "03/03/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[1].due_date",
+          "state": "present",
+          "value": "2026-03-13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row1.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "13/03/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[1].amount",
+          "state": "present",
+          "value": "39507.65",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "39.507,65 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[1].status",
+          "state": "present",
+          "value": "Cobrada",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row1.status",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Cobrada"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[2].invoice_reference",
+          "state": "present",
+          "value": "2026-016785",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row2.invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2026-016785"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[2].document_date",
+          "state": "present",
+          "value": "2026-04-02",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row2.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "02/04/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[2].due_date",
+          "state": "present",
+          "value": "2026-04-12",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row2.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "12/04/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[2].amount",
+          "state": "present",
+          "value": "52237.06",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row2.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "52.237,06 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[2].status",
+          "state": "present",
+          "value": "Cobrada",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row2.status",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Cobrada"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[3].invoice_reference",
+          "state": "present",
+          "value": "2026-016792",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row3.invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2026-016792"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[3].document_date",
+          "state": "present",
+          "value": "2026-05-06",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row3.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "06/05/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[3].due_date",
+          "state": "present",
+          "value": "2026-05-16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row3.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "16/05/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[3].amount",
+          "state": "present",
+          "value": "39272.16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row3.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "39.272,16 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[3].status",
+          "state": "present",
+          "value": "Cobrada",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row3.status",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Cobrada"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[4].invoice_reference",
+          "state": "present",
+          "value": "2026-016793",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row4.invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2026-016793"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[4].document_date",
+          "state": "present",
+          "value": "2026-06-01",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row4.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "01/06/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[4].due_date",
+          "state": "present",
+          "value": "2026-06-11",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row4.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "11/06/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[4].amount",
+          "state": "present",
+          "value": "45378.80",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row4.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "45.378,80 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[4].status",
+          "state": "present",
+          "value": "Cobrada",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row4.status",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Cobrada"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[5].invoice_reference",
+          "state": "present",
+          "value": "2026-016794",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row5.invoice",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2026-016794"
+          },
+          "critical": true
+        },
+        {
+          "field": "statement[5].document_date",
+          "state": "present",
+          "value": "2026-07-01",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row5.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "01/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[5].due_date",
+          "state": "present",
+          "value": "2026-07-11",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row5.due_date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "11/07/2026"
+          },
+          "critical": true,
+          "date_order": "DMY"
+        },
+        {
+          "field": "statement[5].amount",
+          "state": "present",
+          "value": "41944.42",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row5.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "41.944,42 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "statement[5].status",
+          "state": "present",
+          "value": "Pendiente",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005597/statement_API005597.pdf",
+            "source_sha256": "f2dd9774c3c007862d7dcd8a470c54b9341abdb2edf9873250aa5cfda5f1a994",
+            "field": "table.row5.status",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Pendiente"
+          },
+          "critical": true
+        }
+      ],
+      "notes": [
+        "Statement table has no quantity column; all five amounts/references/dates/statuses are labelled, not treated as new invoice lines."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H07",
+      "doc_id": "API005205",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "INVOICE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+          "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_image_transcription",
+          "quote": "FATURA"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "2026-032015",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.header.top_right",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "2026-032015"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-06",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.header.top_right",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "2026-07-06"
+          },
+          "critical": true
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "PT548241689",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.supplier.tax_id",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "PT548241689"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "PT530581901",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.buyer.tax_id",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "PT530581901"
+          },
+          "critical": true
+        },
+        {
+          "field": "purchase_order_reference",
+          "state": "present",
+          "value": "4500020259",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.header.po",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "4500020259"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "7959.33",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "Incidência 7.959,33"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "1830.65",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "IVA 23% s/ 7.959,33 1.830,65"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "9789.98",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "TOTAL 9.789,98 EUR"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 7,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.body",
+            "page": 1,
+            "verification": "manual_image_transcription"
+          },
+          "critical": false,
+          "unit": "rows"
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "present",
+          "value": "20",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row1.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "20"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[1].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row1.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[1].unit_price",
+          "state": "present",
+          "value": "69.19",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row1.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "69,19"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "1383.80",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row1.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "1.383,80"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[1].delivery_reference",
+          "state": "present",
+          "value": "GR-053189",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row1.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053189"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[2].quantity",
+          "state": "present",
+          "value": "11",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row2.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "11"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[2].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row2.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[2].unit_price",
+          "state": "present",
+          "value": "82.83",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row2.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "82,83"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[2].amount",
+          "state": "present",
+          "value": "911.13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row2.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "911,13"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[2].delivery_reference",
+          "state": "present",
+          "value": "GR-053205",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row2.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053205"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[3].quantity",
+          "state": "present",
+          "value": "13",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row3.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "13"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[3].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row3.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[3].unit_price",
+          "state": "present",
+          "value": "69.19",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row3.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "69,19"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[3].amount",
+          "state": "present",
+          "value": "899.47",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row3.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "899,47"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[3].delivery_reference",
+          "state": "present",
+          "value": "GR-053206",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row3.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053206"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[4].quantity",
+          "state": "present",
+          "value": "8",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row4.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "8"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[4].unit",
+          "state": "present",
+          "value": "h",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row4.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "h"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[4].unit_price",
+          "state": "present",
+          "value": "124.52",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row4.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "124,52"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[4].amount",
+          "state": "present",
+          "value": "996.16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row4.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "996,16"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[4].delivery_reference",
+          "state": "present",
+          "value": "GR-053196",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row4.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053196"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[5].quantity",
+          "state": "present",
+          "value": "13.5",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row5.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "13,5"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[5].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row5.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[5].unit_price",
+          "state": "present",
+          "value": "82.83",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row5.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "82,83"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[5].amount",
+          "state": "present",
+          "value": "1118.21",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row5.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "1.118,21"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[5].delivery_reference",
+          "state": "present",
+          "value": "GR-053187",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row5.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053187"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[6].quantity",
+          "state": "present",
+          "value": "16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row6.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "16"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[6].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row6.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[6].unit_price",
+          "state": "present",
+          "value": "82.83",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row6.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "82,83"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[6].amount",
+          "state": "present",
+          "value": "1325.28",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row6.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "1.325,28"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[6].delivery_reference",
+          "state": "present",
+          "value": "GR-053213",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row6.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053213"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[7].quantity",
+          "state": "present",
+          "value": "16",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row7.quantity",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "16"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[7].unit",
+          "state": "present",
+          "value": "m3",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row7.unit",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "m3"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[7].unit_price",
+          "state": "present",
+          "value": "82.83",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row7.unit_price",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "82,83"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[7].amount",
+          "state": "present",
+          "value": "1325.28",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row7.amount",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "1.325,28"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal",
+          "currency": "EUR"
+        },
+        {
+          "field": "lines[7].delivery_reference",
+          "state": "present",
+          "value": "GR-053222",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API005205/invoice_2026-032015.pdf",
+            "source_sha256": "a25e35c8af0b5a3d4fde95d18d1c26f51b724e8ddbc36177b13488bed00aa4de",
+            "field": "image.table.row7.description",
+            "page": 1,
+            "verification": "manual_image_transcription",
+            "quote": "GR-053222"
+          },
+          "critical": true
+        }
+      ],
+      "notes": [
+        "All seven image table rows were visually transcribed, including quantities, units, prices, amounts and delivery references. These quotes are not PDF text-substring assertions."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    },
+    {
+      "case_id": "H08",
+      "doc_id": "API004483",
+      "expected_document_type": {
+        "field": "document_type",
+        "state": "present",
+        "value": "INVOICE",
+        "evidence": {
+          "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+          "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+          "field": "document.title_or_type",
+          "page": 1,
+          "verification": "manual_text_and_render",
+          "quote": "INVOICE"
+        },
+        "critical": true
+      },
+      "facts": [
+        {
+          "field": "invoice_number",
+          "state": "present",
+          "value": "2026-009279",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "header.invoice_number",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Invoice No.: 2026-009279"
+          },
+          "critical": true
+        },
+        {
+          "field": "document_date",
+          "state": "present",
+          "value": "2026-07-01",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "header.date",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Invoice Date: 07/01/2026"
+          },
+          "critical": true,
+          "date_order": "MDY",
+          "normalization_basis": "US supplier country in ERP, US-style invoice-date label and explicit July service period; no case-ID date rule"
+        },
+        {
+          "field": "supplier_tax_id",
+          "state": "present",
+          "value": "59-4445393",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "supplier.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Tax ID: 59-4445393"
+          },
+          "critical": true
+        },
+        {
+          "field": "buyer_tax_id",
+          "state": "present",
+          "value": "ESA04071952",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "buyer.tax_id",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Tax ID: ESA04071952"
+          },
+          "critical": true
+        },
+        {
+          "field": "currency_symbol",
+          "state": "present",
+          "value": "$",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "totals.currency_symbol",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "$ 2,400.00"
+          },
+          "critical": true
+        },
+        {
+          "field": "net",
+          "state": "present",
+          "value": "2400.00",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "totals.net",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "Subtotal 2,400.00"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal"
+        },
+        {
+          "field": "tax",
+          "state": "present",
+          "value": "0.00",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "totals.tax",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "IVA autoliquidação (0%) 0.00"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal"
+        },
+        {
+          "field": "gross",
+          "state": "present",
+          "value": "2400.00",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "totals.gross",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "TOTAL $ 2,400.00"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal"
+        },
+        {
+          "field": "lines[1].quantity",
+          "state": "present",
+          "value": "1",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "table.row1.quantity",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "1 mes"
+          },
+          "critical": true,
+          "unit": "source_decimal"
+        },
+        {
+          "field": "lines[1].unit",
+          "state": "present",
+          "value": "mes",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "table.row1.unit",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "mes"
+          },
+          "critical": true
+        },
+        {
+          "field": "lines[1].unit_price",
+          "state": "present",
+          "value": "2400.00",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "table.row1.unit_price",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2,400.00"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal"
+        },
+        {
+          "field": "lines[1].amount",
+          "state": "present",
+          "value": "2400.00",
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "table.row1.amount",
+            "page": 1,
+            "verification": "manual_text_and_render",
+            "quote": "2,400.00"
+          },
+          "critical": true,
+          "unit": "currency_major_decimal"
+        },
+        {
+          "field": "line_count",
+          "state": "present",
+          "value": 1,
+          "evidence": {
+            "document": "phase_dev/inbox/ap/API004483/invoice_2026-009279.pdf",
+            "source_sha256": "418d7a54ece833eef4d1bf22cfd79bf1f8f663870c51a962493afb7e1480730b",
+            "field": "table.body",
+            "page": 1,
+            "verification": "manual_text_and_render"
+          },
+          "critical": false,
+          "unit": "rows"
+        }
+      ],
+      "notes": [
+        "Dollar symbol alone is not a uniquely labelled ISO currency; the semantic check uses the ERP supplier currency. Date order is explicit source-context metadata, not chosen by equality against an expected date."
+      ],
+      "ground_truth_origin": "Original content only, visually reviewed PDF pages and original XML nodes; no golden, scores or model output",
+      "label_scope": "All visible line amounts and quantities in each source table; missing quantity/unit stays absent or unreviewed, never invented",
+      "excluded_fields": [
+        "accounting decisions",
+        "reasons",
+        "journal_entry",
+        "bank-account plaintext"
+      ]
+    }
+  ],
+  "semantic_candidates": [
+    {
+      "case_id": "H01",
+      "check_id": "H01-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100026",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 26,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H02",
+      "check_id": "H02-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100160",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 160,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H03",
+      "check_id": "H03-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100210",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 210,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H04",
+      "check_id": "H04-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100196",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 196,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H05",
+      "check_id": "H05-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100001",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 1,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H07",
+      "check_id": "H07-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100185",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 185,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H08",
+      "check_id": "H08-supplier",
+      "question": "Choose the source supplier by the observed tax identity among bounded master candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "V100136",
+      "evidence": {
+        "document": "phase_dev/erp/vendors.jsonl",
+        "source_sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717",
+        "line": 136,
+        "field": "id,tax_id"
+      },
+      "scope": "Tax identity is literal synthetic input; no production checksum rejection and no case-ID answer rule."
+    },
+    {
+      "case_id": "H07",
+      "check_id": "H07-po",
+      "question": "Resolve the explicitly printed PO among bounded candidates.",
+      "resolvability": "manually_unique",
+      "expected_candidate_id": "4500020259",
+      "evidence": {
+        "document": "phase_dev/erp/purchase_orders.jsonl",
+        "source_sha256": "7d4d92e468096ae5ee824801bd651c4d262046639797cb167451173c0c0afeac",
+        "line": 537,
+        "field": "id,vendor,company"
+      },
+      "scope": "Printed PO plus observed supplier identity; deterministic master cross-check."
+    }
+  ],
+  "cross_attachment_conflicts": [],
+  "coverage": {
+    "holdout_cases": 8,
+    "pdf_pages_visually_reviewed": 8,
+    "xml_documents_manually_reviewed": 2,
+    "all_visible_line_amounts_and_quantities_reviewed": true,
+    "intrinsically_ambiguous_real_semantic_checks": 0,
+    "template_overlap": "Repeated synthetic template families; not an unseen-layout benchmark",
+    "non_applicable": "No claim of real ambiguous-candidate abstention when denominator is zero; synthetic guards remain separate"
+  },
+  "source_anchors": [
+    {
+      "path": "phase_dev/erp/vendors.jsonl",
+      "sha256": "bcb716371ece9d4d9efa1dae62022ae1ff524f3309e3c0f9997fcea3b14f7717"
+    },
+    {
+      "path": "phase_dev/erp/purchase_orders.jsonl",
+      "sha256": "7d4d92e468096ae5ee824801bd651c4d262046639797cb167451173c0c0afeac"
+    }
+  ]
+}
