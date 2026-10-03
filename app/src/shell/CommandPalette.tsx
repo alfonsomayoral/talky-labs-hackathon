@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router'
 import { Command as Cmdk, defaultFilter } from 'cmdk'
-import { Blocks, Keyboard, ListVideo, Plus, Search } from 'lucide-react'
+import { Blocks, Download, Keyboard, ListVideo, Plus, Search } from 'lucide-react'
 import { NAV } from '@/app/nav'
 import { Dialog, Kbd } from '@/components'
 import { MOD_KEY } from '@/lib/keyboard'
@@ -38,6 +38,7 @@ function builtinCommands(openHelp: () => void): Command[] {
   const actions: Command[] = [
     { id: 'act:new-run', label: 'Nuevo cierre', group: 'Acciones', icon: <Plus />, keywords: ['subir', 'dataset', 'cargar'], run: ({ navigate }) => navigate('/ejecuciones/nueva') },
     { id: 'act:runs', label: 'Ver ejecuciones', group: 'Acciones', icon: <ListVideo />, keywords: ['run', 'paquete'], run: ({ navigate }) => navigate('/ejecuciones') },
+    { id: 'act:download', label: 'Descargar la entrega…', group: 'Acciones', hint: 'Entregables', icon: <Download />, keywords: ['zip', 'jsonl', 'entregables', 'descargar'], run: ({ navigate }) => navigate('/entregables') },
     { id: 'act:help', label: 'Atajos de teclado', group: 'Acciones', icon: <Keyboard />, shortcut: ['?'], keywords: ['ayuda', 'teclado'], run: () => openHelp() },
   ]
   if (import.meta.env.DEV) {
@@ -126,7 +127,7 @@ export function CommandPalette() {
       <Cmdk shouldFilter={false} loop label="Paleta de comandos" className={styles.root}>
         <div className={styles.inputRow}>
           <Search aria-hidden className={styles.searchIcon} />
-          <Cmdk.Input value={query} onValueChange={setQuery} placeholder="Busca una página, una acción o un id…" className={styles.input} />
+          <Cmdk.Input value={query} onValueChange={setQuery} placeholder="Busca una página, una acción, un id, un proveedor o una cuenta…" className={styles.input} />
           <Kbd>Esc</Kbd>
         </div>
         <Cmdk.List className={styles.list}>

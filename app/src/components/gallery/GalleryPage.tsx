@@ -67,6 +67,7 @@ const SWATCHES: { name: string; value: string }[][] = [
     { name: '--ink-4', value: '#9CA3AF' },
     { name: '--line', value: '#E4E4E7' },
     { name: '--bg-muted', value: '#F4F4F5' },
+    { name: '--ground', value: '#F4F3EF' },
   ],
   [
     { name: '--ok', value: '#059669' },

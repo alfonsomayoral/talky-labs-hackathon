@@ -24,6 +24,14 @@ export interface DialogProps {
   children?: ReactNode
 }
 
+const FIELD = 'input:not([type="hidden"]), select, textarea, [contenteditable="true"]'
+
+/** First field, else the first control that is not the header's close button, else the panel. */
+function initialFocus(panel: HTMLElement): HTMLElement {
+  const focusable = getFocusable(panel)
+  return focusable.find((el) => el.matches(FIELD)) ?? focusable.find((el) => !el.hasAttribute('data-dialog-close')) ?? panel
+}
+
 /** Modal dialog: overlay, focus trap, Esc and overlay click close, focus returns to the opener. */
 export function Dialog({ open, onClose, title, description, footer, size = 'md', bare, placement = 'center', className, children }: DialogProps) {
   const titleId = useId()
@@ -36,7 +44,8 @@ export function Dialog({ open, onClose, title, description, footer, size = 'md',
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
     const panel = panelRef.current
-    if (panel) (getFocusable(panel)[0] ?? panel).focus({ preventScroll: true })
+    // An `autoFocus` child is already focused by React; keep it.
+    if (panel && !panel.contains(document.activeElement)) initialFocus(panel).focus({ preventScroll: true })
     return () => {
       if (previous?.isConnected) previous.focus({ preventScroll: true })
     }
@@ -71,7 +80,7 @@ export function Dialog({ open, onClose, title, description, footer, size = 'md',
                   </p>
                 )}
               </div>
-              <IconButton icon={<X />} label="Cerrar" size="sm" onClick={onClose} tooltip={false} />
+              <IconButton icon={<X />} label="Cerrar" size="sm" onClick={onClose} tooltip={false} data-dialog-close="" />
             </header>
             {children != null && <div className={styles.body}>{children}</div>}
             {footer != null && <footer className={styles.footer}>{footer}</footer>}
