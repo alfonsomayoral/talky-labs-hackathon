@@ -29,19 +29,20 @@ class PDFVisionConfig:
     max_image_bytes: int = 10_000_000
     max_ocr_bytes: int = 2_000_000
     timeout_seconds: float = 30
-    renderer: str = '/Users/juanjosefernandezmorales/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/pdftoppm'
-    tesseract: str = '/opt/homebrew/bin/tesseract'
+    renderer: str | None = None
+    tesseract: str | None = None
     def __post_init__(self):
-        for name, fallback in [('renderer', '/Users/juanjosefernandezmorales/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override/pdftoppm'),
-                               ('tesseract', '/opt/homebrew/bin/tesseract')]:
-            if getattr(self, name) is None:
-                object.__setattr__(self, name, shutil.which('pdftoppm' if name == 'renderer' else 'tesseract') or fallback)
+        for name, program in [('renderer', 'pdftoppm'), ('tesseract', 'tesseract')]:
+            configured = getattr(self, name)
+            if configured is not None and (not isinstance(configured, str) or not configured):
+                raise ValueError('tool path must be a nonempty string or None')
+            object.__setattr__(self, name, shutil.which(configured or program) or configured or program)
         for name in ('dpi', 'psm', 'max_source_bytes', 'max_pages', 'max_pixels_per_page', 'max_image_bytes', 'max_ocr_bytes'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError('positive integer processing limits required')
         if self.psm > 13 or not re.fullmatch(r'[a-zA-Z0-9_+-]+', self.language):
             raise ValueError('invalid OCR segmentation/language')
-        if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
+        if isinstance(self.timeout_seconds, bool) or not isinstance(self.timeout_seconds, (int, float)) or not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
             raise ValueError('positive finite timeout required')
 
 def _atomic_bytes(path, data):
@@ -95,6 +96,8 @@ class PDFVisionProcessor:
                 process.wait()
 
     def process(self, document: ParsedDocument, artifact_dir: Path | None = None) -> ParsedDocument:
+        if getattr(document, 'processing_aids', ()) or '/pdf-vision-v1:' in document.parser_version:
+            raise PDFVisionError('already_processed')
         if document.media_type != 'application/pdf':
             raise PDFVisionError('not_pdf')
         source_path(document.path)
@@ -144,7 +147,7 @@ class PDFVisionProcessor:
             copy = directory / 'original.pdf'; copy.write_bytes(original)
             tools = {}
             for name, binary, argument in [('renderer', self.config.renderer, '-v'), ('ocr', self.config.tesseract, '--version')]:
-                path = Path(binary).resolve()
+                path = Path(shutil.which(binary) or binary).resolve()
                 if not path.is_file():
                     raise PDFVisionError('missing_tool', binary)
                 tools[name] = {'binary_sha256': digest(path.read_bytes()), 'version': self._run([binary, argument], directory).splitlines()[0]}

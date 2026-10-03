@@ -25,3 +25,8 @@ Provenance captures original/image/text/TSV hashes, tool versions/binary hashes,
 config, and available trained-data hashes. A processing fingerprint updates the
 parser/transformation identity, invalidating incompatible recordings. English is
 currently installed; Spanish/Portuguese are not inferred or silently substituted.
+
+Tools are discovered through `PATH`; callers can supply explicit executable paths.
+Missing tools fail only when vision-required processing is needed. Documents with
+existing processing aids are rejected as `already_processed`, preventing duplicate
+OCR aids and unstable repeated transformation identities.

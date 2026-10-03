@@ -4,6 +4,9 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+import os
+import shutil
 from kalmora.documents.contracts import ParsedDocument, ParsedBlock, digest
 from kalmora.documents.ocr import PDFVisionConfig, PDFVisionError, PDFVisionProcessor
 try:
@@ -45,6 +48,19 @@ class PDFVisionTests(unittest.TestCase):
         self.error('page_limit', replace(PDFVisionConfig(), max_pages=1), document)
         self.error('missing_tool', replace(PDFVisionConfig(), renderer='/nonexistent/pdftoppm'), document)
 
+    def test_portable_fallback_missing_tools_and_invalid_timeout(self):
+        with patch('kalmora.documents.ocr.shutil.which', return_value=None):
+            config = PDFVisionConfig()
+            self.assertEqual(config.renderer, 'pdftoppm')
+            self.assertEqual(config.tesseract, 'tesseract')
+        self.error('missing_tool', replace(config, renderer='missing-renderer-binary'))
+        for value in (True, '30', None, float('nan')):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                PDFVisionConfig(timeout_seconds=value)
+        # Native text requires no installed renderer or OCR tool.
+        native = replace(self.document, warnings=(), blocks=(ParsedBlock('page.1', 'Original text', 1),))
+        self.assertIs(PDFVisionProcessor(self.root, replace(config, renderer='missing-renderer-binary')).process(native), native)
+
     def test_subprocess_timeout_and_output_limits(self):
         processor = PDFVisionProcessor(self.root, replace(PDFVisionConfig(), timeout_seconds=.04))
         with self.assertRaises(PDFVisionError) as caught:
@@ -56,8 +72,8 @@ class PDFVisionTests(unittest.TestCase):
         self.assertEqual(caught.exception.category, 'output_limit')
 
     def test_real_synthetic_scan_has_unverified_provenance_and_preserved_blocks(self):
-        config = PDFVisionConfig()
-        if not Path(config.renderer).is_file() or not Path(config.tesseract).is_file():
+        config = PDFVisionConfig(renderer=os.environ.get('KALMORA_TEST_PDFTOPPM'), tesseract=os.environ.get('KALMORA_TEST_TESSERACT'))
+        if not Path(shutil.which(config.renderer) or config.renderer).is_file() or not Path(config.tesseract).is_file():
             self.skipTest('local renderer/OCR not installed')
         try:
             from PIL import Image, ImageDraw, ImageFont
@@ -69,7 +85,7 @@ class PDFVisionTests(unittest.TestCase):
         document = replace(self.document, source_sha256=digest(self.source.read_bytes()))
         original = self.source.read_bytes()
         output = Path(self.temp.name) / 'artifacts'
-        processed = PDFVisionProcessor(self.root).process(document, output)
+        processed = PDFVisionProcessor(self.root, config).process(document, output)
         self.assertEqual(self.source.read_bytes(), original)
         self.assertEqual(processed.blocks, document.blocks)
         self.assertEqual(processed.source_sha256, document.source_sha256)
@@ -85,6 +101,7 @@ class PDFVisionTests(unittest.TestCase):
         self.assertIn('unverified_ocr:original_image_review_required', processed.warnings)
         self.assertNotEqual(processed.transformation_sha256, document.transformation_sha256)
         self.assertEqual(ParsedDocument.from_dict(processed.to_dict()), processed)
+        self.error('already_processed', config, processed)
         saved = output / document.source_sha256 / 'page-1'
         self.assertEqual(digest((saved / 'ocr.tsv').read_bytes()), aid.provenance['tsv_sha256'])
         self.assertEqual(digest((saved / 'render.png').read_bytes()), processed.images[0].sha256)
