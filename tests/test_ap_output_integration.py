@@ -186,6 +186,39 @@ class APOutputIntegrationTests(unittest.TestCase):
         self.assertEqual(source, before)
         self.export([row, credit])
 
+    def test_real_post_null_action_preserves_raw_output_and_accounting_validation(self):
+        row, _ = self.invoice("NULL-ACTION")
+        row["action"] = None
+        context = dict(companies={"1100"}, accounts={"62300000", "47200000", "41000000"},
+                       partners={"V1", "OTHER"}, cost_centers={"CC1": {"company": "1100"},
+                       "CC2": {"company": "1910"}}, wbs={})
+        before = deepcopy(row)
+        self.assertEqual(validate_ap_row(row, context, tax_catalog=self.catalog), ())
+        self.assertEqual(row, before)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ap.jsonl"
+            write_ap_jsonl(path, [row], expected_doc_ids=[row["doc_id"]],
+                           context=context, tax_catalog=self.catalog)
+            self.assertEqual(json.loads(path.read_bytes()), row)
+        for mutation, diagnostic in (
+            (lambda changed: changed["lines"][0].update(cost_center="CC2"),
+             "coded-line cost_center belongs to another company"),
+            (lambda changed: next(line for line in changed["journal_entry"]["lines"]
+                if line["account"] == "41000000").update(partner="OTHER"),
+             "AP journal partner differs from header vendor"),
+            (lambda changed: changed["journal_entry"]["lines"][0].update(debit=10001),
+             "entry: unbalanced by 1 cents"),
+        ):
+            changed = deepcopy(row)
+            mutation(changed)
+            raw = deepcopy(changed)
+            self.assertIn(diagnostic, validate_ap_row(changed, context, tax_catalog=self.catalog))
+            self.assertEqual(changed, raw)
+        # The exemption cannot admit an invalid enum or a notice without its action.
+        notice = dict(doc_id="NOTICE", document_type="PROFORMA", decision="NOT_INVOICE", reasons=[], action=None)
+        self.assertIn("non-invoice type/action mismatch", validate_ap_row(notice))
+        self.assertTrue(any("invalid enum" in error for error in validate_ap_row({**row, "action": "INVALID"})))
+
     def test_zero_payable_does_not_bypass_conservation_or_supplier_scope(self):
         prepaid, _, _ = self.fully_prepaid()
         normal, _ = self.invoice("UNPAID", code="SEX")

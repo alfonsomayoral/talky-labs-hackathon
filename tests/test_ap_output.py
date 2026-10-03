@@ -31,6 +31,13 @@ class APOutputTests(unittest.TestCase):
         options.update(kw)
         return build_ap_row(**options)
 
+    def test_nonobject_rows_return_diagnostics_before_shape_copy(self):
+        for row in (None, [], "invalid", 1):
+            with self.subTest(row=row):
+                before = deepcopy(row)
+                self.assertEqual(validate_ap_row(row), ("AP row must be an object",))
+                self.assertEqual(row, before)
+
     def test_post_credit_and_payment_block_are_valid_and_snapshot_inputs(self):
         row = self.posted()
         self.assertEqual(validate_ap_row(row, self.context, tax_catalog=self.tax_catalog), ())

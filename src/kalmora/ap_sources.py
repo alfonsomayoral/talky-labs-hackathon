@@ -5,9 +5,11 @@ decision or AP output fabricated from an extraction failure. Golden is unavailab
 """
 from dataclasses import asdict, dataclass
 from decimal import Decimal
+import os
 from pathlib import Path
 
 from .ap_phase_export import load_ap_task_inventory
+from .ap_output import _pinned_ap_directory
 from .data import PhaseData, load_json
 from .documents.classification import (
     CLASSIFICATION_VERSION, ClassificationDiagnostic, DocumentClassification, classify_document,
@@ -271,12 +273,28 @@ class APPreparedSources(dict):
         self.diagnostics = {}
 
 
+def _read_prepared_source_bytes(path: Path, phase: Path) -> bytes:
+    """Pin saved-source reads and reject redirects on every reopen."""
+    path = Path(path).absolute()
+    resolved = path.resolve()
+    if (any(part.lower() == "golden" for part in (*path.parts, *resolved.parts))
+            or resolved.is_relative_to(phase)):
+        raise ValueError("prepared AP source redirected into original inputs or Golden")
+    try:
+        with _pinned_ap_directory(path) as directory:
+            with os.fdopen(os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory), "rb") as stream:
+                return stream.read()
+    except OSError as error:
+        raise ValueError("prepared AP source path changed or contains a symlink") from error
+
+
 def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) -> APPreparedSources:
     """Load verified prepared views without a provider, callback or capture store.
 
     Originals, task/clock inventory, configuration versions, packet fingerprint
     and every content-addressed artifact must still agree. Normalization and
     classification are recomputed, preserving all candidates and unknowns.
+    Default local PDF vision v2 is reproduced; other transformations are refused.
     Preparation failures remain attachment errors, never accounting decisions.
     """
     import json
@@ -287,7 +305,7 @@ def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) 
     from .documents.replay import RecordingConfig, RecordingStore, validate_facts
 
     def read_snapshot(path):
-        payload = path.read_bytes()
+        payload = _read_prepared_source_bytes(path, phase)
         value = json.loads(payload, parse_constant=lambda _: (_ for _ in ()).throw(
             ValueError("nonfinite prepared-source JSON")))
         if not isinstance(value, dict):
@@ -397,13 +415,29 @@ def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) 
                 raise ValueError("prepared attachment differs from its exact original source/path")
             parsed = ParsedDocument.from_dict(artifact["parsed"]) if artifact.get("parsed") is not None else None
             if parsed is not None:
+                _safe_file(phase, relative)
                 current = router.parse(relative)
                 if (parsed.path != relative or parsed.source_sha256 != original_hashes[relative]
-                        or parsed.parser_version != current.parser_version or parsed.media_type != current.media_type
-                        or parsed.blocks != current.blocks
-                        or any(image not in parsed.images for image in current.images)
-                        or (parsed.media_type != "application/pdf" and parsed.images != current.images)
-                        or any(image.page not in {block.page for block in current.blocks} for image in parsed.images)):
+                        or parsed.media_type != current.media_type or parsed.blocks != current.blocks):
+                    raise ValueError("prepared parsed document differs from original blocks/pages/parser")
+                if parsed.parser_version != current.parser_version:
+                    if (current.media_type != "application/pdf" or not re.fullmatch(
+                            re.escape(current.parser_version) + r"/pdf-vision-v2:[0-9a-f]{64}",
+                            parsed.parser_version)):
+                        raise ValueError("prepared parsed document differs from original blocks/pages/parser")
+                    from .documents.ocr import PDFVisionConfig, PDFVisionProcessor
+
+                    # Saved configuration is evidence to compare, never a source
+                    # of executable tool paths or processing instructions.
+                    default_config = PDFVisionConfig()
+                    if (not parsed.processing_aids or any(aid.provenance.get("config")
+                            != asdict(default_config) for aid in parsed.processing_aids)):
+                        raise ValueError("prepared PDF vision requires the current local default configuration")
+                    _safe_file(phase, relative)
+                    current = PDFVisionProcessor(phase, default_config).process(current)
+                # Authenticate the full view, including image bytes, warnings,
+                # OCR aids and their provenance, even when hashes were rewritten.
+                if parsed != current:
                     raise ValueError("prepared parsed document differs from original blocks/pages/parser")
             status, error, origin = artifact.get("status"), artifact.get("error"), stage.get("origin")
             if status != stage.get("status") or status not in {"ACCEPTED", "UNKNOWN"}:
@@ -474,13 +508,13 @@ def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) 
             raw_message.get("subject"), raw_message.get("body"), tuple(raw_message.get("attachments", ())), raw_message)
         result[doc_id] = APTaskSources(doc_id, message, tuple(views))
         result.diagnostics[doc_id] = tuple(diagnostics)
-    if (digest(path.read_bytes()) != manifest_hash
+    if (digest(_read_prepared_source_bytes(path, phase)) != manifest_hash
             or load_ap_task_inventory(phase).source_sha256 != inventory.source_sha256
             or digest(close_path.read_bytes()) != close_hash
             or any(_inventory(phase, doc_id) != originals for doc_id, originals in folder_inventories.items())
             or any(digest(_safe_file(phase, relative).read_bytes()) != expected
                    for relative, expected in original_hashes.items())
-            or any(digest(artifact_path.read_bytes()) != expected
+            or any(digest(_read_prepared_source_bytes(artifact_path, phase)) != expected
                    for artifact_path, expected in artifact_hashes.items())):
         raise ValueError("prepared source snapshot changed while loading")
     return result
