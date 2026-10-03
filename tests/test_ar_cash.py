@@ -266,7 +266,26 @@ class ArCashTests(unittest.TestCase):
         ])
         result = self._run().results[0]
         self.assertEqual(result.row["applications"], [{"pagare": "7654321", "amount": 8000}])
-        self.assertEqual(result.row["adjustment"][1]["account"], "43100000")
+        self.assertEqual(result.row["adjustment"], [
+            {"company": "1100", "account": "55500000", "debit": 8000, "credit": 0},
+            {"company": "1100", "account": "43100000", "debit": 0, "credit": 8000,
+             "partner": "C1", "assignment": "PAG7654321"},
+        ])
+
+    def test_unmatured_promissory_note_is_not_available_on_receipt_date(self):
+        self._jsonl("erp/promissory_notes.jsonl", [{
+            "number": "7654321", "customer": "C1", "company": "1100",
+            "maturity": "2026-07-03", "amount": 8000,
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("NOTEPOST", "2026-06-01", [self.line("43100000", 8000, 0, "C1", "PAG7654321"),
+                                                    self.line("43000000", 0, 8000, "C1", "INV-1")]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["adjustment"], [])
 
     def test_ambiguous_invoice_candidates_are_not_forced(self):
         self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 10000),
