@@ -77,7 +77,13 @@ def validate_ap_row(row: ApRow, context: ValidationContext | None = None, *,
         for field in ("min_date", "max_date"):
             if field in context and not isinstance(context[field], str):
                 return (f"master context {field} must be an ISO date",)
-    shape = check_structure({"ap": [row]})
+    # FORMATO_ENTREGA's POST example permits the optional action as null.
+    # The shared Literal checker does not; omit only this absent value from a
+    # checker copy. Keep raw bytes and the NOT_INVOICE action invariant intact.
+    shape_row = dict(row)
+    if shape_row.get("action") is None:
+        shape_row.pop("action", None)
+    shape = check_structure({"ap": [shape_row]})
     if shape:
         return tuple(d["message"] for d in shape)
     errors = []
