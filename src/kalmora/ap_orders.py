@@ -94,10 +94,19 @@ class POCatalog:
             for reference in {row["id"], row.get("reference")} - {None, ""}:
                 self._references.setdefault((key.company, reference), []).append(receipt)
 
-    def resolve(self, query: POQuery, *, invoice_date: str,
+    def resolve(self, query: POQuery, *, invoice_date: str, receipt_as_of: str | None = None,
                 state: ConsumptionState = ConsumptionState()) -> POResolution:
+        """Resolve references with distinct invoice and receipt-visibility dates.
+
+        The invoice date still constrains PO creation. An explicit observed
+        processing/arrival date can expose later receipts without changing the
+        invoice date used by fiscal and FX engines. The caller owns phase bounds.
+        """
         if date.fromisoformat(invoice_date).isoformat() != invoice_date:
             raise ValueError("invoice date must be ISO")
+        receipt_cutoff = invoice_date if receipt_as_of is None else receipt_as_of
+        if date.fromisoformat(receipt_cutoff).isoformat() != receipt_cutoff:
+            raise ValueError("receipt cutoff must be ISO")
         if integer(query.quantity_milli, "invoice quantity") <= 0:
             raise ValueError("invoice quantity must be positive")
         if not query.evidence or any(not isinstance(e, Evidence) for e in query.evidence):
@@ -125,7 +134,7 @@ class POCatalog:
         diagnostics = []
         for reference in query.receipt_references:
             found = {r.order for r in self._references.get((query.company, reference), ())
-                     if r.posting_date <= invoice_date}
+                     if r.posting_date <= receipt_cutoff}
             if not found:
                 diagnostics.append(f"UNRESOLVED_RECEIPT:{reference}")
             else:
@@ -151,7 +160,7 @@ class POCatalog:
             referenced_ids = ({r.receipt_id for reference in query.receipt_references
                                for r in self._references.get((query.company, reference), ())}
                               if query.receipt_references else None)
-            visible = tuple(sorted((r for r in self._receipts.values() if r.order == key and r.posting_date <= invoice_date),
+            visible = tuple(sorted((r for r in self._receipts.values() if r.order == key and r.posting_date <= receipt_cutoff),
                                    key=lambda r: (r.posting_date, r.receipt_id)))
             if referenced_ids is not None:
                 visible = tuple(r for r in visible if r.receipt_id in referenced_ids)
@@ -170,12 +179,13 @@ class POCatalog:
                             bool(selected and (selected.order.po != query.po_reference
                                                or selected.order.item != query.po_item)), tuple(diagnostics))
 
-    def resolve_lines(self, queries: Sequence[POQuery], *, invoice_date: str,
+    def resolve_lines(self, queries: Sequence[POQuery], *, invoice_date: str, receipt_as_of: str | None = None,
                       state: ConsumptionState = ConsumptionState()) -> tuple[POResolution, ...]:
         identities = [(q.line_id, q.portion_id) for q in queries]
         if not queries or len(identities) != len(set(identities)):
             raise ValueError("unique invoice line/portion queries required")
-        return tuple(self.resolve(q, invoice_date=invoice_date, state=state) for q in queries)
+        return tuple(self.resolve(q, invoice_date=invoice_date, receipt_as_of=receipt_as_of,
+                                  state=state) for q in queries)
 
     @classmethod
     def from_phase(cls, data) -> "POCatalog":
