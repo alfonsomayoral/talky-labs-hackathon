@@ -1,0 +1,88 @@
+.compare {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-12);
+}
+
+.caption {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.table th {
+  height: 26px;
+  padding: 0 var(--space-2);
+  text-align: left;
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.table td {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.state {
+  width: 24px;
+  color: var(--ink-4);
+}
+
+.state svg {
+  width: 14px;
+  height: 14px;
+}
+
+tr[data-state='equal'] .state {
+  color: var(--ok);
+}
+
+tr[data-state='different'] td {
+  background: var(--danger-bg);
+}
+
+tr[data-state='different'] .state,
+tr[data-state='different'] .label {
+  color: var(--danger-ink);
+}
+
+.label {
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.none {
+  color: var(--ink-4);
+}
+
+.note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-11);
+  color: var(--ink-3);
+}
+
+.footnote {
+  margin: 0;
+  padding: var(--space-1-5) var(--space-3);
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--text-11);
+  color: var(--ink-3);
+}

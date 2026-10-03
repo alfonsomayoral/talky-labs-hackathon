@@ -1,0 +1,125 @@
+.viewer {
+  min-width: 0;
+}
+
+.blob {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-12);
+}
+
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--brand-ink);
+  font-size: var(--text-12);
+}
+
+.open svg {
+  width: 12px;
+  height: 12px;
+}
+
+.frame {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+}
+
+.image {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.pre {
+  margin: 0;
+  max-height: 420px;
+  overflow: auto;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-11);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.xml {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.summary {
+  margin-bottom: var(--space-1);
+}
+
+.raw summary {
+  cursor: pointer;
+  font-size: var(--text-12);
+  color: var(--ink-3);
+  margin-bottom: var(--space-1);
+}
+
+.email {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.emailHead {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.emailIcon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
+.emailFields {
+  flex: 1;
+  min-width: 0;
+}
+
+.subject {
+  margin: 0 0 var(--space-1);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+}
+
+.body {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--line);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-12);
+  color: var(--ink-3);
+}
+
+.attachments svg {
+  width: 14px;
+  height: 14px;
+}

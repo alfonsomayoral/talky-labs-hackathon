@@ -12,6 +12,7 @@ import { routeCrumbs } from './routeCrumbs'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { Sidebar } from './Sidebar'
 import { useShellUi } from './uiStore'
+import { useEntitySearch } from './useEntitySearch'
 import styles from './AppShell.module.css'
 
 const GO_TO: Record<string, string> = Object.fromEntries(
@@ -27,6 +28,7 @@ export default function AppShell() {
   const togglePalette = useShellUi((s) => s.togglePalette)
   const setHelpOpen = useShellUi((s) => s.setHelpOpen)
   const crumbs = useMemo(() => routeCrumbs(pathname), [pathname])
+  useEntitySearch()
 
   useGlobalShortcuts({
     onPalette: togglePalette,

@@ -169,7 +169,8 @@
   color: var(--brand-ink);
 }
 
-.badgeUrgent {
+.badgeUrgent,
+.active .badgeUrgent {
   background: var(--danger-bg);
   color: var(--danger-ink);
 }

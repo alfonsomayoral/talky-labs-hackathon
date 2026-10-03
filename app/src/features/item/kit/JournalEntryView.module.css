@@ -1,0 +1,145 @@
+.entry {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--bg-subtle);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-13);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-12);
+  color: var(--ink-3);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-12);
+  color: var(--ink-2);
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-12);
+}
+
+.table th {
+  height: 28px;
+  padding: 0 var(--space-3);
+  text-align: left;
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-1-5) var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 1px solid var(--line);
+}
+
+.table tfoot td {
+  border-bottom: 0;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  font-weight: var(--weight-semibold);
+  vertical-align: middle;
+}
+
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.company {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.account {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.accountLabel {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineText {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-4);
+  font-size: var(--text-11);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
+.objects {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.assignment {
+  color: var(--ink-4);
+  font-size: var(--text-11);
+}
+
+.none {
+  color: var(--ink-4);
+}
+
+.highlight td {
+  background: var(--brand-soft);
+}
+
+.lineCount {
+  margin-left: var(--space-2);
+  color: var(--ink-3);
+  font-weight: var(--weight-regular);
+}

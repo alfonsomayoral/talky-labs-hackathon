@@ -1,0 +1,115 @@
+.scroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.svg {
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+  font-family: var(--font-sans);
+}
+
+.edge {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.arrowHead {
+  fill: var(--line-strong);
+}
+
+.node {
+  cursor: pointer;
+  outline: none;
+}
+
+.box {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: stroke var(--duration-fast) ease;
+}
+
+.node:hover .box {
+  stroke: var(--line-strong);
+}
+
+.node[data-state='running'] .box {
+  stroke: var(--info-border);
+}
+
+.node[data-state='failed'] .box {
+  stroke: var(--danger-border);
+}
+
+.node:focus-visible .box {
+  stroke: var(--brand);
+  stroke-width: 2;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  fill: var(--ink-strong);
+}
+
+.step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--ink-4);
+}
+
+.value {
+  font-size: 22px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  fill: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  font-size: 11px;
+  fill: var(--ink-3);
+}
+
+.detail {
+  font-size: 11px;
+  fill: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  fill: var(--line-soft);
+}
+
+.indeterminate {
+  fill: var(--info);
+  animation: slide 1.4s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(80px);
+  }
+}
+
+.pulse {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indeterminate,
+  .pulse {
+    animation: none;
+  }
+}

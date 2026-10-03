@@ -3,7 +3,7 @@
 // Layers: every overlay (dialog, menu, popover, side panel) registers itself while open.
 // Esc closes only the topmost layer, and single-key hotkeys (j/k, g+letter, ?) are
 // suspended while a modal layer (dialog, menu, popover) is open.
-import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 export const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
 /** Label for the platform modifier: ⌘ on macOS, Ctrl elsewhere. */
@@ -121,6 +121,50 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
       clearTimeout(timer)
     }
   }, [])
+}
+
+export interface ShortcutHelp {
+  label: string
+  /** One key per entry, as shown: `['A']`, `['⇧', 'Enter']`. */
+  keys: string[]
+}
+
+export interface ShortcutGroup {
+  title: string
+  shortcuts: ShortcutHelp[]
+}
+
+let pageGroups: ShortcutGroup[] = []
+const pageListeners = new Set<() => void>()
+
+function subscribePageGroups(listener: () => void) {
+  pageListeners.add(listener)
+  return () => {
+    pageListeners.delete(listener)
+  }
+}
+
+function setPageGroups(next: ShortcutGroup[]) {
+  pageGroups = next
+  for (const l of pageListeners) l()
+}
+
+/**
+ * Lists a page's own shortcuts in the `?` help while the page is mounted.
+ * Display only: the page still handles the keys (use `shouldIgnoreHotkey`).
+ */
+export function usePageShortcuts(title: string, shortcuts: ShortcutHelp[]) {
+  const signature = JSON.stringify(shortcuts)
+  useEffect(() => {
+    const group: ShortcutGroup = { title, shortcuts: JSON.parse(signature) as ShortcutHelp[] }
+    setPageGroups([...pageGroups, group])
+    return () => setPageGroups(pageGroups.filter((g) => g !== group))
+  }, [title, signature])
+}
+
+/** Shortcut groups registered by the mounted pages (the shell's help dialog reads them). */
+export function usePageShortcutGroups(): ShortcutGroup[] {
+  return useSyncExternalStore(subscribePageGroups, () => pageGroups)
 }
 
 /** Keeps Tab / Shift+Tab inside `container` (for dialogs and the side panel). */
