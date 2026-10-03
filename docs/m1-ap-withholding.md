@@ -44,6 +44,12 @@ The implementation uses the active catalogue rate, with no special fixed amount
 or golden-derived heuristic. Optional source checks reconstruct all 15 entries
 from `erp/journal_entries.jsonl` and assert the competing formula differs.
 
+The optional source regression also reconstructs all 167 withholding quotas
+across the seven codes: IRPF19 (64), MXFLETE (27), IRPF15 (23), MXISR10 (15),
+MXIVAR (15), IRPF7 (12), and PTIRS25 (11). It excludes exempt disbursements from
+the eligible fee base and preserves signed credit-note rounding. This reads only
+original ERP history, without golden outputs.
+
 ```sh
 PYTHONPATH=src python3.12 -m unittest discover -s tests -p test_ap_withholding.py -v
 KALMORA_PHASE_ERP=/path/participant/phase_dev/erp PYTHONPATH=src python3.12 -m unittest discover -s tests -p test_ap_withholding.py -v

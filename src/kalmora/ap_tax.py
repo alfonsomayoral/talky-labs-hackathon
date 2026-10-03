@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 from .model.journal_line import JournalLine
+from .model.ap_component_scope import APComponentScope
 from .money import RateTable, company_local_currency, integer, round_cents
 
 type PostingDecision = Literal["POST", "POST_PAYMENT_BLOCK"]
@@ -101,6 +102,7 @@ class TaxResult:
     net_local: int
     tax_local: int
     components: tuple[TaxComponent, ...]
+    scope: APComponentScope | None = None
 
 
 def require_posting(decision: PostingDecision) -> None:
@@ -141,6 +143,7 @@ def fiscal_line(account: str, amount_doc: int, amount_local: int, currency: str,
 def calculate_ap_tax(*, company: str, country: str, currency: str,
                      invoice_date: str, decision: PostingDecision,
                      lines: Iterable[TaxLine], catalog: TaxCatalog,
+                     vendor: str | None = None, invoice_id: str | None = None,
                      rates: RateTable | None = None) -> TaxResult:
     """Calculate each resolved fiscal base, then convert its posting per line.
 
@@ -151,6 +154,9 @@ def calculate_ap_tax(*, company: str, country: str, currency: str,
     resolution belongs to the caller; no implicit regrouping changes rounding.
     """
     require_posting(decision)
+    for value in (vendor, invoice_id):
+        if value is not None and (not isinstance(value, str) or not value):
+            raise ValueError("resolved fiscal vendor/invoice identity must be nonempty text")
     local_amount(0, company, currency, invoice_date, rates)
     expected_country = "MX" if company == "3100" else "PT" if company == "2100" else "ES"
     if country != expected_country:
@@ -198,4 +204,5 @@ def calculate_ap_tax(*, company: str, country: str, currency: str,
         raise ValueError("at least one resolved fiscal line required")
     return TaxResult(sum(c.base_doc for c in components), sum(c.tax_doc for c in components),
                      sum(c.gross_doc for c in components), sum(c.base_local for c in components),
-                     sum(c.tax_local for c in components), tuple(components))
+                     sum(c.tax_local for c in components), tuple(components),
+                     APComponentScope(company, vendor, currency, invoice_id, invoice_date, decision))
