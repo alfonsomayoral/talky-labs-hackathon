@@ -10,6 +10,8 @@
     {
       "id": "IC_JULY_TRANSIT_REFERENCE_OMISSIONS",
       "status": "known_exception",
+      "project_disposition": "accepted",
+      "decision_date": "2026-10-03",
       "evidence": [
         "POLITICAS_CONTABLES.md §6: issued but unreceived intercompany invoices require receiver accrual",
         "phase_dev/tasks/intercompany.json includes 1000/2100, 1000/3100 and 1100/1910",
@@ -19,7 +21,7 @@
       ],
       "convention": "Preserve all source-supported transit findings and the unchanged scorer/reference. Later September receipts corroborate nonreceipt at July close but never feed the July solver. Do not suppress invoice IDs or reference-absent keys to obtain 1.0.",
       "issues": [239, 159],
-      "acceptance": "Pending organizer clarification of a general exclusion rule or corrected IC reference/expected trial balance, followed by frozen evaluation. Official IC remains 0.8615; real AP/bank integration is separately required by #159."
+      "acceptance": "User accepted the documented reference discrepancy and directed proceeding under policy §6 without exclusions on 2026-10-03. #239 is closed by project acceptance, not by an organizer correction. Original reference/scorer and official IC 0.8615 remain unchanged; #159 still requires real AP/bank integration."
     },
     {
       "id": "DOC_LOCAL_CURRENCY",
