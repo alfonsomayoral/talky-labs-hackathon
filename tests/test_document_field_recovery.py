@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 from kalmora.documents.extractor import DocumentInterpretationError, LLMDocumentExtractor
@@ -12,6 +13,23 @@ from kalmora.documents.staged import capture_stages
 from kalmora.llm.client import AsyncLLMClient, LLMConfig
 from kalmora.runlog import RunRecorder
 from tests.test_document_extractor import FixtureProvider, document, observation, group
+from kalmora.facts import DocumentFacts, Evidence, Fact
+
+
+class SupplierRequestTests(unittest.TestCase):
+    def test_source_supplier_identity_does_not_require_recipient_company(self):
+        from tools.capture_document_sample import semantic_requests
+        source = document('Supplier NIF ES-A123')
+        facts = DocumentFacts(source.source_sha256, 'source-test', {
+            'supplier_tax_id': [Fact('ES-A123', Evidence(source.path, 'page.1', 1, 'NIF ES-A123'))]})
+        data = SimpleNamespace(companies=[], table=lambda name: [
+            {'id': 'V-1', 'tax_id': 'ES-A123', 'name': 'Supplier'},
+            {'id': 'V-2', 'tax_id': 'ES-OTHER', 'name': 'Supplier'}] if name == 'vendors' else [])
+        requests = semantic_requests(source, facts, data)
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0].context['reference_kind'], 'supplier')
+        self.assertEqual([candidate.id for candidate in requests[0].candidates], ['V-1'])
+        self.assertEqual(semantic_requests(source, DocumentFacts(source.source_sha256, 'empty', {}), data), [])
 
 
 class FieldRecoveryTests(unittest.IsolatedAsyncioTestCase):
