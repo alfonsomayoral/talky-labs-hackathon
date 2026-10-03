@@ -41,6 +41,7 @@ const KIND: Record<DiffKind, { label: string; tone: Tone }> = {
   extra: { label: 'No está en golden', tone: 'warn' },
   different: { label: 'Difiere', tone: 'warn' },
   exact: { label: 'Exacta', tone: 'ok' },
+  inherited: { label: 'Pierde por sus partidas', tone: 'neutral' },
 }
 
 export default function ComparePage() {
@@ -105,7 +106,7 @@ function Compare({ data, score, params, update }: CompareProps) {
 
   // Items the run does not have (not delivered, or account-level bank entries) have no peek: their diff is shown here.
   const open = (id: string) => {
-    if (data.itemsById.has(id)) openItem(id)
+    if (data.itemsById.has(id)) openItem(id, 'golden')
     else if (activeItemId) closeItem()
   }
 
@@ -183,7 +184,7 @@ function Compare({ data, score, params, update }: CompareProps) {
         </div>
         <aside className={styles.detail} aria-label="Diferencias de la partida">
           {currentRow ? (
-            <DiffDetail row={currentRow} data={data} score={score} onOpen={() => openItem(currentRow.id)} />
+            <DiffDetail row={currentRow} data={data} score={score} onOpen={() => openItem(currentRow.id, 'golden')} />
           ) : (
             <EmptyState size="sm" icon={<MousePointerClick />} title="Elige una partida" description="Verás sus diferencias con golden campo a campo." />
           )}

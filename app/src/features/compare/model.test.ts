@@ -32,6 +32,7 @@ describe('diffRows', () => {
   it('classifies missing, extra and different items', () => {
     const kinds = Object.fromEntries(diffRows(perItem, { all: true }).map((r) => [r.id, r.kind]))
     expect(kinds).toEqual({ 'ap:A1': 'exact', 'ap:A2': 'different', 'ap:A3': 'missing', 'ap:A9': 'extra', 'close:ACCRUAL/1000/V1': 'different' })
+    expect(diffRows({ 'bank_rec:B1': item('bank_rec:B1', 0.9) }, { all: true })[0].kind).toBe('inherited')
   })
 
   it('orders by points lost: task weight × (1 − item score) ÷ golden items of the task, unknown last', () => {

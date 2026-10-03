@@ -37,7 +37,8 @@ export function applyCompareParams(prev: URLSearchParams, patch: Partial<Compare
 }
 
 /** missing: in golden, not delivered · extra: delivered, not in golden · different: both, with differences. */
-export type DiffKind = 'missing' | 'extra' | 'different' | 'exact'
+/** `inherited`: no differences of its own but less than full credit (a bank account loses it through its match items). */
+export type DiffKind = 'missing' | 'extra' | 'different' | 'exact' | 'inherited'
 
 export interface DiffRow {
   id: ItemId
@@ -57,7 +58,8 @@ function kindOf(s: ItemScore): DiffKind {
   const only = s.diffs.length === 1 && s.diffs[0].path === 'item' ? s.diffs[0] : null
   if (only?.actual === null) return 'missing'
   if (only?.expected === null) return 'extra'
-  return s.exact ? 'exact' : 'different'
+  if (!s.exact) return 'different'
+  return s.score !== null && s.score < 1 - 1e-9 ? 'inherited' : 'exact'
 }
 
 function split(id: ItemId): { task: TaskKey; key: string } {
