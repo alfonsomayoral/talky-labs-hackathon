@@ -47,9 +47,9 @@ class DuplicateTests(unittest.TestCase):
         self.assertEqual(original, [b, a])
         self.assertEqual(result.evidence, (*PROOF, *PROOF))
 
-    def test_exact_receipt_tie_uses_document_id_date_only_stays_unknown(self):
-        self.assertEqual(duplicate_result(record("B"), [record("A")]).duplicate_of, "A")
-        self.assertEqual(duplicate_result(record("A"), [record("B")], inventory_complete=True).status, "CLEAR")
+    def test_exact_receipt_tie_and_date_only_order_stay_unknown(self):
+        self.assertEqual(duplicate_result(record("B"), [record("A")]).status, "UNKNOWN")
+        self.assertEqual(duplicate_result(record("A"), [record("B")], inventory_complete=True).status, "UNKNOWN")
         result = duplicate_result(record("B"), [record("A", received_at="2026-07-01")], inventory_complete=True)
         self.assertEqual(result.status, "UNKNOWN")
         self.assertIn("A:RECEPTION_ORDER_UNKNOWN", result.diagnostics)
@@ -92,6 +92,16 @@ class DuplicateTests(unittest.TestCase):
         self.assertEqual(duplicate_result(current, [resend, original]).duplicate_of, "A")
         self.assertEqual(duplicate_result(current, [resend], inventory_complete=True).status, "UNKNOWN")
 
+    def test_duplicate_root_must_match_period_and_precede_its_resend(self):
+        original = record(service_period="2026-06")
+        resend = record("B", received_at="2026-07-02T10:00:00", status="DUPLICATE", duplicate_of="A", service_period="2026-07")
+        current = record("C", received_at="2026-07-03T10:00:00", service_period="2026-07")
+        self.assertEqual(duplicate_result(current, [original, resend], inventory_complete=True).status, "UNKNOWN")
+        late_root = replace(original, service_period="2026-07", received_at="2026-07-02T11:00:00")
+        self.assertEqual(duplicate_result(current, [late_root, resend], inventory_complete=True).status, "UNKNOWN")
+        same_time_root = replace(late_root, received_at=resend.received_at)
+        self.assertEqual(duplicate_result(current, [same_time_root, resend], inventory_complete=True).status, "UNKNOWN")
+
     def test_recurring_months_and_different_numbers_are_distinct(self):
         current = record("B", received_at="2026-07-02T10:00:00", service_period="2026-07")
         previous_month = record(service_period="2026-06")
@@ -125,6 +135,20 @@ class DuplicateTests(unittest.TestCase):
         self.assertEqual(duplicate_result(current, [unknown, known]).status, "UNKNOWN")
         late_unknown = replace(unknown, received_at="2026-07-02T11:00:00")
         self.assertEqual(duplicate_result(current, [late_unknown, known]).duplicate_of, "B")
+
+    def test_temporal_uncertainty_does_not_use_id_as_first_receipt_proof(self):
+        current = record("C", received_at="2026-07-03T10:00:00")
+        known = record("A", received_at="2026-07-01T00:00:00")
+        unknown = record("Z", received_at="2026-07-01", amount_cents=None)
+        self.assertEqual(duplicate_result(current, [known, unknown]).status, "UNKNOWN")
+        date_only_known = replace(known, received_at="2026-07-01")
+        same_day_unknown = replace(unknown, received_at="2026-07-01T23:59:59")
+        self.assertEqual(duplicate_result(current, [date_only_known, same_day_unknown]).status, "UNKNOWN")
+        tied_known = replace(known, doc_id="B")
+        result = duplicate_result(current, [known, tied_known])
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertIn("FIRST_DOCUMENT_ORDER_UNKNOWN:A,B", result.diagnostics)
+        self.assertEqual(result, duplicate_result(current, [tied_known, known]))
 
     def test_phase_join_does_not_borrow_correction_amount_or_vendor_currency(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,5 +1,6 @@
 """Evidence-led invoice duplicate and corrected reissue detection (#47)."""
 from typing import Iterable
+from datetime import timedelta
 
 from .ap_chronology import receipt_key
 from .data import PhaseData
@@ -59,8 +60,18 @@ def _earlier(prior, current):
     a, b = receipt_key(prior.received_at), receipt_key(current.received_at)
     if a.date() == b.date() and (len(prior.received_at) == 10 or len(current.received_at) == 10):
         return None
-    # Exact same reception timestamps are settled by stable document ID.
-    return (a, prior.doc_id) < (b, current.doc_id)
+    if a == b:
+        return None
+    return a < b
+
+
+def _could_precede(prior, candidate):
+    """A date-only observation spans the entire day, independent of document ID."""
+    start = receipt_key(prior.received_at)
+    first = receipt_key(candidate.received_at)
+    if len(candidate.received_at) == 10:
+        return start < first + timedelta(days=1)
+    return start <= first
 
 
 def duplicate_result(
@@ -140,6 +151,8 @@ def duplicate_result(
                     (current.company, current.vendor, current.currency, current.document_type)
                     or normalize_number(root.number, prefixes) != number
                     or root.amount_cents != current.amount_cents
+                    or root.service_period != current.service_period
+                    or _earlier(root, prior) is not True
                     or _earlier(root, current) is not True):
                 unknown("DUPLICATE_ROOT_UNKNOWN")
                 continue
@@ -148,7 +161,10 @@ def duplicate_result(
             candidates.append(prior)
     if candidates:
         first = min(candidates, key=_key)
-        blocking = [diagnostic for prior, diagnostic in unknowns if _key(prior) <= _key(first)]
+        blocking = [diagnostic for prior, diagnostic in unknowns if _could_precede(prior, first)]
+        for candidate in candidates:
+            if candidate.doc_id != first.doc_id and _earlier(first, candidate) is not True:
+                blocking.append("FIRST_DOCUMENT_ORDER_UNKNOWN:" + ",".join(sorted((first.doc_id, candidate.doc_id))))
         if not blocking:
             return DuplicateResult("DUPLICATE", duplicate_of=first.doc_id,
                                    evidence=(*current.evidence, *first.evidence))
