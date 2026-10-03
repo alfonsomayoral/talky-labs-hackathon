@@ -1,6 +1,5 @@
 import asyncio
 from decimal import Decimal
-import importlib.util
 import tempfile
 import unittest
 
@@ -8,11 +7,15 @@ from kalmora.llm.client import AsyncLLMClient, LLMConfig, LLMError, ProviderResp
 from kalmora.runlog import RunRecorder
 
 
-@unittest.skipUnless(importlib.util.find_spec('pydantic'), 'optional llm extra')
+try:
+    from pydantic import BaseModel, StrictInt
+except ImportError:
+    BaseModel = StrictInt = None
+
+
+@unittest.skipUnless(BaseModel is not None, 'optional llm extra')
 class CaptureCostTests(unittest.TestCase):
     def test_cost_covers_every_attempt_and_preserves_unknown(self):
-        from pydantic import BaseModel, StrictInt
-
         class Result(BaseModel):
             value: StrictInt
 
