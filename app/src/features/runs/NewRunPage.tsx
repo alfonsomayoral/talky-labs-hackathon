@@ -15,6 +15,33 @@ import { filesPresent, RUN_SOURCE, runPath } from './taskMeta'
 import s from './NewRunPage.module.css'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+/** Loading a phase reads ~800 files and a 40 MB journal: say what it is doing and that it is alive. */
+function LoadingCard({ progress: p }: { progress: { phase: string; done: number; total: number } | null }) {
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    const started = Date.now()
+    const timer = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  // Phases reported as 0/1 (opening, listing, the journal) have no measurable size.
+  const counted = p != null && p.total > 1
+  return (
+    <Card>
+      <div className={s.progress} role="status">
+        <div className={s.progressText}>
+          <span>{p?.phase ?? 'Cargando'}…</span>
+          <span className="tabular">
+            {counted && `${formatNumber(p.done)} / ${formatNumber(p.total)} · `}
+            {seconds} s
+          </span>
+        </div>
+        <ProgressBar value={counted ? p.done : 0} max={counted ? p.total : 1} indeterminate={!counted} label="Progreso de la carga" />
+        <p className={s.progressHint}>Se leen los ficheros de la fase en el navegador; con el diario completo puede tardar unos segundos.</p>
+      </div>
+    </Card>
+  )
+}
 const apiConfigured = Boolean(import.meta.env.VITE_API_URL)
 const SOURCE_KIND: Record<DatasetMeta['sourceKind'], string> = { folder: 'Carpeta', zip: 'Zip', http: 'Servido' }
 
@@ -59,24 +86,7 @@ function DatasetStep() {
   const openFiles = (files: File[]) => (isSingleZip(files) ? ds.loadFromZip(files[0]) : ds.loadFromFolder(files))
   const loadFiles = (files: File[]) => load(() => openFiles(files))
 
-  if (busy) {
-    const p = ds.progress
-    return (
-      <Card>
-        <div className={s.progress} role="status">
-          <div className={s.progressText}>
-            <span>{p?.phase ?? 'Cargando'}…</span>
-            {p && p.total > 1 && (
-              <span className="tabular">
-                {formatNumber(p.done)} / {formatNumber(p.total)}
-              </span>
-            )}
-          </div>
-          <ProgressBar value={p && p.total > 0 ? p.done : 0} max={p?.total || 1} label="Progreso de la carga" />
-        </div>
-      </Card>
-    )
-  }
+  if (busy) return <LoadingCard progress={ds.progress} />
 
   const others = ds.datasets.filter((d) => d.id !== meta?.id)
   const showLoader = !meta || changing

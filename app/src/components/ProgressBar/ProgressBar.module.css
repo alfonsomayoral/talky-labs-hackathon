@@ -27,11 +27,57 @@
   border-left: 1px solid var(--bg);
 }
 
-.segment,
-.fill {
+.segment {
   display: block;
   height: 100%;
-  transition: width var(--duration-slow) var(--ease-out);
+}
+
+/* Full width, scaled from the left: transform animates without relayout. */
+.fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+
+.track:has(.runner) {
+  position: relative;
+}
+
+/* Unknown size: a marker crossing the track says the work is alive. */
+.runner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  border-radius: inherit;
+  animation: run 1.2s var(--ease-in-out) infinite;
+}
+
+@keyframes run {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Reduced motion: the marker stays put and breathes instead of crossing. */
+@media (prefers-reduced-motion: reduce) {
+  .runner {
+    width: 100%;
+    animation: breathe 1.6s ease-in-out infinite;
+  }
 }
 
 .legend {

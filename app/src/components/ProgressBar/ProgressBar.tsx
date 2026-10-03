@@ -14,6 +14,8 @@ export interface ProgressBarProps {
   /** Simple bar: progress `value` out of `max` (default 1). */
   value?: number
   max?: number
+  /** Work under way whose size is unknown: a sliding marker instead of a fill. */
+  indeterminate?: boolean
   tone?: Tone
   /** Stacked bar: one segment per category, in display order. Overrides `value`. */
   segments?: ProgressSegment[]
@@ -36,7 +38,7 @@ export function statusSegments(counts: Partial<Record<ItemStatus, number>>): Pro
   }))
 }
 
-export function ProgressBar({ value = 0, max = 1, tone = 'brand', segments, total, size = 'md', showLegend, label, className }: ProgressBarProps) {
+export function ProgressBar({ value = 0, max = 1, indeterminate, tone = 'brand', segments, total, size = 'md', showLegend, label, className }: ProgressBarProps) {
   if (segments) {
     const sum = total ?? segments.reduce((acc, s) => acc + s.value, 0)
     const describe = segments.map((s) => `${s.label}: ${formatNumber(s.value)}`).join(', ')
@@ -76,11 +78,16 @@ export function ProgressBar({ value = 0, max = 1, tone = 'brand', segments, tota
       className={clsx(styles.track, styles[size], className)}
       role="progressbar"
       aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-valuenow={value}
+      aria-valuemin={indeterminate ? undefined : 0}
+      aria-valuemax={indeterminate ? undefined : max}
+      aria-valuenow={indeterminate ? undefined : value}
+      aria-busy={indeterminate || undefined}
     >
-      <span className={styles.fill} style={{ width: `${ratio * 100}%`, background: toneColor(tone) }} />
+      {indeterminate ? (
+        <span className={styles.runner} style={{ background: toneColor(tone) }} />
+      ) : (
+        <span className={styles.fill} style={{ transform: `scaleX(${ratio})`, background: toneColor(tone) }} />
+      )}
     </div>
   )
 }
