@@ -8,7 +8,7 @@ Source extraction remains a separate `prepare-ap` operation; this runner makes
 no provider, extractor or semantic-resolver calls.
 
 ```sh
-kalmora solve-ap PHASE --sources SAVED/phase-sources.json \
+kalmora run-ap PHASE --sources SAVED/phase-sources.json \
   --receipt-cutoff-fact receipt-clock.json --posting-date-fact posting-clock.json \
   --output DELIVERY/ap.jsonl --report REPORTS/ap-run.json
 ```

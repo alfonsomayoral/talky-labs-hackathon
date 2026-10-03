@@ -207,7 +207,7 @@ class APPhaseRunnerTests(unittest.IsolatedAsyncioTestCase):
             return dict(value=fact.value, evidence=dict(document=fact.evidence.document, field=fact.evidence.field))
         cutoff.write_text(json.dumps(fact_json(self.fixture.cutoff)))
         posted.write_text(json.dumps(fact_json(self.fixture.posted)))
-        arguments = ["--run-dir", str(self.root / "reports"), "solve-ap", str(self.phase),
+        arguments = ["--run-dir", str(self.root / "reports"), "run-ap", str(self.phase),
             "--sources", str(self.prepared.manifest_path), "--output", str(output), "--report", str(report),
             "--receipt-cutoff-fact", str(cutoff)]
         stdout, stderr = io.StringIO(), io.StringIO()
@@ -228,8 +228,17 @@ class APPhaseRunnerTests(unittest.IsolatedAsyncioTestCase):
         reports = self.root / "never-reports"
         for output in (self.phase / "ap.jsonl", self.root / "golden/ap.jsonl", self.prepared.manifest_path):
             with contextlib.redirect_stderr(io.StringIO()):
-                code = await asyncio.to_thread(main, ["--run-dir", str(reports), "solve-ap", str(self.phase),
+                code = await asyncio.to_thread(main, ["--run-dir", str(reports), "run-ap", str(self.phase),
                     "--sources", str(self.prepared.manifest_path), "--output", str(output),
                     "--report", str(self.root / "report.json")])
             self.assertEqual(code, 1)
             self.assertFalse(reports.exists())
+
+    async def test_guarded_run_ap_preserves_the_existing_v0_solve_ap_command(self):
+        with patch("kalmora.cli._execute", return_value=0) as execute:
+            code = await asyncio.to_thread(main, ["--run-dir", str(self.root / "legacy-reports"),
+                "solve-ap", str(self.phase), "--output", str(self.root / "legacy-ap.jsonl")])
+        self.assertEqual(code, 0)
+        args = execute.call_args.args[0]
+        self.assertEqual(args.command, "solve-ap")
+        self.assertFalse(hasattr(args, "sources"))

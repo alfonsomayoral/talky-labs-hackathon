@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     ap_plan.add_argument("--output", type=Path, required=True, help="Audit JSON outside original and prepared sources")
     ap_plan.add_argument("--receipt-cutoff-fact", type=Path,
                          help="Optional JSON {value: YYYY-MM-DD, evidence: {...}} with an observed receipt cutoff")
-    ap_solve = commands.add_parser("solve-ap", help="Evaluate saved AP facts; export only complete evidenced decisions")
+    ap_solve = commands.add_parser("run-ap", help="Evaluate saved AP facts; export only complete evidenced decisions")
     ap_solve.add_argument("phase", type=Path)
     ap_solve.add_argument("--sources", type=Path, required=True, help="Verified phase-sources.json manifest")
     ap_solve.add_argument("--output", type=Path, required=True, help="Complete AP JSONL outside source inputs")
@@ -95,14 +95,14 @@ def main(argv: list[str] | None = None) -> int:
                        help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
-    if args.command in {"prepare-ap", "plan-ap", "solve-ap"}:
+    if args.command in {"prepare-ap", "plan-ap", "run-ap"}:
         destinations = [args.run_dir] + ([args.output] if args.command == "plan-ap" else [])
-        if args.command == "solve-ap":
+        if args.command == "run-ap":
             destinations.extend((args.output, args.report))
         protected = [args.phase.resolve()]
-        if args.command in {"plan-ap", "solve-ap"}:
+        if args.command in {"plan-ap", "run-ap"}:
             protected.append(args.sources.resolve().parent)
-        if args.command == "solve-ap":
+        if args.command == "run-ap":
             input_files = [args.sources, args.receipt_cutoff_fact, args.posting_date_fact]
             if (args.output.resolve() == args.report.resolve() or any(
                     destination.resolve() == source.resolve()
@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _execute(args: argparse.Namespace, recorder=None) -> int:
-    if args.command == "solve-ap":
+    if args.command == "run-ap":
         import asyncio
         from dataclasses import asdict
         from .ap_phase_runner import run_ap_phase
