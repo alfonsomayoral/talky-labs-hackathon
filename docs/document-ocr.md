@@ -7,6 +7,12 @@ Tesseract PSM 4, English. Tool paths and all limits are caller configurable;
 missing tools/languages produce explicit `PDFVisionError.category` failures.
 No dependency installation or network call is performed.
 
+Install the optional Python `documents` extra and provide the open source CLI
+tools on `PATH` (macOS: `brew install poppler tesseract`; Debian/Ubuntu:
+`apt-get install poppler-utils tesseract-ocr`). An explicit tool path is supported
+when the application supplies a bundled runtime. Language packs must exist for
+the configured language; the processor does not silently change languages.
+
 Original blocks, bytes and source hash remain intact. Full rendered PNGs replace
 embedded images on those pages. `processing_aids` contain OCR text and provenance,
 never authoritative blocks. `unverified_ocr` warnings require original-image
@@ -25,6 +31,12 @@ Provenance captures original/image/text/TSV hashes, tool versions/binary hashes,
 config, and available trained-data hashes. A processing fingerprint updates the
 parser/transformation identity, invalidating incompatible recordings. English is
 currently installed; Spanish/Portuguese are not inferred or silently substituted.
+
+`LLMConfig.image_detail` supports `auto`, `low` and `high`; it is part of the
+recording identity and is forwarded to the Responses image input. The sample
+capturer uses `high` for document inspection. Output length remains unlimited
+by the application unless a caller explicitly requests a limit; spend accounting
+and operational bounds remain independent.
 
 Tools are discovered through `PATH`; callers can supply explicit executable paths.
 Missing tools fail only when vision-required processing is needed. Documents with
