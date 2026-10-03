@@ -1,0 +1,823 @@
+{
+ "BILL-CV-OB-1100-2511-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "9152c1c3c256b2d8a9a371a99cff9330dc973ef00ee204f885779c186dd041a7",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 61161785
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 31687246
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 89425359
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 40833200
+    }
+   ],
+   "cumulative": 859611868,
+   "previous": 636504278,
+   "current": 223107590,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2511-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 10\nObra: Ampliación de la EDAR de Puerto Alcor\nContrato: CV-OB-1100-2511 · Promotor / cliente: Ayuntamiento de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       611.617,85 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   316.872,46 EUR\n03           Capítulo 03 – Instalaciones                                                                              894.253,59 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      408.332,00 EUR\nCertificado a origen: 8.596.118,68 EUR\nCertificado anterior: 6.365.042,78 EUR\nImporte de la presente certificación: 2.231.075,90 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2512-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "b2107ca1155cb2342fe0e6c396ec671641555358f87aed2395447105f1b8ff20",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 11551048
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 8190369
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 9374959
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 10823560
+    }
+   ],
+   "cumulative": 351963845,
+   "previous": 312023909,
+   "current": 39939936,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2512-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 13\nObra: Variante de la carretera CV-12 en Valdemora\nContrato: CV-OB-1100-2512 · Promotor / cliente: Diputación Provincial de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                               Importe del mes\n01          Capítulo 01 – Movimiento de tierras y demoliciones                                                    115.510,48 EUR\n02          Capítulo 02 – Cimentación y estructura                                                                81.903,69 EUR\n03          Capítulo 03 – Instalaciones                                                                           93.749,59 EUR\n04          Capítulo 04 – Acabados, urbanización y señalización                                                   108.235,60 EUR\nCertificado a origen: 3.519.638,45 EUR\nCertificado anterior: 3.120.239,09 EUR\nImporte de la presente certificación: 399.399,36 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                       Dirección Facultativa – Ingeniero\n                                                                                                                    27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2513-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "426398fab55152596031fdfb2c453613fb05e79573439b1b0bd5679998ddf11f",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 25803659
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 15941695
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 27303224
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 22712769
+    }
+   ],
+   "cumulative": 658565742,
+   "previous": 566804395,
+   "current": 91761347,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2513-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 11\nObra: Urbanización del sector SUP-15 de Villamar del Río\nContrato: CV-OB-1100-2513 · Promotor / cliente: Diputación Provincial de Puerto Alcor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       258.036,59 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   159.416,95 EUR\n03           Capítulo 03 – Instalaciones                                                                              273.032,24 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      227.127,69 EUR\nCertificado a origen: 6.585.657,42 EUR\nCertificado anterior: 5.668.043,95 EUR\nImporte de la presente certificación: 917.613,47 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2617-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "8fe42ee612546b6d59d80061994c98ea526c52b4d47c2bfcfd87c2079d66b887",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 7963712
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 10385583
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 14030697
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 20002970
+    }
+   ],
+   "cumulative": 170571927,
+   "previous": 118188965,
+   "current": 52382962,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2617-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 06\nObra: Nave logística de 120.000 m² en Fuenteclara\nContrato: CV-OB-1100-2617 · Promotor / cliente: Inmobiliaria Robles, S.L.\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                   Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                        79.637,12 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                    103.855,83 EUR\n03           Capítulo 03 – Instalaciones                                                                               140.306,97 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                       200.029,70 EUR\nCertificado a origen: 1.705.719,27 EUR\nCertificado anterior: 1.181.889,65 EUR\nImporte de la presente certificación: 523.829,62 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Arquitecto\n                                                                                                                         25/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2518-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "68355bbed0d27bf078dfe5dc660493d15e44a53c98421d6b438df98ec847feb9",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 7004955
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 8437579
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 7009316
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 13941986
+    }
+   ],
+   "cumulative": 212934768,
+   "previous": 176540932,
+   "current": 36393836,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2518-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 08\nObra: Colector de pluviales de Riofrío del Llano\nContrato: CV-OB-1100-2518 · Promotor / cliente: Diputación Provincial de Valdemora\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                               Importe del mes\n01          Capítulo 01 – Movimiento de tierras y demoliciones                                                    70.049,55 EUR\n02          Capítulo 02 – Cimentación y estructura                                                                84.375,79 EUR\n03          Capítulo 03 – Instalaciones                                                                           70.093,16 EUR\n04          Capítulo 04 – Acabados, urbanización y señalización                                                   139.419,86 EUR\nCertificado a origen: 2.129.347,68 EUR\nCertificado anterior: 1.765.409,32 EUR\nImporte de la presente certificación: 363.938,36 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                       Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2520-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "2ee95e6cfbc398f9a7950cc32075bf7edde9fa135d618bd18d6cdcfff94a05d6",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 2340567
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 5571071
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 4153088
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 4974227
+    }
+   ],
+   "cumulative": 772505202,
+   "previous": 755466249,
+   "current": 17038953,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2520-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 18\nObra: Instituto de educación secundaria de Alcanzar\nContrato: CV-OB-1100-2520 · Promotor / cliente: Ayuntamiento de Alcanzar\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       23.405,67 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   55.710,71 EUR\n03           Capítulo 03 – Instalaciones                                                                              41.530,88 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      49.742,27 EUR\nCertificado a origen: 7.725.052,02 EUR\nCertificado anterior: 7.554.662,49 EUR\nImporte de la presente certificación: 170.389,53 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2521-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "7495bc36bfce4006f7bd7f45b7c80c5d848ebde352a46a1e8ee76a8957b1ab96",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 41912531
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 19579602
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 20858244
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 14125178
+    }
+   ],
+   "cumulative": 2096996359,
+   "previous": 2000520804,
+   "current": 96475555,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2521-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 19\nObra: Depósito regulador de agua potable de Sierramayor\nContrato: CV-OB-1100-2521 · Promotor / cliente: Ayuntamiento de Sierramayor\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimiento de tierras y demoliciones                                                   419.125,31 EUR\n02          Capítulo 02 – Cimentación y estructura                                                               195.796,02 EUR\n03          Capítulo 03 – Instalaciones                                                                          208.582,44 EUR\n04          Capítulo 04 – Acabados, urbanización y señalización                                                  141.251,78 EUR\nCertificado a origen: 20.969.963,59 EUR\nCertificado anterior: 20.005.208,04 EUR\nImporte de la presente certificación: 964.755,55 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    25/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2522-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "6e07457597ec87a3c8745a57a700808fafecfd91b13ad495ef068394280558ef",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 12640007
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 8085597
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 11193662
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 12558461
+    }
+   ],
+   "cumulative": 1207525237,
+   "previous": 1163047510,
+   "current": 44477727,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2522-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 17\nObra: Hotel Mirador (96 habitaciones), Navalcedro\nContrato: CV-OB-1100-2522 · Promotor / cliente: Logística Vegalta, S.L.\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Movimiento de tierras y demoliciones                                                       126.400,07 EUR\n02           Capítulo 02 – Cimentación y estructura                                                                   80.855,97 EUR\n03           Capítulo 03 – Instalaciones                                                                              111.936,62 EUR\n04           Capítulo 04 – Acabados, urbanización y señalización                                                      125.584,61 EUR\nCertificado a origen: 12.075.252,37 EUR\nCertificado anterior: 11.630.475,10 EUR\nImporte de la presente certificación: 444.777,27 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Arquitecto\n                                                                                                                         24/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1100-2524-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "2c478b628a8ab14bd3f799fdbdc5eadca4fefe8bcf0a228062aeab5958e48e87",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 6505467
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 1733841
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 2802047
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 1991898
+    }
+   ],
+   "cumulative": 135240416,
+   "previous": 122207163,
+   "current": 13033253,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1100-2524-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 14\nObra: Reforma integral del mercado municipal de Vegalta\nContrato: CV-OB-1100-2524 · Promotor / cliente: Mancomunidad de Aguas de Vegalta\nContratista: Kalmora Construcción, S.A.U.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimiento de tierras y demoliciones                                                   65.054,67 EUR\n02          Capítulo 02 – Cimentación y estructura                                                               17.338,41 EUR\n03          Capítulo 03 – Instalaciones                                                                          28.020,47 EUR\n04          Capítulo 04 – Acabados, urbanización y señalización                                                  19.918,98 EUR\nCertificado a origen: 1.352.404,16 EUR\nCertificado anterior: 1.222.071,63 EUR\nImporte de la presente certificación: 130.332,53 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                          CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                   26/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-1910-2501-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "c74c573d2aafc2226eb5bf38d954381186e69c890b6fc54744c35f4cb2dbff69",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimiento de tierras y demoliciones",
+     "amount": 72214672
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Cimentación y estructura",
+     "amount": 47880902
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 30232993
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados, urbanización y señalización",
+     "amount": 48988461
+    }
+   ],
+   "cumulative": 3598286599,
+   "previous": 3398969571,
+   "current": 199317028,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-1910-2501-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "CERTIFICACIÓN DE OBRA Nº 21\nObra: Línea 9 Metro Ligero de Valdemora – Tramo 2 (UTE)\nContrato: CV-OB-1910-2501 · Promotor / cliente: Consorcio Regional de Transportes de Valdemora\nContratista: UTE Kalmora Construcción – Hidrocon Obras, Ley 18/1982 (UTE Línea 9 Valdemora)\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                             Importe del mes\n01          Capítulo 01 – Movimiento de tierras y demoliciones                                                  722.146,72 EUR\n02          Capítulo 02 – Cimentación y estructura                                                              478.809,02 EUR\n03          Capítulo 03 – Instalaciones                                                                         302.329,93 EUR\n04          Capítulo 04 – Acabados, urbanización y señalización                                                 489.884,61 EUR\nCertificado a origen: 35.982.865,99 EUR\nCertificado anterior: 33.989.695,71 EUR\nImporte de la presente certificación: 1.993.170,28 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                         CONFORME\n                                                                                                     Dirección Facultativa – Ingeniero\n                                                                                                                  25/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-2100-2502-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "6bea4f1fc051512427cb2c5efe8b5c87a5ed4b8a7b5a4a63e1a7854e7b7abb41",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimentação de terras",
+     "amount": 1417448
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Estruturas",
+     "amount": 3280373
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalações",
+     "amount": 4086710
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabamentos e arranjos exteriores",
+     "amount": 3822830
+    }
+   ],
+   "cumulative": 391171466,
+   "previous": 378564105,
+   "current": 12607361,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-2100-2502-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "AUTO DE MEDIÇÃO Nº 19\nObra: Escola básica de Vila Serrana\nContrato: CV-OB-2100-2502 · Promotor / cliente: Câmara Municipal de Porto Alvor\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 14.174,48 EUR\n02          Capítulo 02 – Estruturas                                                                             32.803,73 EUR\n03          Capítulo 03 – Instalações                                                                            40.867,10 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      38.228,30 EUR\nCertificado a origen: 3.911.714,66 EUR\nCertificado anterior: 3.785.641,05 EUR\nImporte de la presente certificación: 126.073,61 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    27/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-2100-2503-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "815abca597282e9d205e64868493d6bdf6cc30a67880ed29f50081f79e4f528f",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Movimentação de terras",
+     "amount": 5736175
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Estruturas",
+     "amount": 5214296
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalações",
+     "amount": 12724867
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabamentos e arranjos exteriores",
+     "amount": 5314935
+    }
+   ],
+   "cumulative": 358709298,
+   "previous": 329719025,
+   "current": 28990273,
+   "approved": false,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-2100-2503-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "AUTO DE MEDIÇÃO Nº 15\nObra: Edifício de habitação Monte Claro (32 fogos)\nContrato: CV-OB-2100-2503 · Promotor / cliente: Imobiliária Monte Claro, S.A.\nContratista: Kalmora Portugal – Construção e Serviços, Lda.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Movimentação de terras                                                                 57.361,75 EUR\n02          Capítulo 02 – Estruturas                                                                             52.142,96 EUR\n03          Capítulo 03 – Instalações                                                                            127.248,67 EUR\n04          Capítulo 04 – Acabamentos e arranjos exteriores                                                      53.149,35 EUR\nCertificado a origen: 3.587.092,98 EUR\nCertificado anterior: 3.297.190,25 EUR\nImporte de la presente certificación: 289.902,73 EUR\nImportes sin impuestos. Revisión de precios no incluida.                                                PENDIENTE DE APROBACIÓN\n                                                                                                              Dirección Facultativa\n                                                                                                                   No facturar\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-3100-2501-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "01f9af3c5fe4ae0af3c8b019558fa56b95defc0c1da42f64db0765ce727d2dbc",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Terracerías",
+     "amount": 555241546
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Estructura y obra civil",
+     "amount": 810792567
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 751962089
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados y señalamiento",
+     "amount": 356950983
+    }
+   ],
+   "cumulative": 36549520522,
+   "previous": 34074573337,
+   "current": 2474947185,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-3100-2501-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "ESTIMACIÓN DE OBRA Nº 16\nObra: Distribuidor vial Norte de Nuevo Valle\nContrato: CV-OB-3100-2501 · Promotor / cliente: Secretaría de Infraestructura y Obras Públicas del Estado de Nuevo\nValle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.        Descripción (relación valorada del mes)                                                              Importe del mes\n01          Capítulo 01 – Terracerías                                                                            5.552.415,46 MXN\n02          Capítulo 02 – Estructura y obra civil                                                                8.107.925,67 MXN\n03          Capítulo 03 – Instalaciones                                                                          7.519.620,89 MXN\n04          Capítulo 04 – Acabados y señalamiento                                                                3.569.509,83 MXN\nCertificado a origen: 365.495.205,22 MXN\nCertificado anterior: 340.745.733,37 MXN\nImporte de la presente certificación: 24.749.471,85 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                           CONFORME\n                                                                                                      Dirección Facultativa – Ingeniero\n                                                                                                                    28/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CV-OB-3100-2502-202607": {
+  "type": "OBRA_CERTIFICATION",
+  "source_sha256": "641919d9a91a0ab5ffaca5d597c4cf083c6d2b73e7491e99b174092193dba97d",
+  "facts": {
+   "month": "2026-07",
+   "chapters": [
+    {
+     "number": 1,
+     "description": "Capítulo 01 – Terracerías",
+     "amount": 1082619571
+    },
+    {
+     "number": 2,
+     "description": "Capítulo 02 – Estructura y obra civil",
+     "amount": 1237139995
+    },
+    {
+     "number": 3,
+     "description": "Capítulo 03 – Instalaciones",
+     "amount": 990458113
+    },
+    {
+     "number": 4,
+     "description": "Capítulo 04 – Acabados y señalamiento",
+     "amount": 1302319113
+    }
+   ],
+   "cumulative": 38374804516,
+   "previous": 33762267724,
+   "current": 4612536792,
+   "approved": true,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CV-OB-3100-2502-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "ESTIMACIÓN DE OBRA Nº 13\nObra: Hospital General de San Gabriel de las Lomas (obra civil)\nContrato: CV-OB-3100-2502 · Promotor / cliente: Instituto de Salud del Estado de Nuevo Valle\nContratista: Kalmora México Infraestructura, S.A. de C.V.\nMes certificado: 2026-07\n\nCap.         Descripción (relación valorada del mes)                                                                  Importe del mes\n01           Capítulo 01 – Terracerías                                                                                10.826.195,71 MXN\n02           Capítulo 02 – Estructura y obra civil                                                                    12.371.399,95 MXN\n03           Capítulo 03 – Instalaciones                                                                              9.904.581,13 MXN\n04           Capítulo 04 – Acabados y señalamiento                                                                    13.023.191,13 MXN\nCertificado a origen: 383.748.045,16 MXN\nCertificado anterior: 337.622.677,24 MXN\nImporte de la presente certificación: 46.125.367,92 MXN\nImportes sin impuestos. Revisión de precios no incluida.                                                                CONFORME\n                                                                                                           Dirección Facultativa – Ingeniero\n                                                                                                                         25/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-LV01-REV2026": {
+  "type": "PRICE_REVISION",
+  "source_sha256": "3e52264ac842c978cf5b598a617a7866b2699cf9b043ea3836df99edbe710d4f",
+  "facts": {
+   "old_fee": 42559187,
+   "new_fee": 43577778,
+   "effective": "2026-01-01",
+   "approved_on": "2026-07-01",
+   "months": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06"
+   ],
+   "decree": "2026/1235",
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-LV01-REV2026/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "AYUNTAMIENTO DE PUERTO ALCOR\nDecreto de Alcaldía 2026/1235\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria de Puerto Alcor», adjudicado a Kalmora\nServicios Urbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas,\nRESUELVO: aprobar la revisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 435.777,78\nEUR (anterior: 425.591,87 EUR), IVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03,\n2026-04, 2026-05, 2026-06).\n                                                                                                     EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                      Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-LV01-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "cea8746c2e1e4bee1d7c2ea7e0a0da41e0bc9d2d482d56c54e1012ad88eae8a2",
+  "facts": {
+   "month": "2026-07",
+   "canon": 43577778,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-LV01-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria de Puerto Alcor (CT-1200-LV01)\nCliente: Ayuntamiento de Puerto Alcor\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    435.777,78 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-RR01-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "aa2cfb38795353bc90bea6d428cd415b481bf6b75fdbd6977437838323b89095",
+  "facts": {
+   "month": "2026-07",
+   "canon": 73003712,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-RR01-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Recogida de residuos urbanos de Valdemora (CT-1200-RR01)\nCliente: Ayuntamiento de Valdemora\nMes: 2026-07\n\nConcepto                                                           Orden                Importe (sin IVA)            Estado\nCanon mensual                                                      —                    730.037,12 EUR        CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                               31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-LV02-REV2026": {
+  "type": "PRICE_REVISION",
+  "source_sha256": "0782cfc3fd21da1a841834f849844baba12bcfd6ce1bde00d4c2773ed1f50d45",
+  "facts": {
+   "old_fee": 24317727,
+   "new_fee": 24970047,
+   "effective": "2026-01-01",
+   "approved_on": "2026-07-01",
+   "months": [
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06"
+   ],
+   "decree": "2026/1376",
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-LV02-REV2026/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "AYUNTAMIENTO DE CALABLANCA\nDecreto de Alcaldía 2026/1376\n\nVisto el expediente de revisión de precios del contrato «Limpieza viaria y playas de Calablanca», adjudicado a Kalmora Servicios\nUrbanos, S.L.U., y de conformidad con la fórmula de revisión del pliego de cláusulas administrativas, RESUELVO: aprobar la\nrevisión de precios con efectos 2026-01-01, fijando el nuevo canon mensual en 249.700,47 EUR (anterior: 243.177,27 EUR),\nIVA no incluido.\nEl contratista podrá facturar las diferencias devengadas desde la fecha de efectos (2026-01, 2026-02, 2026-03, 2026-04, 2026-05,\n2026-06).\n                                                                                                             EL ALCALDE-PRESIDENTE\nFecha de aprobación: 2026-07-01                                                                               Firmado electrónicamente\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-LV02-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "6a5e5ee1c76f34adea40fa38037b415664507d6180701ef29a049d4a972a2673",
+  "facts": {
+   "month": "2026-07",
+   "canon": 24970047,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-LV02-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza viaria y playas de Calablanca (CT-1200-LV02)\nCliente: Ayuntamiento de Calablanca\nMes: 2026-07\n\nConcepto                                                            Orden                Importe (sin IVA)            Estado\nCanon mensual                                                       —                    249.700,47 EUR        CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-PJ01-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "6ee1ce7e601195810ad7d913568100650acb6d5f5789296400c31a292d62af7e",
+  "facts": {
+   "month": "2026-07",
+   "canon": 13239943,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-PJ01-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Mantenimiento de parques y jardines de Santa Olaria (CT-1200-PJ01)\nCliente: Ayuntamiento de Santa Olaria\nMes: 2026-07\n\nConcepto                                                               Orden                 Importe (sin IVA)              Estado\nCanon mensual                                                          —                     132.399,43 EUR         CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-AL01-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "5aebf731f32ecd3f676590fe1fe2b6719260f72d74a2a69b808dc011bb2aba08",
+  "facts": {
+   "month": "2026-07",
+   "canon": 7671051,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-AL01-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Mantenimiento del alumbrado público de Montalbar (CT-1200-AL01)\nCliente: Ayuntamiento de Montalbar\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    76.710,51 EUR          CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                    31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-RR02-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "e01e48f15f059037549b93bfc3ce8f4cc3a20d3cccea1393c299c27ef0bdb88c",
+  "facts": {
+   "month": "2026-07",
+   "canon": 15750893,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-RR02-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Recogida selectiva y punto limpio de Fuenteclara (CT-1200-RR02)\nCliente: Ayuntamiento de Fuenteclara\nMes: 2026-07\n\nConcepto                                                               Orden                 Importe (sin IVA)              Estado\nCanon mensual                                                          —                     157.508,93 EUR         CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                     31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-LV03-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "53ddf2534d9935912b6ec461403670d3a3104dfd631036767bbe467469950f94",
+  "facts": {
+   "month": "2026-07",
+   "canon": 6155998,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-LV03-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Limpieza de edificios municipales de Torrecastro (CT-1200-LV03)\nCliente: Ayuntamiento de Torrecastro\nMes: 2026-07\n\nConcepto                                                            Orden                Importe (sin IVA)             Estado\nCanon mensual                                                       —                    61.559,98 EUR         CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-CT-1200-PJ02-202607": {
+  "type": "SERVICE_MONTHLY",
+  "source_sha256": "9b709450ff7dda7ab14865a5a25a1b0aa1292966a594418eb0ed65c6cacf4488",
+  "facts": {
+   "month": "2026-07",
+   "canon": 10107903,
+   "extras": [],
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-CT-1200-PJ02-202607/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "PARTE MENSUAL DE SERVICIO – CONFORMIDAD MUNICIPAL\nContrato: Conservación de zonas verdes de Navalcedro (CT-1200-PJ02)\nCliente: Ayuntamiento de Navalcedro\nMes: 2026-07\n\nConcepto                                                               Orden                Importe (sin IVA)              Estado\nCanon mensual                                                          —                    101.079,03 EUR         CONFORMEConforme\nLos servicios extraordinarios sólo pueden facturarse con la conformidad del técnico municipal responsable del contrato.Técnico municipal\n                                                                                                                    31/07/2026\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-PPA-1300-01-202606": {
+  "type": "PPA",
+  "source_sha256": "3f19bcc740eabf625f846ed57c060a7830918a7a7addc3549d9c2d401a30d3c2",
+  "facts": {
+   "period": "2026-06",
+   "plants": [
+    {
+     "plant": "CC-1300-PSF1",
+     "mwh_milli": 8652582
+    },
+    {
+     "plant": "CC-1300-PSF2",
+     "mwh_milli": 5783133
+    }
+   ],
+   "share_bp": 7000,
+   "price_mwh_cents": "4150.00",
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-PPA-1300-01-202606/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "INFORME MENSUAL DE PRODUCCIÓN – MEDIDA FISCAL EN PUNTO FRONTERA\nPeriodo: 2026-06 · Contrato PPA PPA-1300-01 · Comprador: Comercializadora Eléctrica Peninsular, S.A.\n\nPlanta                                                                                       Energía neta medida (MWh)\nPSF Campollano I (49,9 MWp)                                                                  8.652,582\nPSF Lomaseca (32,4 MWp)                                                                      5.783,133\nPorcentaje de la producción contratada en el PPA: 70 % · Precio fijo: 41.50 €/MWh (sin IVA)\n\nFuente: encargado de lectura (medidas cerradas). El resto de la energía se vende en mercado a través del representante.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ },
+ "BILL-MKT-1300-01-202606": {
+  "type": "MARKET_SETTLEMENT",
+  "source_sha256": "977d09a7509fbf7d88bd7c0437050a59cc866751a1f4b0d3f935ed6eecba9d22",
+  "facts": {
+   "period": "2026-06",
+   "plants": [
+    {
+     "plant": "CC-1300-PSF1",
+     "amount": 19778133
+    },
+    {
+     "plant": "CC-1300-PSF2",
+     "amount": 12915001
+    },
+    {
+     "plant": "CC-1300-PSF3",
+     "amount": 29215455
+    }
+   ],
+   "deviations": -1460336,
+   "evidence": [
+    {
+     "document": "inbox/ar/billing/BILL-MKT-1300-01-202606/documento.pdf",
+     "field": "page.1",
+     "page": 1,
+     "quote": "IBERMARKET REPRESENTACIÓN DE MERCADOS, S.L.\nLIQUIDACIÓN MENSUAL DE VENTA DE ENERGÍA EN MERCADO\nPeriodo 2026-06 · Titular: Kalmora Energía Renovable, S.L.U.\n\nPlanta                                                                       MWh vendidos                 Importe (€)\nPSF Campollano I (49,9 MWp)                                                  2,737.647                    197.781,33 EUR\nPSF Lomaseca (32,4 MWp)                                                      1,787.667                    129.150,01 EUR\nPSF Vegalta Solar (21,0 MWp)                                                 4,043.941                    292.154,55 EUR\nPrecio medio ponderado: 72.25 €/MWh · Coste de desvíos imputado: -14.603,36 EUR\n\nEmita su factura por el importe liquidado (energía menos desvíos). Nuestros honorarios de representación se facturan aparte y se compensarán en\nel pago.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSynthetic test document – no legal or fiscal validity"
+    }
+   ]
+  }
+ }
+}

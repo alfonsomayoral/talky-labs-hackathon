@@ -1,7 +1,7 @@
 """Journal entry and delivery row from a resolved invoice (policy §3.1 "Asiento")."""
 from ..model import JournalEntry, JournalLine
 from ..output_models import ArBillingRow, ArDeduction, ArFace, ArInvoice, ArInvoiceLine
-from .model import BillingResult, Invoice
+from .model import BillingResult, Invoice, PendingWip
 
 RECEIVABLE, GUARANTEE, ADVANCE, MX_LEVY, VAT = "43000000", "43000900", "43800000", "63100000", "47700000"
 _DEDUCTION_ACCOUNT = {"MX5MILL": MX_LEVY, "ADV_AMORT": ADVANCE}
@@ -65,3 +65,13 @@ def to_row(result: BillingResult) -> ArBillingRow:
     row["invoice"] = body
     row["journal_entry"] = result.journal_entry
     return row
+
+
+def to_pending_row(pending: PendingWip) -> dict:
+    """Close input, separate from delivery rows and from WIP accounting postings."""
+    return {"billing_item": pending.item.id, "company": pending.item.company,
+            "customer": pending.item.customer, "contract": pending.item.contract,
+            "month": pending.item.month, "amount": pending.amount,
+            "lines": [{"amount": x.amount, "wbs": x.wbs} for x in pending.lines],
+            "evidence": [{"document": e.document, "field": e.field, "page": e.page, "quote": e.quote}
+                         for e in pending.evidence]}
