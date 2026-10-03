@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 
 from .contracts import ParsedBlock, ParsedDocument, PageImage, digest, source_path
 
-PARSER_VERSION = "source-router-v3/pypdf-6.19.0"
+PARSER_VERSION = "source-router-v3"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 MAX_PDF_PAGES = 64
 MAX_PDF_FRAGMENTS_PER_PAGE = 10_000
