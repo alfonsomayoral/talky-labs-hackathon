@@ -63,6 +63,16 @@ string token boundaries prevent obvious truncated-identifier matches. A real
 empty XML leaf is the only supported empty text quotation, for explicit null
 absence. XML path and attribute provenance are retained unchanged.
 
+Image evidence may select a short `image_id` from the versioned request manifest,
+in the same order as supplied images. The caller obtains its actual page/hash
+from the selected bytes; it never asks the model to calculate or copy a hash.
+IDs are exact source-local choices, including multiple images on one page.
+Unknown IDs, blocks on another page and conflicting optional page/hash values
+fail closed. Legacy explicit page/hash proof remains supported without fuzzy
+matching or repairs. Source and transformation hashes still bind replay to the
+original bytes. Prompt/schema versions and `image_locator_version=1` distinguish
+the new protocol; legacy recording parameters reproduce their original payload.
+
 Image evidence requires an actual matching image hash/page and a source block
 on that page. Its field is `image:<sha256>` and its quote is nonempty. The literal
 value must occur in the transcription, but that does not verify pixels.
