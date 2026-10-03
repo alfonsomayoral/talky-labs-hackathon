@@ -9,7 +9,7 @@ from kalmora.facts import DocumentFacts, Evidence, Fact
 class Phase:
     """Minimal PhaseData stand-in: masters only, no golden."""
     def __init__(self, vendors):
-        self.companies = [dict(code="1100", tax_id="A12359962"), dict(code="1200", tax_id="B60331798"),
+        self.companies = [dict(code="1100", tax_id="A12359962", name="Kalmora Construcción, S.A.U."), dict(code="1200", tax_id="B60331798"),
                           dict(code="1910", tax_id="U54740005")]
         self.tables = {"vendors": vendors,
                        "purchase_orders": [dict(id="4500000001", company="1100", vendor="V1")]}
@@ -71,6 +71,14 @@ class IdentitySourcesTests(unittest.TestCase):
         self.assertEqual(self.resolve(recipient_tax_id="A12359962").vendor_id, "V1")
         lookalike = dict(MESSAGE, **{"from": "facturacion@v1-es.com"})
         self.assertIsNone(self.resolve(message=lookalike, recipient_tax_id="A12359962").vendor_id)
+
+    def test_certificate_subject_and_exact_company_name_without_tax_ids(self):
+        result = self.resolve(certificate_tax_id="A22905052")
+        self.assertEqual((result.company, result.vendor_id), ("1200", "V2"))
+        named = self.resolve(supplier_tax_id="A58455355", customer_name="KALMORA  construcción, s.a.u.")
+        self.assertEqual(named.company, "1100")
+        self.assertIn("RECIPIENT_FROM_NAME", named.diagnostics)
+        self.assertIsNone(self.resolve(supplier_tax_id="A58455355", customer_name="Kalmora Construcción").company)
 
     def test_ambiguous_supplier_accepts_only_selected_master_candidate(self):
         shared = VENDORS + [dict(id="V3", tax_id="A58455355", companies=["1100"])]
