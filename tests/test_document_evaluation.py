@@ -6,11 +6,14 @@ from pathlib import Path
 import tempfile
 import unittest
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from kalmora.documents.evaluation import (FROZEN_THRESHOLDS, SourceAudit, _runtime,
     _semantic, canonical_field, evaluate_sample, normalize_value, validate_annotation_sources)
 from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.runlog import RunRecorder
+from kalmora.documents.contracts import ParsedBlock, ParsedDocument, PageImage
 
 
 class EvaluationTests(unittest.TestCase):
@@ -196,6 +199,67 @@ class EvaluationTests(unittest.TestCase):
         for path in ['../outside', 'phase_test/inbox/a', 'golden/a']:
             with self.assertRaises(ValueError):
                 audit.source(path)
+
+    def test_image_hash_and_page_are_required_even_on_hybrid_page(self):
+        audit = SourceAudit(self.root, self.manifest)
+        image_hash = hashlib.sha256(b'synthetic-rendered-page').hexdigest()
+        audit.content = lambda document: {'pages': ['native footer unrelated to invoice'],
+                                         'images': {(1, image_hash)}}
+        label = copy.deepcopy(self.labels[2])
+        label['evidence'].update(page=1, verification='manual_image_transcription')
+        prediction = {'field': 'gross', 'value': '1234.50', 'source_sha256': self.sha,
+            'evidence': {'document': self.path, 'page': 1, 'field': 'image:' + image_hash,
+                         'quote': '1.234,50 EUR'}}
+        self.assertEqual(audit.proof(prediction, label)[0], 'grounded')
+        self.assertEqual(audit.proof(prediction)[0], 'unreviewed')
+        prediction['evidence']['field'] = 'image:' + '0' * 64
+        self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
+        prediction['evidence']['field'] = 'image:' + image_hash
+        prediction['evidence']['page'] = 2
+        self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
+        prediction['evidence'].update(page=1, field='text')
+        self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
+
+    def test_fresh_validated_source_tools_zero_cost_is_distinct_from_cache(self):
+        proof = {'adapter_name': 'xml_extractor', 'adapter_version': 'fixture-v1',
+            'adapter_sha256': '1' * 64, 'config_sha256': '2' * 64,
+            'source_sha256': self.sha, 'transformation_sha256': '3' * 64, 'fresh_processing': True}
+        report = {'status': 'completed', 'elapsed_seconds': .01, 'calls': [], 'cache_hits': 0,
+            'input_metadata': {'capture_mode': 'fresh_source_tools', 'transport_mode': 'local',
+                'response_source': 'source_tools', 'source_tools_validated': True, 'source_tools': [proof]}}
+        runtime, issues = _runtime(['T'], {'T': report}, self.manifest['evaluation_contract'])
+        self.assertEqual(issues, [])
+        self.assertEqual(runtime['total_estimated_usd'], '0')
+        for mutation in ('cache', 'missing_hash', 'unvalidated', 'not_fresh'):
+            bad = copy.deepcopy(report)
+            if mutation == 'cache':
+                bad['cache_hits'] = 1
+            elif mutation == 'missing_hash':
+                del bad['input_metadata']['source_tools'][0]['adapter_sha256']
+            elif mutation == 'unvalidated':
+                bad['input_metadata']['source_tools_validated'] = False
+            else:
+                bad['input_metadata']['source_tools'][0]['fresh_processing'] = False
+            self.assertTrue(_runtime(['T'], {'T': bad}, self.manifest['evaluation_contract'])[1])
+
+    def test_rendered_archive_images_replace_embedded_images_and_bind_transform(self):
+        path = self.path.replace('.txt', '.pdf')
+        (self.root / path).write_bytes(b'original synthetic PDF bytes')
+        source_hash = hashlib.sha256((self.root / path).read_bytes()).hexdigest()
+        manifest = copy.deepcopy(self.manifest)
+        manifest['cases'][0]['attachments'][0].update(path=path, sha256=source_hash)
+        parsed = ParsedDocument(path.removeprefix('phase_dev/'), source_hash, 'application/pdf',
+            'test-renderer-v1', (ParsedBlock('page:1', 'native footer', 1),),
+            (PageImage(1, 'image/png', b'rendered page'),))
+        page = SimpleNamespace(extract_text=lambda **kw: 'native footer',
+                               images=[SimpleNamespace(data=b'embedded original')])
+        reader = SimpleNamespace(PdfReader=lambda stream: SimpleNamespace(pages=[page]))
+        with patch.dict('sys.modules', {'pypdf': reader}):
+            audit = SourceAudit(self.root, manifest, {path: parsed}, {path: parsed.transformation_sha256})
+            self.assertEqual(audit.content(path)['images'], {(1, parsed.images[0].sha256)})
+            invalid = SourceAudit(self.root, manifest, {path: parsed}, {path: '0' * 64})
+            with self.assertRaisesRegex(ValueError, 'transformation mismatch'):
+                invalid.content(path)
 
     def test_actual_runrecorder_scientific_prices_reproduce_cost(self):
         metadata = {'case_id': 'T', 'capture_mode': 'captured_live', 'transport_mode': 'default',

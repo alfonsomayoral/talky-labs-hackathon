@@ -161,11 +161,13 @@ def _xml_path(path):
 
 class SourceAudit:
     """Read only explicitly selected/anchored original bytes, not model text."""
-    def __init__(self, root, manifest):
+    def __init__(self, root, manifest, parsed_documents=None, transformation_hashes=None):
         self.root = Path(root).resolve()
         self.allowed = {x["path"]: x for x in manifest.get("source_anchors", [])}
         self.allowed.update({a["path"]: a for c in manifest["cases"] for a in c["attachments"] + [c["message"]]})
         self._content = {}
+        self.parsed_documents = parsed_documents or {}
+        self.transformation_hashes = transformation_hashes or {}
 
     def source(self, document, expected_hash=None):
         document = _source_path(document)
@@ -189,7 +191,18 @@ class SourceAudit:
                 except ImportError as error:
                     raise ValueError("Original PDF quote audit requires the documents/pypdf runtime") from error
                 reader = PdfReader(BytesIO(data))
-                self._content[document] = {"pages": [p.extract_text(extraction_mode="layout") or "" for p in reader.pages]}
+                parsed = self.parsed_documents.get(document)
+                if parsed is not None:
+                    if (parsed.source_sha256 != hashlib.sha256(data).hexdigest()
+                            or _source_path(parsed.path) != document
+                            or parsed.transformation_sha256 != self.transformation_hashes.get(document)):
+                        raise ValueError('Archived parsed document source/transformation mismatch')
+                    images = {(image.page, image.sha256) for image in parsed.images}
+                else:
+                    images = {(page_number, hashlib.sha256(image.data).hexdigest())
+                              for page_number, page in enumerate(reader.pages, 1) for image in page.images}
+                self._content[document] = {"pages": [p.extract_text(extraction_mode="layout") or "" for p in reader.pages],
+                                           "images": images}
             elif document.endswith(".xml"):
                 if b"<!DOCTYPE" in data.upper() or b"<!ENTITY" in data.upper():
                     raise ValueError("Unsafe XML source")
@@ -219,6 +232,12 @@ class SourceAudit:
         except (ValueError, OSError, KeyError, UnicodeError, ET.ParseError) as error:
             return "unsupported", str(error)
         quote = evidence.get("quote")
+        image_evidence = str(evidence.get('field', '')).startswith('image:')
+        if image_evidence:
+            image_hash = evidence['field'][len('image:'):]
+            if (not re.fullmatch(r'[a-f0-9]{64}', image_hash)
+                    or (evidence.get('page'), image_hash) not in content.get('images', set())):
+                return 'unsupported', 'Image evidence identity is not an actual captured/original page image'
         if label and (label.get("state") == "absent" or label.get("unit") in {"rows", "nodes"}):
             if observed["value"] != label["value"]:
                 return "unsupported", "Observed value differs from reviewed absence/structural count"
@@ -232,7 +251,9 @@ class SourceAudit:
             if type(page) is not int or not 1 <= page <= len(content["pages"]):
                 return "unsupported", "Missing or invalid PDF page"
             text = content["pages"][page - 1]
-            if not text.strip():
+            if image_evidence or not text.strip():
+                if not image_evidence:
+                    return 'unsupported', 'Image-only evidence requires an explicit image hash'
                 if not label or label["evidence"].get("verification") != "manual_image_transcription":
                     return "unreviewed", "Image-only value requires manual source annotation"
                 if label["evidence"].get("page") != page:
@@ -454,8 +475,11 @@ def _runtime(case_ids, reports, contract):
         meta = report.get("input_metadata", {})
         if not isinstance(meta, dict):
             meta = {}
-        if (meta.get("capture_mode") != "captured_live" or meta.get("transport_mode") != "default"
-                or meta.get("response_source") != "provider_api"):
+        source_tools = (meta.get('response_source') == 'source_tools'
+                        and meta.get('transport_mode') == 'local'
+                        and meta.get('source_tools_validated') is True)
+        if (not source_tools and (meta.get("capture_mode") != "captured_live" or meta.get("transport_mode") != "default"
+                or meta.get("response_source") != "provider_api")):
             reason.append("live default-transport provenance not established")
         calls = report.get("calls", [])
         if not isinstance(calls, list):
@@ -470,8 +494,21 @@ def _runtime(case_ids, reports, contract):
             reason.append("attempt cap exceeded")
         if meta.get("synthetic") or meta.get("test_fixture"):
             reason.append("synthetic capture is not a live benchmark")
-        if not calls or report.get("status") != "completed":
+        if (not calls and not source_tools) or report.get("status") != "completed":
             reason.append("no completed real provider capture")
+        if source_tools:
+            proofs = meta.get('source_tools', [])
+            if (calls or report.get('cache_hits') or meta.get('capture_mode') != 'fresh_source_tools'
+                    or not isinstance(proofs, list) or not proofs
+                    or any(not isinstance(proof, dict) or proof.get('fresh_processing') is not True
+                           or not proof.get('adapter_name') or not proof.get('adapter_version')
+                           or any(not isinstance(proof.get(key), str) or not re.fullmatch(r'[a-f0-9]{64}', proof[key])
+                                  for key in ('adapter_sha256', 'config_sha256', 'source_sha256', 'transformation_sha256'))
+                           for proof in proofs)):
+                reason.append('fresh deterministic source processing provenance not established')
+            else:
+                cost = Decimal(0)
+                costs.append(cost)
         estimates = []
         for call in calls:
             pricing = call.get("pricing") or {}
@@ -520,7 +557,8 @@ def _runtime(case_ids, reports, contract):
 
 
 def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_results=None,
-                    candidate_sets=None, run_reports=None, scope="holdout", output_path=None):
+                    candidate_sets=None, run_reports=None, scope="holdout", output_path=None,
+                    parsed_documents=None, transformation_hashes=None):
     """Produce a JSON report; ``passed`` requires correctness AND genuine live accounting.
 
     ``captures`` maps case aliases to M0 DocumentFacts / serialized lists or a
@@ -541,7 +579,7 @@ def evaluate_sample(manifest, annotations, captures, *, source_root, semantic_re
     if scope == "holdout" and (not annotations.get("sealed_before_live_evaluation") or annotations.get("selection_sha256") != manifest["selection_sha256"]):
         violations.append({"code": "unsealed_holdout_annotations"})
     violations.extend(validate_annotation_sources(manifest, annotations, source_root))
-    audit = SourceAudit(source_root, manifest)
+    audit = SourceAudit(source_root, manifest, parsed_documents, transformation_hashes)
     counters = defaultdict(lambda: [0, 0])
     case_results, field_counts, format_counts = {}, defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
     unsupported, unknown, reviewed_predictions, correct_predictions = 0, 0, 0, 0

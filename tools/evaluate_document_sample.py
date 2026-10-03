@@ -13,6 +13,7 @@ import asyncio
 import builtins
 from copy import deepcopy
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import socket
@@ -20,7 +21,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from kalmora.documents.contracts import Candidate, ResolutionRequest
+from kalmora.documents.contracts import Candidate, ResolutionRequest, ParsedDocument, fingerprint
 from kalmora.documents.normalization import normalize_document_facts
 from kalmora.documents.replay import RecordedExtractor, RecordingConfig, RecordingStore, ReplayError
 from kalmora.documents.router import DocumentRouter
@@ -47,6 +48,39 @@ def original_document(router, entry, root):
     if not path.is_relative_to(root) or hashlib.sha256(path.read_bytes()).hexdigest() != entry['sha256']:
         raise ValueError('Original source hash mismatch')
     return router.parse(relative.relative_to('phase_dev').as_posix())
+
+
+def captured_document(directory, item, entry, artifact, router, root):
+    archive = directory / 'sources' / (entry['sha256'] + '.json')
+    if not archive.exists():
+        return original_document(router, entry, root)
+    encoded = archive.read_bytes()
+    if hashlib.sha256(encoded).hexdigest() != item.get('parsed_document_sha256'):
+        raise ValueError('Parsed document archive differs from captured file hash')
+    document = ParsedDocument.from_dict(json.loads(encoded))
+    original = (root / entry['path']).resolve()
+    if (not original.is_relative_to(root) or document.source_sha256 != entry['sha256']
+            or hashlib.sha256(original.read_bytes()).hexdigest() != entry['sha256']
+            or document.path != Path(entry['path']).relative_to('phase_dev').as_posix()
+            or document.transformation_sha256 != item.get('transformation_sha256')
+            or document.transformation_sha256 != artifact['request_metadata'].get('transformation_sha256')):
+        raise ValueError('Parsed document archive source/transformation identity mismatch')
+    images = {(image.page, image.sha256) for image in document.images}
+    for aid in document.processing_aids:
+        provenance = aid.provenance
+        if (provenance.get('source_sha256') != document.source_sha256
+                or provenance.get('source_path') != document.path
+                or provenance.get('page') != aid.page
+                or (aid.page, provenance.get('image_sha256')) not in images
+                or hashlib.sha256(aid.text.encode()).hexdigest() != provenance.get('text_sha256')
+                or provenance.get('authoritative') is not False
+                or not isinstance(provenance.get('config'), dict)):
+            raise ValueError('Unverified processing aid provenance does not match captured original/image')
+        for tool in ('renderer', 'ocr'):
+            info = provenance.get('tools', {}).get(tool, {})
+            if not info.get('version') or not isinstance(info.get('binary_sha256'), str) or len(info['binary_sha256']) != 64:
+                raise ValueError('Processing aid tool provenance is missing')
+    return document
 
 
 def source_requests(document, facts, data):
@@ -111,6 +145,25 @@ def live_report(directory, status):
     if not reports:
         return {}
     report = deepcopy(max(reports, key=lambda value: value.get('started_at', '')))
+    attachments = status.get('attachments', [])
+    if attachments and all(item.get('processing_kind') == 'source_tools' for item in attachments):
+        proofs = [item.get('source_tools', {}) for item in attachments]
+        spec = importlib.util.find_spec('kalmora.documents.xml_extractor')
+        adapter_hash = hashlib.sha256(Path(spec.origin).read_bytes()).hexdigest() if spec and spec.origin else None
+        module = __import__('kalmora.documents.xml_extractor', fromlist=['EXTRACTOR_VERSION']) if spec else None
+        version = getattr(module, 'EXTRACTOR_VERSION', getattr(module, 'XML_EXTRACTOR_VERSION', None))
+        config = read_json(directory / 'config.json').get('source_tools')
+        valid = bool(adapter_hash and version and config is not None)
+        for item, proof in zip(attachments, proofs):
+            valid = valid and (proof.get('adapter_sha256') == adapter_hash and proof.get('adapter_version') == version
+                and proof.get('config_sha256') == fingerprint(config)
+                and proof.get('source_sha256') == item.get('sha256')
+                and proof.get('transformation_sha256') == item.get('transformation_sha256')
+                and item.get('_source_validated') is True and proof.get('fresh_processing') is True)
+        if valid and status.get('live_evaluation_eligible') and not status.get('cache_hits') and not report.get('calls'):
+            report.setdefault('input_metadata', {}).update(capture_mode='fresh_source_tools',
+                response_source='source_tools', transport_mode='local', source_tools_validated=True, source_tools=proofs)
+            return report
     if not status.get('live_evaluation_eligible') or status.get('cache_hits') or not status.get('new_capture'):
         report.setdefault('input_metadata', {})['capture_mode'] = 'cached_or_ineligible'
     return report
@@ -156,7 +209,10 @@ async def verify_replay(args, cases):
             artifact_path = directory / 'artifacts' / (entry['sha256'] + '.json')
             if not artifact_path.exists():
                 raise ValueError('Replay requires every selected attachment to have an accepted capture')
-            document = original_document(router, entry, root)
+            artifact = read_json(artifact_path)
+            status = read_json(directory / 'capture.json')
+            item = next(item for item in status['attachments'] if item['sha256'] == entry['sha256'])
+            document = captured_document(directory, item, entry, artifact, router, root)
             replayed = await replay.extract_with_response(document)
             if replayed.facts.to_dict() != read_json(artifact_path)['facts']:
                 raise ValueError('Replay facts differ from captured facts')
@@ -176,6 +232,7 @@ def evaluate(args, manifest, cases):
     root = args.participant_root.resolve()
     router, data = DocumentRouter(root / 'phase_dev'), PhaseData(root / 'phase_dev')
     captures, reports, semantics, request_errors = {}, {}, {}, []
+    parsed_documents, transformation_hashes = {}, {}
     for case in cases:
         cid = case['case_id']
         directory = args.captures_dir / cid
@@ -194,8 +251,11 @@ def evaluate(args, manifest, cases):
             raw.append(facts.to_dict())
             normalized.append(normalize_document_facts(facts).facts.to_dict())
             recorded_attachment = next((item for item in status.get('attachments', []) if item['sha256'] == entry['sha256']), {})
+            document = captured_document(directory, recorded_attachment, entry, artifact, router, root)
+            recorded_attachment['_source_validated'] = True
+            parsed_documents[entry['path']] = document
+            transformation_hashes[entry['path']] = artifact['request_metadata'].get('transformation_sha256')
             if recorded_attachment.get('semantic'):
-                document = original_document(router, entry, root)
                 try:
                     case_semantic.extend(semantic_capture(directory, recorded_attachment, document, facts, config, data))
                 except (ValueError, KeyError, TypeError, ReplayError) as error:
@@ -216,7 +276,8 @@ def evaluate(args, manifest, cases):
             candidate_sets[key] = choices[0]['candidates']
     result = evaluate_sample(manifest, annotations, captures, source_root=root,
         semantic_results=semantic_results, candidate_sets=candidate_sets, run_reports=reports,
-        scope=args.partition, output_path=args.output)
+        scope=args.partition, output_path=args.output, parsed_documents=parsed_documents,
+        transformation_hashes=transformation_hashes)
     if request_errors:
         from kalmora.facts import atomic_json
         result['violations'].extend(request_errors)
