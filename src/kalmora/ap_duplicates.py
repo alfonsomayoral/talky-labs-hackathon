@@ -18,9 +18,13 @@ def normalize_number(number: str, confirmed_prefixes: Iterable[str] = ()) -> str
     """
     if not isinstance(number, str) or not number.strip():
         raise ValueError("invoice number is required")
+    if isinstance(confirmed_prefixes, (str, bytes)):
+        raise ValueError("confirmed prefixes require an explicit sequence")
     def compact(value):
         return "".join(c for c in value.upper() if c not in "-/" and not c.isspace())
     normalized = compact(number)
+    if not normalized:
+        raise ValueError("normalized invoice number cannot be empty")
     candidates = set()
     for prefix in confirmed_prefixes:
         if not isinstance(prefix, str) or not compact(prefix):
@@ -94,25 +98,26 @@ def duplicate_result(
             continue
         if prior.currency is not None and prior.currency != current.currency:
             continue
+        correction = prior.corrected_by == current.doc_id and prior.status == "REJECT"
+        if not correction:
+            if normalize_number(prior.number, prefixes) != number:
+                continue
+            if prior.status == "REJECT" and prior.corrected_by is not None:
+                continue
+            if prior.service_period is not None and current.service_period is not None and prior.service_period != current.service_period:
+                continue
+            if prior.amount_cents is not None and prior.amount_cents != current.amount_cents:
+                continue
         earlier = _earlier(prior, current)
         if earlier is False:
             continue
         def unknown(code):
             unknowns.append((prior, f"{prior.doc_id}:{code}"))
         if earlier is None:
-            if normalize_number(prior.number, prefixes) == number or prior.corrected_by == current.doc_id:
-                unknown("RECEPTION_ORDER_UNKNOWN")
+            unknown("RECEPTION_ORDER_UNKNOWN")
             continue
-        if prior.corrected_by == current.doc_id and prior.status == "REJECT":
+        if correction:
             corrections.append(prior)
-            continue
-        if normalize_number(prior.number, prefixes) != number:
-            continue
-        if prior.service_period is not None and current.service_period is not None and prior.service_period != current.service_period:
-            continue
-        if prior.status == "REJECT" and prior.corrected_by is not None:
-            # Explicitly superseded rejected originals never anchor a retry;
-            # missing gross/currency in their log must not hide the actual root.
             continue
         if prior.currency is None or prior.amount_cents is None:
             unknown("CURRENCY_OR_AMOUNT_UNKNOWN")

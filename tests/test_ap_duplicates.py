@@ -31,6 +31,10 @@ class DuplicateTests(unittest.TestCase):
         self.assertNotEqual(normalize_number("2026-0001-R"), normalize_number("2026-0001"))
         with self.assertRaises(ValueError):
             normalize_number("FAV20260001", ["F", "FAV"])
+        with self.assertRaises(ValueError):
+            normalize_number("/ - ")
+        with self.assertRaises(ValueError):
+            normalize_number("INV20260001", "INV")
 
     def test_first_received_document_stable_against_input_order(self):
         a, b = record("A"), record("B", received_at="2026-07-02T10:00:00", status="RECEIVED")
@@ -49,6 +53,7 @@ class DuplicateTests(unittest.TestCase):
         result = duplicate_result(record("B"), [record("A", received_at="2026-07-01")], inventory_complete=True)
         self.assertEqual(result.status, "UNKNOWN")
         self.assertIn("A:RECEPTION_ORDER_UNKNOWN", result.diagnostics)
+        self.assertEqual(duplicate_result(record("B"), [record("A", received_at="2026-07-01", amount_cents=12200)], inventory_complete=True).status, "CLEAR")
 
     def test_future_document_not_duplicate(self):
         self.assertEqual(duplicate_result(record(), [record("B", received_at="2026-07-02T10:00:00")], inventory_complete=True).status, "CLEAR")
