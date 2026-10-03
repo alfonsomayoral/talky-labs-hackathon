@@ -79,7 +79,7 @@ class APTaxTests(unittest.TestCase):
         self.assertEqual((item.base_local, item.tax_doc, item.tax_local), (84, 21, 18))
         self.assertEqual(item.journal_lines[0]["amount_doc"], 21)
         self.assertEqual(item.journal_lines[0]["currency"], "USD")
-        # The supplier line absorbs the 102 vs 101 gross-conversion difference.
+        # The supplier balances the individually converted posting components.
         entry = {"company": "1100", "lines": [
             {"account": "62900000", "debit": item.base_local, "credit": 0, "cost_center": "CC"},
             *item.journal_lines,

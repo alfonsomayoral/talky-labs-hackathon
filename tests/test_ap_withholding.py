@@ -147,6 +147,34 @@ class APWithholdingTests(unittest.TestCase):
             select_withholdings(document=["IRPF15"])
 
     @unittest.skipUnless(os.environ.get("KALMORA_PHASE_ERP"), "original ERP not configured")
+    def test_all_167_original_withholding_quotas(self):
+        erp = Path(os.environ["KALMORA_PHASE_ERP"])
+        catalog = WithholdingCatalog(json.loads((erp / "tax_codes.json").read_text()))
+        counts = {}
+        for text in (erp / "journal_entries.jsonl").read_text().splitlines():
+            entry = json.loads(text)
+            recorded = [l for l in entry["lines"] if l["account"] == "47510000" and l.get("tax_code")]
+            if not recorded:
+                continue
+            # Observed taxable expense lines are explicit separate bases;
+            # SEX disbursements (e.g. notary fees) are not professional income.
+            base = sum(l["debit"] - l["credit"] for l in entry["lines"]
+                       if l["account"][0] in "26" and l.get("tax_code") in {"S21", "P23", "M16"})
+            self.assertNotEqual(base, 0, entry["id"])
+            for line in recorded:
+                code = line["tax_code"]
+                country = "MX" if code.startswith("MX") else "PT" if code.startswith("PT") else "ES"
+                result = self.calculate(WithholdingBase("taxable", abs(base), (code,)), catalog=catalog,
+                                        company=entry["company"], country=country,
+                                        currency="MXN" if country == "MX" else "EUR",
+                                        invoice_date=entry["document_date"], invoice_number=entry["reference"])
+                expected = result.withholding_doc * (1 if base > 0 else -1)
+                self.assertEqual(expected, line["credit"] - line["debit"], entry["id"])
+                counts[code] = counts.get(code, 0) + 1
+        self.assertEqual(counts, {"IRPF19": 64, "MXFLETE": 27, "IRPF15": 23,
+                                  "MXISR10": 15, "MXIVAR": 15, "IRPF7": 12, "PTIRS25": 11})
+
+    @unittest.skipUnless(os.environ.get("KALMORA_PHASE_ERP"), "original ERP not configured")
     def test_all_original_mxivar_entries_disambiguate_catalogue_rounding(self):
         erp = Path(os.environ["KALMORA_PHASE_ERP"])
         catalog = WithholdingCatalog(json.loads((erp / "tax_codes.json").read_text()))
