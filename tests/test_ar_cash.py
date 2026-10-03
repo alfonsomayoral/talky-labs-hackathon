@@ -332,6 +332,31 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
                          sum(line["credit"] for line in result.row["adjustment"]))
 
+    def test_one_payable_cannot_be_netted_against_two_receipts(self):
+        self.test_netting_against_same_counterparty_vendor_is_balanced()
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 10000),
+            self.invoice("INV-2", 11000, date="2026-07-03", due="2026-07-03")])
+        journal = [json.loads(line) for line in (self.phase / "erp/journal_entries.jsonl").read_text().splitlines()]
+        journal.append(self.entry("INVPOST2", "2026-07-03", [
+            self.line("43000000", 11000, 0, "C1", "INV-2"), self.line("70500000", 0, 11000)]))
+        self._jsonl("erp/journal_entries.jsonl", journal)
+        first = json.loads((self.phase / "bank/BIN-1100/2026-07.lines.jsonl").read_text())
+        second = dict(first, bank_line="BL2", amount=9000, booking_date="2026-07-04", value_date="2026-07-04")
+        self._json("tasks/ar_receipts.json", ["BL1", "BL2"])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [first, second])
+        run = self._run()
+        self.assertEqual(run.results[0].row["residuals"][0]["type"], "NETTING_AP")
+        self.assertEqual(run.results[1].row["residuals"], [])
+        self.assertEqual(run.results[1].row["applications"], [{"invoice": "INV-2", "amount": 9000}])
+
+    def test_conflicting_tax_ids_prevent_name_only_ap_netting(self):
+        self.test_netting_against_same_counterparty_vendor_is_balanced()
+        self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
+                                            "tax_id": "OTHER", "companies": ["1100"]}])
+        result = self._run().results[0]
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-1", "amount": 8000}])
+
     def test_ap_posted_after_receipt_cannot_support_netting(self):
         self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
                                             "tax_id": "TAX1", "companies": ["1100"]}])
