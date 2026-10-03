@@ -98,3 +98,38 @@
     transform: translateY(8px);
   }
 }
+
+.toast[data-leaving] {
+  pointer-events: none;
+  animation: toast-out var(--duration-fast) ease-in forwards;
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes toast-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes toast-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: no travel, only the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation-name: toast-fade;
+  }
+
+  .toast[data-leaving] {
+    animation-name: toast-fade-out;
+  }
+}

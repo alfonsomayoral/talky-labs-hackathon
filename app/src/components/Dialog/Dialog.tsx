@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { getFocusable, trapTabKey, useLayer } from '@/lib/keyboard'
 import { IconButton } from '../IconButton/IconButton'
+import { usePresence } from '../usePresence'
 import styles from './Dialog.module.css'
 
 export interface DialogProps {
@@ -34,6 +35,7 @@ function initialFocus(panel: HTMLElement): HTMLElement {
 
 /** Modal dialog: overlay, focus trap, Esc and overlay click close, focus returns to the opener. */
 export function Dialog({ open, onClose, title, description, footer, size = 'md', bare, placement = 'center', className, children }: DialogProps) {
+  const presence = usePresence(open)
   const titleId = useId()
   const descriptionId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -51,9 +53,12 @@ export function Dialog({ open, onClose, title, description, footer, size = 'md',
     }
   }, [open])
 
-  if (!open) return null
+  if (!presence.mounted) return null
   return createPortal(
-    <div className={clsx(styles.overlay, placement === 'top' && styles.top)} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className={clsx(styles.overlay, placement === 'top' && styles.top, presence.closing && styles.closing)}
+      inert={presence.closing}
+      aria-hidden={presence.closing || undefined} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={panelRef}
         role="dialog"

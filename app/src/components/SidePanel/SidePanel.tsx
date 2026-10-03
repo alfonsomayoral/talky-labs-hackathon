@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { trapTabKey, useLayer } from '@/lib/keyboard'
 import { IconButton } from '../IconButton/IconButton'
+import { usePresence } from '../usePresence'
 import styles from './SidePanel.module.css'
 
 export interface SidePanelProps {
@@ -52,6 +53,7 @@ export function SidePanel({
   children,
   ...aria
 }: SidePanelProps) {
+  const presence = usePresence(open)
   const [width, setWidth] = useState(() => readWidth(storageKey, defaultWidth))
   const [resizing, setResizing] = useState(false)
   const panelRef = useRef<HTMLElement>(null)
@@ -104,14 +106,16 @@ export function SidePanel({
     persist(next)
   }
 
-  if (!open) return null
+  if (!presence.mounted) return null
   const shown = Math.min(width, Math.round(window.innerWidth * MAX_RATIO))
   return createPortal(
     <aside
       ref={panelRef}
       role="complementary"
       tabIndex={-1}
-      className={clsx(styles.panel, resizing && styles.resizing, className)}
+      className={clsx(styles.panel, resizing && styles.resizing, presence.closing && styles.closing, className)}
+      inert={presence.closing}
+      aria-hidden={presence.closing || undefined}
       style={{ width: shown }}
       onKeyDown={(e) => trapTabKey(e, panelRef.current)}
       {...aria}

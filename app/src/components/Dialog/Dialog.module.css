@@ -99,3 +99,37 @@
     transform: translateY(4px) scale(0.985);
   }
 }
+
+/* Exit faster than the entrance; nothing inside takes clicks while it leaves. */
+.closing {
+  pointer-events: none;
+  animation: fade-out var(--duration-fast) ease-in forwards;
+}
+
+.closing .panel {
+  animation: sink var(--duration-fast) ease-in forwards;
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sink {
+  to {
+    opacity: 0;
+    transform: translateY(2px) scale(0.99);
+  }
+}
+
+/* Reduced motion: no scale or travel, only the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation-name: fade;
+  }
+
+  .closing .panel {
+    animation-name: fade-out;
+  }
+}

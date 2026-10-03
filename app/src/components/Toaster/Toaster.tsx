@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from 'lucide-react'
+import { EXIT_MS } from '../usePresence'
 import styles from './Toaster.module.css'
 
 export type ToastTone = 'neutral' | 'ok' | 'warn' | 'danger'
@@ -16,6 +17,8 @@ export interface ToastOptions {
 interface ToastRecord extends ToastOptions {
   id: number
   title: ReactNode
+  /** Playing its exit animation; removed after EXIT_MS. */
+  leaving?: boolean
 }
 
 const MAX_VISIBLE = 4
@@ -43,8 +46,13 @@ export function toast(title: ReactNode, opts: ToastOptions = {}): number {
 toast.success = (title: ReactNode, opts: Omit<ToastOptions, 'tone'> = {}) => toast(title, { ...opts, tone: 'ok' })
 toast.error = (title: ReactNode, opts: Omit<ToastOptions, 'tone'> = {}) => toast(title, { ...opts, tone: 'danger' })
 toast.dismiss = (id: number) => {
-  toasts = toasts.filter((t) => t.id !== id)
+  if (!toasts.some((t) => t.id === id && !t.leaving)) return
+  toasts = toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t))
   emit()
+  setTimeout(() => {
+    toasts = toasts.filter((t) => t.id !== id)
+    emit()
+  }, EXIT_MS)
 }
 
 const ICONS: Record<ToastTone, ReactNode> = {
@@ -69,6 +77,7 @@ function ToastItem({ t }: { t: ToastRecord }) {
     <li
       className={styles.toast}
       data-tone={tone}
+      data-leaving={t.leaving || undefined}
       role={tone === 'danger' ? 'alert' : undefined}
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}

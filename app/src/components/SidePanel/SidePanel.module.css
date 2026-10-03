@@ -99,9 +99,45 @@
   background: var(--bg-subtle);
 }
 
+/* Exit faster than the entrance; the panel no longer takes clicks while it leaves. */
+.closing {
+  pointer-events: none;
+  animation: slide-out var(--duration-fast) ease-in forwards;
+}
+
 @keyframes slide-in {
   from {
     transform: translateX(24px);
     opacity: 0;
+  }
+}
+
+@keyframes slide-out {
+  to {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+@keyframes panel-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes panel-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: no travel, the fade still tells that the panel opened or closed. */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation-name: panel-fade;
+  }
+
+  .closing {
+    animation-name: panel-fade-out;
   }
 }

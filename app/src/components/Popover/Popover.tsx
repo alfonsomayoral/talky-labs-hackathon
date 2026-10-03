@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import { getFocusable, useLayer } from '@/lib/keyboard'
 import { useFloating, type Align, type Side } from './floating'
+import { usePresence } from '../usePresence'
 import styles from './Popover.module.css'
 
 export interface PopoverProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
@@ -29,7 +30,8 @@ export function Popover({
   children,
   ...rest
 }: PopoverProps) {
-  const { setFloating, style } = useFloating(anchor, open, { side, align })
+  const presence = usePresence(open)
+  const { setFloating, style } = useFloating(anchor, presence.mounted, { side, align })
   const containerRef = useRef<HTMLDivElement | null>(null)
   const setRefs = useCallback(
     (el: HTMLDivElement | null) => {
@@ -63,12 +65,14 @@ export function Popover({
     target.focus({ preventScroll: true })
   }, [open, initialFocus])
 
-  if (!open) return null
+  if (!presence.mounted) return null
   return createPortal(
     <div
       ref={setRefs}
       tabIndex={-1}
-      className={clsx(styles.popover, className)}
+      className={clsx(styles.popover, presence.closing && styles.closing, className)}
+      inert={presence.closing}
+      aria-hidden={presence.closing || undefined}
       style={style}
       {...rest}
     >

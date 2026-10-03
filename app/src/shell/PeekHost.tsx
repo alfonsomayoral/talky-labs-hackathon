@@ -1,5 +1,5 @@
 // Renders the item detail panel over any route when the URL has `?item=<task>:<key>`.
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import { Link2 } from 'lucide-react'
 import { IconButton, Mono, SidePanel, Skeleton, toast } from '@/components'
@@ -12,6 +12,10 @@ export function PeekHost() {
   const [params] = useSearchParams()
   const itemId = params.get(ITEM_PARAM)
   const close = useCloseItem()
+  // The panel keeps showing the last item while its exit animation plays.
+  const lastItem = useRef(itemId)
+  if (itemId) lastItem.current = itemId
+  const shownItem = itemId ?? lastItem.current
 
   const copyLink = () => {
     navigator.clipboard
@@ -25,11 +29,11 @@ export function PeekHost() {
       open={itemId != null}
       onClose={close}
       storageKey="kalmora.peek.width"
-      aria-label={itemId ? `Partida ${itemId}` : undefined}
-      title={itemId && <Mono>{itemId}</Mono>}
+      aria-label={shownItem ? `Partida ${shownItem}` : undefined}
+      title={shownItem && <Mono>{shownItem}</Mono>}
       actions={<IconButton icon={<Link2 />} label="Copiar enlace" size="sm" onClick={copyLink} tooltipSide="bottom" />}
     >
-      {itemId && (
+      {shownItem && (
         <Suspense
           fallback={
             <div className={styles.peekLoading} role="status">
@@ -39,7 +43,7 @@ export function PeekHost() {
             </div>
           }
         >
-          <ItemPanel itemId={itemId} onClose={close} />
+          <ItemPanel itemId={shownItem} onClose={close} />
         </Suspense>
       )}
     </SidePanel>

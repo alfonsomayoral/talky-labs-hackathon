@@ -132,10 +132,5 @@
   --icon-size: 16px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-fast: 0ms;
-    --duration: 0ms;
-    --duration-slow: 0ms;
-  }
-}
+/* Reduced motion keeps the durations: colour and opacity changes still confirm state. Each component that
+   moves things (panel, dialog, popover, toast, progress) swaps its travel for a fade in its own stylesheet. */
