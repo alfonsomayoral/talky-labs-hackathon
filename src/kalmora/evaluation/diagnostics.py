@@ -8,7 +8,6 @@ from typing import Any, cast
 
 from ..model.journal_entry import JournalEntry
 from ..validation import validate_entry
-from .exceptions import KNOWN_EXCEPTIONS
 
 Rows = list[dict[str, Any]]
 ID_FIELDS = {"ap": "doc_id", "ar_billing": "billing_item", "ar_cash": "bank_line", "bank_rec": "account"}
@@ -99,13 +98,7 @@ def check_submission(subs: dict[str, Rows], month: str, ids: dict[str, set[str]]
             for label, entry in entries_of(module, row):
                 problems = validate_entry(cast(JournalEntry, entry))
                 for problem in problems:
-                    if ((module, ident) in KNOWN_EXCEPTIONS
-                            and problem == "lines[1].partner: required for open-item account"
-                            and entry["lines"][0].get("account") == "40700000"):
-                        found.append(_diagnostic(module, ident, "KNOWN_EXCEPTION", "info",
-                                                 f"{label}: {problem}", explanation=KNOWN_EXCEPTIONS[module, ident]))
-                    else:
-                        found.append(_diagnostic(module, ident, "ENTRY_RULE", "warning", f"{label}: {problem}"))
+                    found.append(_diagnostic(module, ident, "ENTRY_RULE", "warning", f"{label}: {problem}"))
                 if expected_company:
                     for line in entry["lines"]:
                         if isinstance(line, dict) and line.get("company") not in (None, expected_company):
@@ -131,4 +124,12 @@ def check_submission(subs: dict[str, Rows], month: str, ids: dict[str, set[str]]
                                                  f"{label}: the golden leaves 55500000 lines without partner and the scorer requires that",
                                                  account=line.get("account"), partner=line.get("partner")))
                         break
+    # Validate the actual reference independently, even when a submitted row is
+    # missing or correct. Reference defects never exempt submitted entries.
+    for module, rows in (gold or {}).items():
+        for row in rows:
+            for label, entry in entries_of(module, row):
+                for problem in validate_entry(cast(JournalEntry, entry)):
+                    found.append(_diagnostic(module, row_id(module, row), "REFERENCE_ENTRY_RULE", "warning",
+                                             f"{label}: reference violates accounting rule: {problem}", source="golden"))
     return found

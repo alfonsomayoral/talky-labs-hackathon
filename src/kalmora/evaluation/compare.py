@@ -9,7 +9,6 @@ from collections import Counter, defaultdict
 from types import ModuleType
 from typing import Any
 
-from .exceptions import KNOWN_EXCEPTIONS
 from .explain import capped, diff, entry_diffs, explain_lines, status_of
 
 Rows = list[dict[str, Any]]
@@ -32,8 +31,6 @@ def _entity(module: str, ident: str, score: float | None, status: str, diffs: li
     entity: dict[str, Any] = {"id": ident, "score": None if score is None else round(score, 6),
                               "status": status, "diffs": diffs}
     entity.update(extra)
-    if (module, ident) in KNOWN_EXCEPTIONS and status != "exact":
-        entity["notes"] = [KNOWN_EXCEPTIONS[module, ident]]
     return entity
 
 
