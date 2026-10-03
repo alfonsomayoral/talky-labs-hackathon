@@ -20,16 +20,16 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | 4.A Explorador de datos + 4.C Coste y calibración | «Explorador de datos y coste» | `fe/explorer-cost` | `talky-wt/fe-explorer-cost` | 5176 | Hecho e integrado (`f5420cc`) | 1.B, 1.C | |
 | 3.B Facturación + 3.C Cobros | «Facturación y Cobros Kalmora Close» | `fe/tasks-ar` | `talky-wt/fe-tasks-ar` | 5175 | Hecho e integrado (PR #129) | 2.C (kit) | |
 | 3.A AP + 3.D Bancos | «AP + Bancos tasks frontend» | `fe/tasks-ap-bank` | `talky-wt/fe-tasks-ap-bank` | 5177 | Hecho e integrado | 2.C (kit) | Más `37b4774`: estado de cuenta con la regla del control del Resumen |
-| 3.E Intragrupo + 3.F Cierre y balance | «Explorador de datos y coste» | `fe/tasks-ic-close` | `talky-wt/fe-explorer-cost` | 5176 | En curso | 2.C (kit) | Rama nueva en el mismo worktree |
+| 3.E Intragrupo + 3.F Cierre y balance | «Explorador de datos y coste» | `fe/tasks-ic-close` | `talky-wt/fe-explorer-cost` | 5176 | Hecho e integrado (PR #132) | 2.C (kit) | |
 | 4.B Comparar con golden | Coordinadora (subagente) | `fe/compare` | `talky-wt/fe-design-shell` | 5174 | Hecho e integrado (`0d5bdda`) | 2.C | Peticiones resueltas: `?pestana=golden`, importes con `Amount`, etiqueta «Pierde por sus partidas» |
-| 5.A–5.C QA, pulido y demo | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Pendiente | Fases 2–4 | |
-| 6.A–6.B Asistente | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | 2.C, 2.D | Solo `src/features/assistant/`; commitea la coordinadora |
+| 5.A–5.C QA, pulido y demo | Coordinadora | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | En curso | Fases 2–4 | `app/README.md` hecho |
+| 6.A–6.B Asistente | Coordinadora (subagente) | `hackathon/frontend` | `talky-labs-hackathon/` | 5173 | Hecho | 2.C, 2.D | `/asistente` y panel ⌘J; proveedor local y SSE |
 
 ## Seguimiento de sesiones
 
 | Sesión | Última instrucción | Próximo hito |
 | --- | --- | --- |
-| Explorador de datos y coste | 4.A + 4.C integrados; asignado 3.E + 3.F en `fe/tasks-ic-close` | Informe en `app/status/fe-tasks-ic-close.md` |
+| Explorador de datos y coste | 3.E + 3.F integrados; paquete cerrado | — |
 | Facturación y Cobros (3.B + 3.C) | Integrado; paquete cerrado | — |
 | AP + Bancos (3.A + 3.D) | Integrado; paquete cerrado | — |
 
@@ -39,4 +39,7 @@ Ruta de datos: **lista**. Julio se carga desde el middleware, la referencia gold
 | --- | --- | --- |
 | 1 — Cimientos | Cerrada | Comprobaciones en verde, nota 100, paridad con `score.py`, balance registrado igual al golden |
 | 2 — Entrada, salida y vistas núcleo | Cerrada | Comprobaciones en verde (218 tests). Julio y golden cargados: `API004128` con su asiento de 7 líneas cuadrado y la cascada §2.2 en verde. El zip descargado de Entregables saca 100,00 en `score.py`; importado de vuelta reproduce Resumen y Entregables (726 partidas, 56 en atención, nota 100). Cero errores en consola |
-| 3 a 6 | Pendientes | Ver `PLAN.md` §6 |
+| 3 — Vistas por tarea | Cerrada | Las 7 vistas abren julio sin errores de consola. AP: duplicado `API005209`, fraude `API005229`, abono `API005587`. Bancos: N:1 `BIN-1200/BL0004009`, comisiones sin contabilizar con ajuste y 12/12 conciliadas. Cobros: factura cedida `BL0000085`. Intragrupo: base de días 25.833,33 € frente a 25.000 €. Cierre: periodificación `ACCRUAL/1200/V100039` y valoración de 3100 (−5.993.500 MXN). Diario de 36.743 asientos en páginas de 500 |
+| 4 — Datos, comparación y observabilidad | Cerrada | ⌘K encuentra `API004128`, `BL0000085`, `V100045`, `40090000` y un asiento (sesión 4.D). Comparar lista exactamente las partidas alteradas (test con julio y navegador). Calibración dibujada con un paquete sintético con confianza (sesión 4.C) |
+| 5 — Integración, pulido y verificación | Abierta | QA de punta a punta con julio y septiembre, pulido y demo |
+| 6 — Asistente | Comprobada, se cierra con la 5 | Las 4 preguntas con las cifras de Resumen y Atención; partidas citadas abren el panel; «Explica API004128» da su razonamiento; proveedor API probado contra SSE simulado |
