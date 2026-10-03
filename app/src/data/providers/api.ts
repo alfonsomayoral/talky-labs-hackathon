@@ -2,7 +2,8 @@
 // VITE_API_URL is set. Phases and run bundles come as raw files (`…/files/__index.json` and `…/files/{path}`)
 // and are parsed in the browser worker, like the dev middleware. A phase is uploaded as the organizers' ZIP
 // (`POST /v1/packages`); a close is launched with `POST /v1/phases/{phase}/runs` (the command given to
-// `kalmora serve --close-command`) and followed by polling `GET /v1/runs/{id}`: the API has no event stream.
+// `kalmora serve --close-command`) and followed by polling `GET /v1/runs/{id}`: the API has no event stream, so
+// the live feed comes from the new lines the close command appends to the bundle's `trace/events.jsonl`.
 import type { DatasetMeta } from '@/domain/types'
 import { bundleFromFiles } from '../bundles/bundle'
 import type { PathFile } from '../sources/types'
@@ -39,6 +40,19 @@ async function failure(res: Response, action: string): Promise<Error> {
   const problem = (await res.json().catch(() => null)) as { detail?: string } | null
   return new Error(`${action}: ${problem?.detail ?? `el backend respondió ${res.status}`}`)
 }
+
+const EVENTS_FILE = 'trace/events.jsonl'
+
+/** JSON objects of a JSONL chunk; a malformed line is skipped. */
+const parseLines = (text: string): unknown[] =>
+  text.split('\n').flatMap((line) => {
+    if (!line.trim()) return []
+    try {
+      return [JSON.parse(line) as unknown]
+    } catch {
+      return []
+    }
+  })
 
 const STATUS_LABEL: Record<string, string> = { running: ' · en curso', failed: ' · fallida' }
 
@@ -86,13 +100,34 @@ export const apiProvider: RemoteProvider = {
     return ((await res.json()) as { data: { run_id: string } }).data.run_id
   },
 
-  /** Polls the run until it ends; emits `done`, or `error` with the reason. */
+  /** Polls the run until it ends: emits its new trace events while running, then `done`, or `error` with the reason. */
   subscribeRun(runId, onEvent) {
+    const base = `${v1()}/runs/${encodeURIComponent(runId)}`
     let stopped = false
     let timer: ReturnType<typeof setTimeout> | undefined
+    let offset = 0
+    /** Events appended since the last read; a trailing line still being written waits unless the run has ended. */
+    const newEvents = async (ended: boolean): Promise<unknown[]> => {
+      const index = await fetchJsonOrNull<{ path: string; size: number }[]>(`${base}/files/__index.json`)
+      const file = index?.find((f) => f.path === EVENTS_FILE)
+      if (!file || file.size <= offset) return []
+      const res = await fetch(`${base}/files/${EVENTS_FILE}`, { headers: { Range: `bytes=${offset}-` } })
+      if (!res.ok) return []
+      const bytes = new Uint8Array(await res.arrayBuffer()).subarray(res.status === 206 ? 0 : offset)
+      const end = ended ? bytes.length : bytes.lastIndexOf(10) + 1
+      offset += end
+      return parseLines(new TextDecoder().decode(bytes.subarray(0, end)))
+    }
     const poll = async () => {
-      const run = await data<{ status?: string; exit_code?: number }>(`${v1()}/runs/${encodeURIComponent(runId)}`).catch(() => null)
+      const run = await data<{ status?: string; exit_code?: number }>(base).catch(() => null)
       if (stopped) return
+      const ended = run?.status === 'completed' || run?.status === 'failed'
+      if (run?.status === 'running' || ended) {
+        const events = await newEvents(ended).catch(() => [])
+        if (stopped) return
+        // An empty batch still tells the tracker the run is under way.
+        if (events.length || !ended) onEvent(new MessageEvent('message', { data: events }))
+      }
       if (run?.status === 'completed') return onEvent(new MessageEvent('done', { data: '' }))
       if (run?.status === 'failed')
         return onEvent(new MessageEvent('error', { data: `El cierre ha fallado (código ${run.exit_code ?? '?'}); detalle en run.log de la ejecución` }))

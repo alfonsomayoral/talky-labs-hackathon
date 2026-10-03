@@ -249,7 +249,11 @@ function LiveRun({ runId }: { runId: string }) {
         {view.events.length ? (
           <EventFeed events={view.events} total={view.received} onOpenItem={openItem} />
         ) : (
-          <EmptyState size="sm" title={view.state === 'connecting' ? 'Esperando los primeros eventos…' : 'Sin eventos'} />
+          <EmptyState
+            size="sm"
+            title={view.state === 'connecting' ? 'Conectando con el backend…' : 'Sin eventos'}
+            description={view.state === 'running' ? 'Aparecen aquí en cuanto el agente escribe en trace/events.jsonl.' : undefined}
+          />
         )}
       </Card>
     </Page>
