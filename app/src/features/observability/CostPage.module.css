@@ -201,7 +201,7 @@
 }
 
 .thresholdLine {
-  stroke: var(--brand);
+  stroke: var(--brand-line);
   stroke-width: 1.5;
 }
 
@@ -249,7 +249,7 @@
 .slider {
   width: 100%;
   max-width: 420px;
-  accent-color: var(--brand);
+  accent-color: var(--brand-line);
 }
 
 .thresholdMetrics {
@@ -309,7 +309,7 @@
 }
 
 .leak:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: -2px;
 }
 

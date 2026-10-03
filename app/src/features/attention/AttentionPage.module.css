@@ -32,7 +32,7 @@
 
 .segCount {
   margin-left: var(--space-1);
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .search:focus-within {
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
@@ -167,7 +167,7 @@
 
 .selected > .row {
   background: var(--brand-soft);
-  box-shadow: inset 2px 0 0 var(--brand);
+  box-shadow: inset 2px 0 0 var(--brand-line);
 }
 
 .open {
@@ -512,7 +512,7 @@
 
 .textarea:focus {
   outline: 0;
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 

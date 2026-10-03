@@ -36,7 +36,7 @@
 
 .button:focus-visible {
   outline: none;
-  border-color: var(--brand);
+  border-color: var(--brand-line);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
@@ -57,7 +57,7 @@
 .weight {
   flex: none;
   font-size: var(--text-11);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .label {

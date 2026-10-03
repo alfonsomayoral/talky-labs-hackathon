@@ -29,7 +29,7 @@
   font-family: var(--font-mono);
   text-transform: none;
   letter-spacing: 0;
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .columnText {
@@ -96,8 +96,8 @@
 }
 
 .node.selected {
-  border-color: var(--brand);
-  border-left-color: var(--brand);
+  border-color: var(--brand-line);
+  border-left-color: var(--brand-line);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
@@ -109,7 +109,7 @@
 
 .empty .label,
 .empty .count {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .head {
@@ -157,7 +157,7 @@
 }
 
 .sectionQuiet {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .figures {
@@ -257,6 +257,6 @@
 
 .head:focus-visible,
 .row:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-line);
   outline-offset: -2px;
 }
