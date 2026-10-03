@@ -127,3 +127,14 @@ absence, XML paths/empty leaves, conflicts, large-image source hashes, fabricate
 evidence/fields, strict float rejection, refusal, injected instructions,
 candidate ID/attribute proofs, exact constraints, abstention and split rejection.
 No golden content is used as extraction fixtures.
+
+The extractor and resolver expose `version` before a request and
+`recording_identity(provider=None)` for constructing recording configuration.
+Identity includes model, fixed instructions, output schema, token/image guards
+and stage parameters; budget, prices, scheduling and retry timing are operational.
+A source or response never changes this version. `prompt_sha256` in request
+metadata identifies the actual document-specific prompt; the identity's
+`prompt_sha256` and metadata's `instruction_content_sha256` identify the fixed
+instructions. Schema identity uses the contracts fingerprint; provider output
+schema hashes remain separate transport metadata. Injected transports receive
+an explicit `injected:<module>.<class>` identity rather than claiming OpenAI.

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from functools import lru_cache
-import json
+import hashlib
 import re
 from typing import Any
 
@@ -11,7 +12,7 @@ from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.llm.client import ImageInput, LLMError, sanitize
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint
 from .prompts import (EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION,
-                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION)
+                      RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, SCHEMA_VERSION, prompt_text)
 
 HEADER_FIELDS = frozenset("""supplier_tax_id recipient_tax_id customer_tax_id supplier_name
 recipient_name customer_name document_number invoice_number document_date invoice_date
@@ -212,15 +213,13 @@ def _ground(document: ParsedDocument, value: Any, observation: Any, *, explicit_
 
 
 def _prompt(document: ParsedDocument, extras: dict[str, Any]) -> str:
-    payload = {"untrusted_document": document.to_dict(include_images=False), **extras}
-    # Decimal candidate/context values become exact strings, never binary floats.
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str, allow_nan=False)
+    return prompt_text(document, extras)
 
 
 def _provenance(document: ParsedDocument, instructions: str, prompt_version: str, schema: Any) -> dict[str, Any]:
     return {"source_sha256": document.source_sha256, "parser_version": document.parser_version,
             "transformation_sha256": document.transformation_sha256,
-            "prompt_version": prompt_version, "instruction_content_sha256": fingerprint(instructions),
+            "prompt_version": prompt_version, "instruction_content_sha256": hashlib.sha256(instructions.encode()).hexdigest(),
             "schema_version": SCHEMA_VERSION, "schema_sha256": fingerprint(schema.model_json_schema())}
 
 
@@ -238,16 +237,67 @@ async def _complete(client: Any, schema: Any, instructions: str, prompt: str,
         raise
 
 
+def _recording_identity(client: Any, instructions: str, prompt_version: str,
+                        schema: Any, parameters: dict[str, Any], provider: str) -> dict[str, Any]:
+    config = client.config
+    settings = {name: getattr(config, name) for name in (
+        "reasoning_effort", "max_input_tokens", "max_output_tokens",
+        "image_token_reserve", "max_image_bytes")}
+    if hasattr(config, "model_output_capacity_tokens"):
+        settings["model_output_capacity_tokens"] = config.model_output_capacity_tokens
+    identity = {"provider": provider, "model": config.model,
+                "prompt_version": prompt_version,
+                "prompt_sha256": hashlib.sha256(instructions.encode()).hexdigest(),
+                "schema_version": SCHEMA_VERSION,
+                "schema_sha256": fingerprint(schema.model_json_schema()),
+                "parameters": {**settings, **parameters}}
+    identity["extractor_version"] = f"{prompt_version}:{fingerprint(identity)}"
+    return identity
+
+
+def _candidate_value_matches(value: Any, proof: Any) -> bool:
+    if isinstance(value, Decimal) and isinstance(proof, str):
+        try:
+            observed = Decimal(proof)
+        except InvalidOperation:
+            return False
+        return observed.is_finite() and value.is_finite() and observed == value
+    return fingerprint(value) == fingerprint(proof)
+
+
+def _provider_name(client: Any) -> str:
+    provider = client.provider
+    if provider is None or type(provider).__name__ == "OpenAIResponsesProvider":
+        return "openai"
+    return f"injected:{type(provider).__module__}.{type(provider).__qualname__}"
+
+
 class LLMDocumentExtractor:
     def __init__(self, client: Any) -> None:
         self.client = client
+
+    def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
+        schema, _ = output_models()
+        extras = {"canonical_fields": sorted(HEADER_FIELDS - {"line_count"}),
+                  "line_fields": sorted(LINE_FIELDS), "raw_extension": "raw.<literal_field_name>"}
+        return _recording_identity(self.client, EXTRACTION_INSTRUCTIONS,
+                                   EXTRACTION_PROMPT_VERSION, schema, {"prompt_extras": extras},
+                                   provider or _provider_name(self.client))
+
+    @property
+    def version(self) -> str:
+        """Configuration identity available before any document/provider call."""
+        return self.recording_identity()["extractor_version"]
 
     async def extract(self, document: ParsedDocument) -> DocumentFacts:
         return (await self.extract_with_response(document)).facts
 
     async def extract_with_response(self, document: ParsedDocument) -> ExtractionArtifact:
         schema, _ = output_models()
+        identity = self.recording_identity()
         provenance = _provenance(document, EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION, schema)
+        provenance.update(provider=identity["provider"], model=identity["model"],
+                          extractor_version=identity["extractor_version"])
         completion = await _complete(self.client, schema, EXTRACTION_INSTRUCTIONS,
                                                _prompt(document, {"canonical_fields": sorted(HEADER_FIELDS - {"line_count"}),
                                                                   "line_fields": sorted(LINE_FIELDS),
@@ -294,12 +344,7 @@ class LLMDocumentExtractor:
             error.request_metadata = {**completion.request_metadata, **provenance}
             raise
         provenance["image_quote_review"] = reviews
-        identity = {"provenance": {key: value for key, value in provenance.items()
-                                    if key not in {"image_quote_review", "derived_fields"}},
-                    "request_settings": {key: value for key, value in completion.request_metadata.items()
-                                         if key not in {"attempt_metrics", "capture_cost_usd"}}}
-        version = f"{EXTRACTION_PROMPT_VERSION}:{fingerprint(identity)}"
-        facts = DocumentFacts(document.source_sha256, version, fields)
+        facts = DocumentFacts(document.source_sha256, identity["extractor_version"], fields)
         return ExtractionArtifact(facts, completion.raw_response, {**completion.request_metadata, **provenance}, unknowns, provenance)
 
 
@@ -310,6 +355,17 @@ class LLMSemanticResolver:
         self.client = client
         self.max_selections = max_selections
         self.max_candidates = max_candidates
+
+    def recording_identity(self, *, provider: str | None = None) -> dict[str, Any]:
+        _, schema = output_models()
+        return _recording_identity(self.client, RESOLUTION_INSTRUCTIONS,
+                                   RESOLUTION_PROMPT_VERSION, schema,
+                                   {"max_selections": self.max_selections, "max_candidates": self.max_candidates},
+                                   provider or _provider_name(self.client))
+
+    @property
+    def version(self) -> str:
+        return self.recording_identity()["extractor_version"]
 
     async def resolve(self, request: ResolutionRequest) -> ResolutionResult:
         return (await self.resolve_with_response(request)).result
@@ -326,7 +382,10 @@ class LLMSemanticResolver:
         if not isinstance(excluded, (tuple, list)) or any(not isinstance(item, str) or item not in candidates for item in excluded):
             raise DocumentInterpretationError("context", document, "excluded IDs must belong to supplied candidates")
         _, schema = output_models()
+        identity = self.recording_identity()
         provenance = _provenance(document, RESOLUTION_INSTRUCTIONS, RESOLUTION_PROMPT_VERSION, schema)
+        provenance.update(provider=identity["provider"], model=identity["model"],
+                          extractor_version=identity["extractor_version"])
         provenance.update(resolution_request_sha256=request.sha256, max_selections=self.max_selections,
                           max_candidates=self.max_candidates)
         completion = await _complete(self.client, schema, RESOLUTION_INSTRUCTIONS,
@@ -357,7 +416,7 @@ class LLMSemanticResolver:
                     raise DocumentInterpretationError("selection", document, "proof refers to unselected candidate")
                 candidate = candidates[proof.candidate_id]
                 if (proof.candidate_attribute not in candidate.attributes or
-                        fingerprint(candidate.attributes[proof.candidate_attribute]) != fingerprint(proof.candidate_value)):
+                        not _candidate_value_matches(candidate.attributes[proof.candidate_attribute], proof.candidate_value)):
                     raise DocumentInterpretationError("grounding", document, "candidate proof differs from provided attributes")
                 if proof.candidate_attribute in FORBIDDEN_PARTS:
                     raise DocumentInterpretationError("selection", document, "accounting-owned candidate proof")

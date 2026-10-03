@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 import json
 import subprocess
@@ -65,6 +66,45 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
         config = LLMConfig("gpt-6-luna", Decimal("1"), Decimal("0.000001"),
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
+
+    async def test_decimal_candidate_proof_accepts_exact_string_and_rejects_invalid(self):
+        for value, accepted in [("50.00", True), ("50.01", False), ("foo", False), ("NaN", False)]:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                payload = {"status": "SELECTED", "selected_ids": ["A"], "reason": "matching unit price",
+                           "evidence": [proof(candidate_attribute="unit_price", candidate_value=value)]}
+                client, _, _ = self.setup_client(payload, directory)
+                request = ResolutionRequest(document(), (Candidate("A", {"unit_price": Decimal("50.00")}),))
+                if accepted:
+                    result = await LLMSemanticResolver(client).resolve(request)
+                    self.assertEqual(result.selected_ids, ("A",))
+                else:
+                    with self.assertRaises(DocumentInterpretationError):
+                        await LLMSemanticResolver(client).resolve(request)
+
+    async def test_static_identity_precedes_call_and_survives_source_response_changes(self):
+        payload = {"observations": [], "unknowns": []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client(payload, directory)
+            extractor = LLMDocumentExtractor(client)
+            before = extractor.version
+            identity = extractor.recording_identity()
+            self.assertEqual(provider.requests, [])
+            first = await extractor.extract_with_response(document("Invoice first"))
+            provider.payload = {"observations": [], "unknowns": [
+                {"field": "iban", "status": "MISSING", "reason": "not observed"}]}
+            second = await extractor.extract_with_response(document("Invoice second"))
+            self.assertEqual(first.facts.extractor_version, before)
+            self.assertEqual(second.facts.extractor_version, before)
+            self.assertNotEqual(first.request_metadata["prompt_sha256"], second.request_metadata["prompt_sha256"])
+            self.assertEqual(first.request_metadata["instruction_content_sha256"], identity["prompt_sha256"])
+            self.assertEqual(first.request_metadata["schema_sha256"], identity["schema_sha256"])
+            client.config = replace(client.config, budget_usd=Decimal("2"), concurrency=5)
+            self.assertEqual(extractor.version, before)
+            client.config = replace(client.config, max_output_tokens=4096)
+            self.assertNotEqual(extractor.version, before)
+            resolver = LLMSemanticResolver(client)
+            self.assertNotEqual(resolver.version, extractor.version)
+            self.assertNotEqual(resolver.version, LLMSemanticResolver(client, max_selections=2).version)
 
     async def test_literal_headers_lines_versions_and_atomic_artifact_shape(self):
         payload = {"observations":[observation("document_number", "F-1", "Invoice F-1"),
