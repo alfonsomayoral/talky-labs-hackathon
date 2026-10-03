@@ -14,7 +14,8 @@ import { PageActions } from '@/shell/PageActions'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { useOverridesStore } from '../attention/overridesStore'
 import { filesPresent, rowsDelivered } from '../runs/taskMeta'
-import { buildDeliveryZip, deliveryFolder, deliveryManifest, toJsonl } from './deliveryZip'
+import { deliveryFolder, toJsonl } from './deliveryZip'
+import { downloadDelivery } from './downloadDelivery'
 import { saveFile } from './download'
 import { FileValidationList, type OpenKey } from './FileValidationList'
 import { PreviewPanel } from './PreviewPanel'
@@ -53,7 +54,6 @@ export default function DeliverablesPage() {
   const run = useActiveRun()
   const api = useDatasetStore((st) => st.api)
   const overrides = useOverridesStore((st) => (run ? st.byRun[run.id] : undefined)) ?? NO_OVERRIDES
-  const overridesJsonl = useOverridesStore((st) => st.toJsonl)
   const navigate = useNavigate()
   const openItem = useOpenItem()
 
@@ -74,11 +74,8 @@ export default function DeliverablesPage() {
   const downloadZip = () => {
     if (!run) return
     try {
-      const meta = api?.meta ?? null
-      const manifest = deliveryManifest(run, { dataset: meta, overrides: overrides.length })
-      const zip = buildDeliveryZip(run, { manifest, overridesJsonl: overridesJsonl(run.id) })
-      saveFile(`${deliveryFolder(run.id)}.zip`, zip as Uint8Array<ArrayBuffer>, 'application/zip')
-      toast.success('Entrega descargada', { description: `${deliveryFolder(run.id)}.zip · ${filesPresent(run)} de 6 ficheros` })
+      const name = downloadDelivery(run)
+      toast.success('Entrega descargada', { description: `${name} · ${filesPresent(run)} de 6 ficheros` })
     } catch (e) {
       toast.error('No se pudo generar el zip', { description: message(e) })
     }
