@@ -11,6 +11,12 @@ never shortened; vendor names are not fuzzy-matched. Shared master tax IDs retur
 ambiguity. Conflicting PDF/XML facts remain conflicting rather than selecting the
 one that happens to match a master. Missing and not-yet-extracted fields differ.
 
+`None`, an omitted field, or an empty candidate list means `UNKNOWN`: no
+observation proves that the identifier is absent. `MISSING` requires a `Fact`
+with `None` or a blank value and its source `Evidence`. This matches
+`DocumentFacts` and the mandatory-field rejection gate; an incomplete extraction
+must not become an evidenced absence when the pipeline connects the stages.
+
 The result separates supplier and recipient, checks vendor affiliation if its
 master supplies it, and compares recipient company with the expected PO/task
 company. 1100 and UTE 1910 are distinct even when their vendors overlap. No AP
