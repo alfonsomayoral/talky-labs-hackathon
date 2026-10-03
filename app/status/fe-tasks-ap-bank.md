@@ -1,6 +1,34 @@
 # fe/tasks-ap-bank — 3.A Bandeja AP y 3.D Bancos
 
-Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177. Rama con `hackathon/frontend` 6d8e1ce ya integrado (merge 6fc315b, kit 2.C incluido). **Lista para integrar.**
+Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177. AP y Bancos ya están integrados en `hackathon/frontend`. Esta entrega solo añade la explicación de las domiciliaciones que se quedan sin ajuste.
+
+## Este cambio: domiciliaciones sin ajuste
+
+**Problema.** Tras 37b4774 la rejilla da 12/12 cuentas conciliadas con golden. Pero la ficha de CMA-1100 y la de CMA-1200 marcaban en rojo «Falta ajuste por …» en «Domiciliación sin contabilizar». Golden deja esas domiciliaciones sin ajuste a propósito.
+
+**Regla, comprobada en julio por importe y en la misma sociedad:** una domiciliación lleva ajuste si su factura de AP del mismo importe está contabilizada (`POST` o `POST_PAYMENT_BLOCK`). Queda abierta si la factura tiene otra decisión o si no existe en la bandeja.
+- CMA-1100: BL0001847 (2.157,48 €) casa con API005227, rechazada (`WRONG_ADDRESSEE`). BL0001846 (1.071,41 €) no tiene factura de ese importe en la bandeja.
+- CMA-1200: BL0001835 (2.644,96 €) casa con API005221, rechazada (`ARITHMETIC_ERROR`).
+
+**Cambios:**
+- `bank/model.ts`: nueva `openDirectDebits(lines, adjustments, apRows, company, currency)`. Para cada domiciliación del extracto, consume el ajuste de su mismo importe. Si no hay ajuste, devuelve la factura de AP de ese importe y si falta de verdad el ajuste, que es cuando la factura está contabilizada. Tiene test en `model.test.ts`.
+- `bank/BankAccountPage.tsx`, sección «Sin casar por categoría»:
+  - la insignia va en rojo solo cuando se debe un ajuste y falta;
+  - las domiciliaciones abiertas a propósito dan una insignia neutra, «Con ajuste; 2 quedan abiertas», y una línea por domiciliación con el motivo y enlace a `/tareas/ap?doc=…`;
+  - la cuenta USD (ajustes en MXN) no se compara por importe y se queda como estaba.
+
+**Verificación:**
+- `npm run typecheck`, `npm run lint`, `npm run test` (41 ficheros, 276 pruebas) y `npm run build` en verde, tras hacer merge de `hackathon/frontend` 0d5bdda.
+- Navegador, julio + golden, las 12 cuentas:
+  - ninguna insignia roja y ninguna cuenta con «Sin explicar»;
+  - CMA-1100: «Con ajuste; 2 quedan abiertas», con «BL0001846 queda abierta: no hay factura de ese importe en la bandeja de AP» y «BL0001847 queda abierta: su factura API005227 tiene la decisión «Rechazar» en AP»;
+  - CMA-1200: «Con ajuste; 1 queda abierta», con BL0001835 → API005221;
+  - el enlace API005227 abre `/tareas/ap?doc=API005227` con su ficha.
+- Septiembre sin ejecución: `/tareas/ap`, `/tareas/bancos` y `/tareas/bancos/CMA-1100` muestran «Sin ejecución activa».
+- Consola sin errores nuevos.
+- Sin verificar: una entrega en la que de verdad falte el ajuste de una domiciliación contabilizada. Solo lo cubre el test unitario; golden no tiene ese caso.
+
+---
 
 ## Hecho
 
@@ -55,7 +83,7 @@ Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177. R
   - **Bancos, las 12 cuentas:**
     - ninguna tiene «Sin explicar»;
     - residuos iguales a research: CMA-1000 −5.265,44; BIN-1100 +70.117; BAE-1100 −900.000; CMA-1100 −3.228,89; CMA-1200 −2.644,96; el resto, 0;
-    - «Falta ajuste por» coincide con el residuo en CMA-1100 y CMA-1200;
+    - en CMA-1100 y CMA-1200 el residuo es exactamente la suma de las domiciliaciones que quedan abiertas (ver «Este cambio»);
     - CMA-1100 muestra «Desde BIN-1100: Cuenta bancaria equivocada…».
   - **Bancos, piezas del kit:**
     - `BL0003651` muestra sus registros N43 22/23 en `RawBankRecord`;
@@ -82,3 +110,5 @@ Worktree `/Users/alfonsomayoral/Talky/talky-wt/fe-tasks-ap-bank`, puerto 5177. R
 - `6fc315b Merge branch 'hackathon/frontend' into fe/tasks-ap-bank`
 - `8226d9d feat: add ap inbox view with process map, policy cascade and kit document viewer`
 - `8b472c5 feat: add bank reconciliation views with process map, kit raw record and journal entries`
+- `3ae7fcd docs: report ap and bank status after kit integration`
+- `84325ec fix: explain direct debits left without adjustment by their invoice in ap`
