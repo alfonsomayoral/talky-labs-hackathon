@@ -1,0 +1,436 @@
+/* Assistant: page, ⌘J panel and answer cards. Orange only on the send button, selection and focus. */
+
+.page {
+  min-height: 100%;
+}
+
+/* ---------------------------------------------------------------- welcome */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: var(--space-16);
+}
+
+/* Libre Baskerville, as the Overview opener (PLAN §2.2, Fase 6). */
+.headline {
+  color: var(--ink-strong);
+  font-family: var(--font-serif);
+  font-size: var(--text-32);
+  font-weight: var(--weight-regular);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.preset {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-md);
+  padding: var(--space-1-5) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-size: var(--text-13);
+  text-align: left;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.preset svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.preset:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.preset:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.preset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- composer */
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--duration-fast) ease;
+}
+
+.composer:focus-within {
+  border-color: var(--brand);
+}
+
+.input {
+  width: 100%;
+  min-height: 24px;
+  padding: var(--space-1);
+  border: 0;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-14);
+  line-height: var(--leading);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ink-4);
+}
+
+.composerBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.composerHint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-4);
+  font-size: var(--text-12);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Bottom of the page while a conversation is going on. */
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  margin-top: auto;
+  padding: var(--space-3) 0 var(--space-4);
+  background: var(--bg);
+}
+
+/* ---------------------------------------------------------------- conversation */
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  scroll-margin-top: var(--space-4);
+}
+
+.question {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--bg-muted);
+  color: var(--ink);
+  font-size: var(--text-14);
+  line-height: var(--leading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.answerText {
+  color: var(--ink);
+  font-size: var(--text-14);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--danger-ink);
+  font-size: var(--text-13);
+}
+
+.error svg {
+  flex: none;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-left: calc(var(--space-2) * -1);
+}
+
+/* ---------------------------------------------------------------- citations */
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-12);
+}
+
+.citationsLabel {
+  margin-right: var(--space-1);
+  color: var(--ink-3);
+}
+
+.citation,
+.policyRef {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink-2);
+}
+
+.citation:hover {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.citation:focus-visible,
+.inlineItem:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.policyRef {
+  background: var(--bg-subtle);
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------- cards */
+.card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.cardTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+  color: var(--ink-strong);
+  font-size: var(--text-13);
+  font-weight: var(--weight-semibold);
+}
+
+.cardNote {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.headlineText {
+  color: var(--ink-strong);
+  font-size: var(--text-14);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading);
+}
+
+.fact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1-5);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-4);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-12);
+}
+
+.table th,
+.table td {
+  height: var(--row-height);
+  padding: 0 var(--space-4);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  color: var(--ink-3);
+  font-weight: var(--weight-medium);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-subtle);
+}
+
+.table td {
+  color: var(--ink);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table [data-align='right'] {
+  text-align: right;
+}
+
+.inlineItem {
+  border-radius: var(--radius-xs);
+}
+
+.inlineItem:hover {
+  text-decoration: underline;
+}
+
+/* Item rows (same density as «Te necesitan»). */
+.items {
+  list-style: none;
+}
+
+.items li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+}
+
+.itemRow:hover {
+  background: var(--bg-muted);
+}
+
+.itemRow:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemTitle,
+.itemSub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.itemTitle {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.itemSub {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.flowItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.flowItems > .cardNote {
+  padding: 0 var(--space-4);
+}
+
+/* ---------------------------------------------------------------- side panel */
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.panelWelcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+}
+
+.panelHeadline {
+  color: var(--ink-strong);
+  font-family: var(--font-serif);
+  font-size: var(--text-24);
+  font-weight: var(--weight-regular);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
