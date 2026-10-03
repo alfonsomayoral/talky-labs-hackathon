@@ -45,6 +45,10 @@ export interface DatasetState {
   loadFromFolder(input: File[] | FileSystemDirectoryHandle): Promise<DatasetMeta>
   loadFromZip(file: File): Promise<DatasetMeta>
   loadFromHttp(id: string): Promise<DatasetMeta>
+  /** True when the backend accepts phase uploads. */
+  canUploadToBackend(): boolean
+  /** Uploads the organizers' ZIP to the backend and opens the first phase it loaded. */
+  uploadToBackend(file: File): Promise<DatasetMeta>
   /** Re-open a persisted dataset by id. */
   activate(id: string): Promise<void>
   remove(id: string): Promise<void>
@@ -145,6 +149,17 @@ export const useDatasetStore = create<DatasetState>()((set, get) => ({
     const entry = get().available.find((a) => a.id === id)
     const provider: RemoteProviderId = entry?.source ?? 'dev'
     return openOrigin({ provider, id, name: entry?.name ?? id })
+  },
+
+  canUploadToBackend: () => remoteProviders.api.enabled() && Boolean(remoteProviders.api.uploadDataset),
+
+  async uploadToBackend(file) {
+    const api = remoteProviders.api
+    if (!api.enabled() || !api.uploadDataset) throw new Error('VITE_API_URL no está definida: no hay backend al que subir el zip')
+    const [phase] = await api.uploadDataset(file)
+    if (!phase) throw new Error('El zip no contiene ninguna fase')
+    await get().refreshAvailable()
+    return get().loadFromHttp(phase)
   },
 
   async activate(id) {
@@ -266,7 +281,7 @@ export const useRunStore = create<RunState>()((set, get) => ({
 
   async startApiRun(datasetId) {
     const api = remoteProviders.api
-    if (!api.enabled() || !api.startRun) throw new Error('El backend no lanza el cierre: ejecútalo con su CLI y carga la ejecución desde Ejecuciones')
+    if (!api.enabled() || !api.startRun) throw new Error('VITE_API_URL no está definida: importa un paquete de ejecución')
     return api.startRun(datasetMeta(datasetId))
   },
 

@@ -1,7 +1,8 @@
 // Backend provider: the HTTP API `/v1` of `kalmora serve` (backend docs/api-contracts.md §9), enabled when
 // VITE_API_URL is set. Phases and run bundles come as raw files (`…/files/__index.json` and `…/files/{path}`)
-// and are parsed in the browser worker, like the dev middleware. The backend does not launch closes yet:
-// runs are produced with its CLI and listed here once their bundle folder exists.
+// and are parsed in the browser worker, like the dev middleware. A phase is uploaded as the organizers' ZIP
+// (`POST /v1/packages`); a close is launched with `POST /v1/phases/{phase}/runs` (the command given to
+// `kalmora serve --close-command`) and followed by polling `GET /v1/runs/{id}`: the API has no event stream.
 import type { DatasetMeta } from '@/domain/types'
 import { bundleFromFiles } from '../bundles/bundle'
 import type { PathFile } from '../sources/types'
@@ -28,7 +29,18 @@ interface RunRow {
   started_at?: string
   status?: string
   has_files?: boolean
+  month?: string
 }
+
+const POLL_MS = 2000
+
+/** Error message of a failed `/v1` call (RFC 9457 problem `detail`). */
+async function failure(res: Response, action: string): Promise<Error> {
+  const problem = (await res.json().catch(() => null)) as { detail?: string } | null
+  return new Error(`${action}: ${problem?.detail ?? `el backend respondió ${res.status}`}`)
+}
+
+const STATUS_LABEL: Record<string, string> = { running: ' · en curso', failed: ' · fallida' }
 
 /** Files of a run bundle; the run report becomes manifest.json when the bundle has none. */
 async function runFiles(runId: string): Promise<PathFile[]> {
@@ -56,12 +68,59 @@ export const apiProvider: RemoteProvider = {
   openDataset: (id, name, onProgress) =>
     openDataset({ kind: 'http', baseUrl: `${v1()}/phases/${encodeURIComponent(id)}/files`, name }, { remoteId: id }, onProgress),
 
-  async listRuns() {
+  async listRuns(dataset) {
     const page = await data<{ items: RunRow[] }>(`${v1()}/runs?limit=1000`)
     return (page?.items ?? [])
-      .filter((r) => r.has_files)
-      .map((r) => ({ id: r.run_id, label: r.started_at ? `${r.run_id.slice(0, 8)} · ${r.started_at.slice(0, 16).replace('T', ' ')}` : r.run_id }))
+      .filter((r) => r.has_files && (!r.month || r.month === dataset.month))
+      .map((r) => {
+        const when = r.started_at ? ` · ${r.started_at.slice(0, 16).replace('T', ' ')}` : ''
+        return { id: r.run_id, label: `${r.run_id.slice(0, 8)}${when}${STATUS_LABEL[r.status ?? ''] ?? ''}` }
+      })
   },
 
   loadRun: async (runId, dataset: DatasetMeta) => bundleFromFiles(await runFiles(runId), { datasetId: dataset.id, source: 'api', key: runId, name: runId }),
+
+  async startRun(dataset) {
+    const res = await fetch(`${v1()}/phases/${encodeURIComponent(dataset.remoteId ?? dataset.id)}/runs`, { method: 'POST' })
+    if (!res.ok) throw await failure(res, 'No se pudo lanzar el cierre')
+    return ((await res.json()) as { data: { run_id: string } }).data.run_id
+  },
+
+  /** Polls the run until it ends; emits `done`, or `error` with the reason. */
+  subscribeRun(runId, onEvent) {
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poll = async () => {
+      const run = await data<{ status?: string; exit_code?: number }>(`${v1()}/runs/${encodeURIComponent(runId)}`).catch(() => null)
+      if (stopped) return
+      if (run?.status === 'completed') return onEvent(new MessageEvent('done', { data: '' }))
+      if (run?.status === 'failed')
+        return onEvent(new MessageEvent('error', { data: `El cierre ha fallado (código ${run.exit_code ?? '?'}); detalle en run.log de la ejecución` }))
+      timer = setTimeout(() => void poll(), POLL_MS)
+    }
+    void poll()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  },
+
+  /** Uploads the organizers' ZIP (root `participant/`) and waits until its phases are loaded. */
+  async uploadDataset(file) {
+    const form = new FormData()
+    form.append('archive', file)
+    const res = await fetch(`${v1()}/packages`, { method: 'POST', body: form })
+    if (!res.ok) throw await failure(res, 'El backend rechazó el zip')
+    const upload = ((await res.json()) as { data: { package_id: string; job_id: string | null; already_registered?: boolean } }).data
+    if (upload.already_registered || !upload.job_id) {
+      const phases = await data<{ phase: string; package_id: string }[]>(`${v1()}/phases`)
+      return (phases ?? []).filter((p) => p.package_id === upload.package_id).map((p) => p.phase)
+    }
+    for (;;) {
+      const job = await data<{ status: string; phases?: { phase: string }[]; error?: { detail?: string } }>(`${v1()}/jobs/${encodeURIComponent(upload.job_id)}`)
+      if (!job || job.status === 'failed') throw new Error(`El backend no pudo cargar el zip${job?.error?.detail ? `: ${job.error.detail}` : ''}`)
+      if (job.status === 'loaded') return (job.phases ?? []).map((p) => p.phase)
+      await new Promise((r) => setTimeout(r, POLL_MS / 2))
+    }
+  },
 }

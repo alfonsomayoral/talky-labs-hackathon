@@ -127,11 +127,16 @@ function DatasetStep() {
               <ZipPicker icon={<FileArchive />} onFiles={loadFiles}>
                 Elegir .zip
               </ZipPicker>
+              {ds.canUploadToBackend() && (
+                <ZipPicker icon={<Server />} onFiles={(files) => load(() => ds.uploadToBackend(files[0]))}>
+                  Subir .zip al backend
+                </ZipPicker>
+              )}
             </div>
           </DropZone>
 
           {ds.available.length > 0 && (
-            <Card title="Servidos en desarrollo" padding="none">
+            <Card title="Servidos por el backend o en desarrollo" padding="none">
               <ul className={s.list}>
                 {ds.available.map((a) => (
                   <li key={`${a.source}:${a.id}`} className={s.listRow}>
@@ -242,13 +247,7 @@ function ResultsStep({ meta, hasRun }: { meta: DatasetMeta; hasRun: boolean }) {
       <div className={s.options}>
         <Card title={<span className={s.optionTitle}><Server aria-hidden /> Cerrar el mes con el backend</span>} description="El agente cierra el mes y la app sigue su progreso en vivo.">
           <div className={s.optionBody}>
-            {!apiConfigured && (
-              <p className={s.muted}>
-                {import.meta.env.VITE_API_URL
-                  ? 'El backend aún no lanza el cierre: ejecútalo con su CLI y carga la ejecución desde Ejecuciones.'
-                  : 'Define VITE_API_URL para conectar el backend.'}
-              </p>
-            )}
+            {!apiConfigured && <p className={s.muted}>Define VITE_API_URL para conectar el backend.</p>}
             <Button
               variant={primary === 'api' ? 'primary' : 'secondary'}
               size="sm"

@@ -51,3 +51,33 @@ describe('apiProvider (/v1)', () => {
     expect(urls.some((u) => u.endsWith('notes.txt'))).toBe(false)
   })
 })
+
+describe('apiProvider (/v1) closes and uploads', () => {
+  it('lists only runs of the dataset month', async () => {
+    backend({
+      '/v1/runs?limit=1000': {
+        data: { items: [{ run_id: 'aaaaaaaa-1', month: '2026-07', has_files: true, status: 'running' }, { run_id: 'cccccccc-3', month: '2026-09', has_files: true }] },
+      },
+    })
+    expect(await apiProvider.listRuns(dataset)).toEqual([{ id: 'aaaaaaaa-1', label: 'aaaaaaaa · en curso' }])
+  })
+
+  it('launches a close on the dataset phase and reports done when the run completes', async () => {
+    const urls = backend({ '/v1/phases/phase_test/runs': { data: { run_id: 'r9' } }, '/v1/runs/r9': { data: { status: 'completed' } } })
+    expect(await apiProvider.startRun!({ ...dataset, remoteId: 'phase_test' })).toBe('r9')
+    const events = await new Promise<string[]>((resolve) => {
+      const seen: string[] = []
+      apiProvider.subscribeRun!('r9', (e) => resolve([...seen, e.type]))
+    })
+    expect(events).toEqual(['done'])
+    expect(urls).toContain('http://backend.test/v1/phases/phase_test/runs')
+  })
+
+  it('uploads a package and resolves with the phases the job loaded', async () => {
+    backend({
+      '/v1/packages': { data: { package_id: 'p1', job_id: 'j1', already_registered: false } },
+      '/v1/jobs/j1': { data: { status: 'loaded', phases: [{ phase: 'phase_test' }] } },
+    })
+    expect(await apiProvider.uploadDataset!(new File(['zip'], 'sept.zip'))).toEqual(['phase_test'])
+  })
+})
