@@ -12,6 +12,8 @@ from . import __version__
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="kalmora", description="Kalmora close backend")
     parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument("--run-dir", type=Path, default=Path("outputs/runs"),
+                        help="Directory for UUID execution reports (default: outputs/runs)")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("doctor", help="Check the Python runtime")
     ingest = commands.add_parser("import-package", help="Preserve and inventory a participant ZIP")
@@ -19,7 +21,20 @@ def main(argv: list[str] | None = None) -> int:
     ingest.add_argument("--destination", type=Path, required=True, help="New package directory")
     inspect = commands.add_parser("inspect", help="Inspect a phase's solver inputs")
     inspect.add_argument("phase", type=Path)
-    args = parser.parse_args(argv)
+    arguments = sys.argv[1:] if argv is None else list(argv)
+    args = parser.parse_args(arguments)
+    from .runlog import RunRecorder
+    metadata = {"package_version": __version__}
+    for name in ("phase", "archive", "destination"):
+        if hasattr(args, name):
+            metadata[name] = str(getattr(args, name).resolve())
+    with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata) as run:
+        status = _execute(args)
+        run.report["exit_code"] = status
+    return status
+
+
+def _execute(args) -> int:
     if args.command == "doctor":
         supported = sys.version_info >= (3, 12)
         print(json.dumps({"version": __version__, "python": sys.version.split()[0], "supported": supported}))
