@@ -54,12 +54,13 @@ class ProjectionTests(unittest.TestCase):
                                     ('55300000', 'INV-1'), ('56500000', None)]:
             with self.subTest(account=account):
                 row = deepcopy(run.results[0].row)
-                row['adjustment'][1].update(account=account, assignment=assignment)
+                partner = 'FACTOR-BAE' if account == '55300000' else 'C1'
+                row['adjustment'][1].update(account=account, assignment=assignment, partner=partner)
                 entry, = journal_entries(data, replace(run, results=(replace(run.results[0], row=row),)))
                 ledger = Ledger.from_entries([entry])
                 self.assertEqual(ledger.balances()[('1100', account)], -8000)
                 if account != '56500000':
-                    self.assertEqual(ledger.open_items()[('1100', account, 'C1', assignment)], -8000)
+                    self.assertEqual(ledger.open_items()[('1100', account, partner, assignment)], -8000)
 
     def test_foreign_currency_is_not_silently_published_as_local(self):
         run = self._run()
