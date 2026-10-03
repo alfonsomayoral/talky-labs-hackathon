@@ -1,10 +1,43 @@
 """Evidence-preserving document facts; format extractors are supplied by callers."""
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
+
+
+def _encode_value(value):
+    """Tag every container so a source dictionary cannot mimic a Decimal tag."""
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError("Fact Decimal values must be finite")
+        return {"type": "decimal", "value": str(value)}
+    if isinstance(value, dict):
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError("Fact dictionaries require string keys")
+        return {"type": "dict", "items": [[key, _encode_value(item)] for key, item in value.items()]}
+    if isinstance(value, list):
+        return {"type": "list", "items": [_encode_value(item) for item in value]}
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    raise TypeError(f"Unsupported fact value type: {type(value).__name__}")
+
+
+def _decode_value(value):
+    if not isinstance(value, dict):
+        return value
+    if value.get("type") == "decimal" and set(value) == {"type", "value"}:
+        result = Decimal(value["value"])
+        if not result.is_finite():
+            raise ValueError("Fact Decimal values must be finite")
+        return result
+    if value.get("type") == "dict" and set(value) == {"type", "items"}:
+        return {key: _decode_value(item) for key, item in value["items"]}
+    if value.get("type") == "list" and set(value) == {"type", "items"}:
+        return [_decode_value(item) for item in value["items"]]
+    raise ValueError("Invalid typed fact value")
 
 
 def atomic_json(path, value):
@@ -54,12 +87,19 @@ class DocumentFacts:
             raise ValueError("Extractor version is required")
 
     def to_dict(self):
-        return asdict(self)
+        return {"source_sha256": self.source_sha256, "extractor_version": self.extractor_version,
+                "fact_value_encoding": "typed-v1", "fields": {
+                    key: [{"value": _encode_value(fact.value), "evidence": asdict(fact.evidence)}
+                          for fact in values] for key, values in self.fields.items()}}
 
     @classmethod
     def from_dict(cls, data):
+        encoding = data.get("fact_value_encoding")
+        if encoding not in (None, "typed-v1"):
+            raise ValueError("Unsupported fact value encoding")
         return cls(data["source_sha256"], data["extractor_version"], {
-            key: [Fact(f["value"], Evidence(**f["evidence"])) for f in values]
+            key: [Fact(_decode_value(f["value"]) if encoding else f["value"],
+                       Evidence(**f["evidence"])) for f in values]
             for key, values in data["fields"].items()})
 
 
