@@ -20,6 +20,13 @@
   --line: #e4e4e7;
   --line-soft: #f3f4f6;
   --line-strong: #d4d4d8;
+  /* App ground (sidebar sits on it) and the working sheet each page floats as. */
+  --ground: #f4f3ef;
+  --ground-hover: rgb(9 9 11 / 0.05);
+  --ground-active: rgb(9 9 11 / 0.07);
+  --sheet-gap: 8px;
+  --sheet-radius: 12px;
+  --shadow-sheet: 0 1px 2px rgb(9 9 11 / 0.04), 0 2px 8px rgb(9 9 11 / 0.03);
   --bg: #ffffff;
   --bg-subtle: #fafafa;
   --bg-muted: #f4f4f5;
@@ -117,7 +124,7 @@
   --row-height: 36px;
   --control-height-sm: 24px;
   --control-height-md: 30px;
-  --page-padding: 24px;
+  --page-padding: 32px 40px;
   --icon-size: 16px;
 }
 

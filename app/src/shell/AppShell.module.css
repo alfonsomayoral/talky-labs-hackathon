@@ -2,6 +2,7 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
+  background: var(--ground);
 }
 
 .main {
@@ -9,7 +10,12 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) 0;
   background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--sheet-radius);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
 }
 
 .topbar {

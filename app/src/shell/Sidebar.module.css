@@ -4,8 +4,7 @@
   width: var(--sidebar-width);
   flex-shrink: 0;
   height: 100%;
-  background: var(--bg-subtle);
-  border-right: 1px solid var(--line);
+  background: transparent;
 }
 
 .top {
@@ -31,7 +30,7 @@
 
 .switcher:hover,
 .switcher[aria-expanded='true'] {
-  background: var(--bg-muted);
+  background: var(--ground-hover);
 }
 
 .mark {
@@ -133,7 +132,7 @@
 }
 
 .entry:hover {
-  background: var(--bg-muted);
+  background: var(--ground-hover);
   color: var(--ink);
 }
 
@@ -153,8 +152,9 @@
 
 .active,
 .active:hover {
-  background: var(--brand-soft);
+  background: var(--bg);
   color: var(--brand-ink);
+  box-shadow: var(--shadow-xs), 0 0 0 1px rgb(9 9 11 / 0.04);
 }
 
 .active .entryIcon {
@@ -166,7 +166,7 @@
   height: 18px;
   padding: 0 var(--space-1-5);
   border-radius: var(--radius-pill);
-  background: var(--bg-muted);
+  background: var(--ground-hover);
   color: var(--ink-2);
   font-size: var(--text-11);
   font-weight: var(--weight-semibold);
@@ -175,7 +175,8 @@
 }
 
 .active .badge {
-  background: var(--bg);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
 }
 
 .badgeUrgent {
@@ -189,7 +190,7 @@
   flex-direction: column;
   gap: 1px;
   padding: var(--space-2);
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgb(9 9 11 / 0.06);
 }
 
 .footerEntry {

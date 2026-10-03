@@ -46,15 +46,16 @@
 }
 
 .title {
-  font-size: var(--text-20);
+  font-size: var(--text-32);
+  line-height: 1.15;
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.025em;
   color: var(--ink-strong);
 }
 
 .subtitle {
   color: var(--ink-3);
-  font-size: var(--text-13);
+  font-size: var(--text-14, 14px);
   max-width: 72ch;
 }
 
