@@ -1,35 +1,50 @@
-# Prepared AR observation boundary — #56
+# AR observations and source workflow — #56/#57
 
-Status: **preparatory implementation**, not automatic AR extraction or final M2
-acceptance. The shared extractor/recorder from #137/#138 is delivered. AP
-integration #140 remains a gate for complete AR integration. #56 stays open.
+Status: **native extraction and source workflow implemented**. The five supplied
+text-template families now use the shared #137/#138 capture/replay boundary and
+the #57 reference resolver. The user authorized functional M2 closure using the
+working v0 convention and July validation; AP integration #140 remains separate
+M1 work. September coverage and live provider extraction quality are not claimed.
 
-`kalmora.billing.observations` supplies a versioned, provider-independent
-`BillingObservations` envelope and a deterministic adapter to the existing
-`BillingFacts` union. It does not change the shared document modules, billing
-engine, output contracts or CLI. No provider calls or tests were performed for
-this increment, following the repository's instruction to test only on request.
+`kalmora.billing.extraction` supplies literal native observations and explicit
+unit normalization. `observations` adapts them to the existing `BillingFacts`
+union; `resolution` checks existing master identities; `source_runner` connects
+these stages to the billing engine, CLI and close runner. Native execution makes
+zero provider calls. An optional `LLMBillingExtractor` uses the shared typed DTO
+and grounding checks, but it is not an automatic CLI fallback.
 
 ## Facts, normalization and decisions
 
-The intended flow is:
+The implemented flow is:
 
 1. The router retains each original attachment as its own `ParsedDocument`.
-2. An AR extractor supplies literal observations with evidence. PDF and
+2. `NativeBillingExtractor` supplies literal observations with evidence, captured
+   through `RecordedExtractor`. PDF and
    `item.json` remain separate; metadata never fills missing document fields.
-3. A deterministic AR normalizer converts those observations to the units and
+3. `normalize_billing_facts` converts those observations to the units and
    field names below, retaining raw facts and conversion provenance separately.
-4. `adapt_billing_observations(data, item, observations, document)` supplies typed
-   engine inputs or a diagnostic with `facts=None`.
-5. `build_ar_billing` applies eligibility, period/history checks, prices,
-   deductions, taxes, dates and journal rules. Export remains a separate step.
+4. `resolve_billing_references` checks printed contracts, customers and plants
+   against current masters. Exact matching precedes optional bounded semantic
+   resolution through `RecordedResolver`.
+5. `adapt_billing_sources` combines complementary attachments without replacing
+   missing fields from metadata or discarding conflicting candidates. It supplies
+   typed engine inputs or diagnostics with `facts=None`.
+6. `build_ar_billing` applies eligibility, period/history checks, prices,
+   deductions, taxes, dates and journal rules. The source runner allocates numbers
+   in task order from ERP-derived company/series and rebuilds coherent invoice
+   references and receivable assignments. Pending items consume no number.
+7. Export publishes `ar_billing.jsonl` and `pending_wip.jsonl` only after complete
+   task coverage and an unchanged input snapshot. Evidence and source failures
+   remain available in the work directory even when publication is blocked.
 
-**Stages 2–3 and their provider capture/replay connection remain to be integrated.**
-The new adapter consumes the declared normalized boundary, not the generic
-extractor's current field names or unvalidated provider JSON. Its schema version
-is `ar-observations-v1`; this is not a claim that an AR prompt has been evaluated.
-Future recordings must bind original/transformation hashes, model, prompt,
-normalizer and schema versions through the existing #138 recorder.
+**Stages 2–3, shared capture/replay and #57 are connected.** Captures retain
+literal strings; normalized cents and MWh are a separate deterministic stage.
+The envelope remains `ar-observations-v1`, with versioned AR literal schema,
+prompt, native parser and normalizer identities. Replay verifies original and
+transformation hashes plus the extraction configuration. Semantic recordings
+also bind candidate attributes, literal facts and current phase context. A cache
+miss, invalid capture or changed configuration stays unresolved on replay; it
+never triggers a provider callback.
 
 ## Envelope and fields
 
@@ -38,10 +53,11 @@ normalizer and schema versions through the existing #138 recorder.
 `typed-v1` codec, preserving all candidates and exact Decimal values. Extra
 envelope/observation fields and incompatible versions fail rather than disappear.
 
-Every document supplies `currency` normalized from a literal currency code/symbol;
+The combined support supplies `currency` normalized from a literal code/symbol;
 it must match the active company's currency. An observed `contract_reference` is
-optional, but when present must match the task's reference. Neither field is
-inferred from a filename. The adapter does not create customer or contract IDs.
+optional, but when present must match the task's reference or an evidenced #57
+binding to that same identity. Neither field is inferred from a filename. The
+resolver selects existing IDs; it cannot replace the metadata's identities.
 
 | Type | Required document fields | Complete table and row fields |
 | --- | --- | --- |
@@ -54,10 +70,11 @@ inferred from a filename. The adapter does not create customer or contract IDs.
 Row keys use one-based indices, e.g. `chapter.1.amount_cents`. A declared count
 must match contiguous rows. Empty extras require `row_counts={"extra": 0}`;
 absence of extra fields alone does not establish an empty table. Other tables
-must contain at least one row. Counts come from parser/reviewer-established
-complete tables, not confidence scores. **An internally consistent count cannot
-prove that every original row was extracted**; source evaluation must measure
-that independently.
+must contain at least one row. The native normalizer re-reads a bounded original
+table and checks its final row before declaring coverage; a partial capture cannot
+shrink that count. An unrecognized row blocks normalization. Counts remain
+parser/reviewer metadata, not confidence scores or proof of general OCR quality.
+Conflicting table counts across attachments remain unresolved.
 
 Money is a strict integer number of local cents; MWh is integer thousandths;
 `share_bp` is an integer from 0 to 10,000. PPA price is a finite, nonnegative
@@ -69,7 +86,9 @@ as diagnostics rather than guessing from locale or target totals.
 
 ## Approval observations
 
-`status_text` is literal source text, not a model-produced `approved` boolean.
+Raw status observations preserve literal source text; normalization only applies
+explicit whitespace, case and lexical aliases, never a model-produced `approved`
+boolean.
 The adapter has a bounded lexical mapping for observed `CONFORME`,
 `APROBADA/APROBADO`, `APROVADA/APROVADO`, the overlapping July service text
 `CONFORMEConforme`, and `RESUELVO: aprobar la revisión de precios`.
@@ -84,7 +103,7 @@ the existing service/revision engine contracts cannot represent those decisions.
 Contradictory status candidates remain separate, with `CONFLICT`.
 
 Certifications and monthly service also require literal `authority_text` locating
-the printed signer role: Dirección Facultativa (optionally its Ingeniero title)
+the printed signer role: Dirección Facultativa (optionally Ingeniero or Arquitecto)
 and Técnico municipal respectively. Missing or unfamiliar roles stay unresolved;
 the word `CONFORME` alone does not establish the required authority. Current
 source quotations establish the block location; later source evaluation must
@@ -100,11 +119,15 @@ location, **not the correctness of normalized units, semantic labels or OCR**.
 Image-only observations require later reviewed image support; this increment
 does not silently promote image transcription or unverified processing aids.
 
-For energy, printed plant names/IDs are compared exactly with the active phase's
-cost-center master, filtered by company and the verified contract's plant IDs.
-A unique candidate without an exact reference match remains unresolved. Duplicate
-plants are rejected. Semantic matching, alternative references and evaluated AR
-associations/abstentions belong to #57; no shared resolver is modified here.
+Printed contract/customer names and references are checked against the active
+masters, with company, metadata customer and billing kind as hard constraints.
+Energy plants are restricted further to the contract's eligible cost centers.
+A lone candidate does not prove a match. Residual ambiguity can use the supplied
+recorded resolver, which must cite the original and select only eligible existing
+IDs; absent evidence or competing candidates remain unresolved. Duplicate plants
+are rejected. Raw wrapped names retain their original quotation before whitespace
+normalization for exact matching. Native July uses exact matches without provider
+resolution; live semantic quality is still separate acceptance work.
 
 The return value retains all original observations. On the first blocking
 condition it has no engine facts and one structured diagnostic (code, field,
@@ -127,7 +150,9 @@ annotation, quotations locate them on the original page, and table counts are
 declared derived metadata. Printed plant descriptions replace fixture-internal
 cost-center IDs; the adapter obtains those IDs from the active masters.
 
-Example integration shape, not an executed result:
+The seven annotations remain useful for the isolated adapter. The source runner
+reads original files and captures new literal facts; it does not load this sample.
+Example annotation usage:
 
 ```python
 observations = BillingObservations.from_dict(case["observations"])
@@ -142,13 +167,15 @@ else:
 
 ## Remaining acceptance work
 
-- Connect an AR-specific literal schema/prompt and deterministic normalization
-  with #137/#138, retaining observations independent of item metadata.
-- Evaluate field labels, units, approval authority/scope, table completeness and
-  omitted rows against originals, including pending/unknown/contradictory cases.
-- Extend the sample with service extras and absent/conflicting evidence; the
-  selected July monthly case contains no extras and does not exercise them.
-- Capture/replay real AR extraction and resolution, including invalidation and
-  zero new provider calls on replay; the sample is not a recording.
-- Connect/evaluate #57 and demonstrate the complete current-phase billing flow
-  after #140. September and final M2 acceptance are not claimed by this increment.
+- Evaluate live AR model extraction and semantic resolution separately. The
+  optional AR prompt/DTO adapter has injected-client checks, not provider quality
+  acceptance; the seven annotations are not recordings or a held-out benchmark.
+- Evaluate scanned documents, new layouts, authority scope and omitted rows
+  against originals. The current native reader covers the supplied text templates;
+  image-only evidence and unsupported layouts remain unresolved.
+- Broaden source examples for extraordinary services and absent/conflicting
+  evidence. The selected July monthly annotation still contains no extras.
+- Complete M1 integration in #140 and assess September independently. This work
+  is deferred from functional M2 closure by the user's decision. See the separate
+  [July verification](../verification/m2-source-workflow.md) for the frozen-output
+  evaluator result and its limits.

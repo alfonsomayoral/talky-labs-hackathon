@@ -198,9 +198,11 @@ Alternatives: stdlib-only content-stream parsing (fragile); `pypdf` text (no pos
 
 ## Implementation and evidence (engine, PDF reading excluded)
 
-Preparatory AR observation boundary (#56): see [ar-observations.md](ar-observations.md)
-for the versioned normalized contract, deterministic adapter and development
-sample. Automatic AR extraction/capture and final integration remain pending.
+AR source workflow (#56/#57): see [ar-observations.md](ar-observations.md) for
+native literal extraction, shared capture/replay, deterministic normalization,
+current-master reference resolution and the seven development annotations.
+The source runner and CLI are connected; complete integration after #140 and
+final M2 acceptance remain pending.
 
 Status: engine implemented in `src/kalmora/billing/`; document reading is owned by another team member and enters through `inputs.py` (one typed facts object per item). Approved scope changes against the plan above:
 
