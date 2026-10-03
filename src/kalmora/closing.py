@@ -7,7 +7,7 @@ working files (IC audit, close handoff, decisions and balance snapshots, their r
 ``OUT/trace/<module>.zip``: the web app downloads every JSON of a bundle, and the IC audit alone is ~20 MB.
 
 Modules run in dependency order and feed each other: bank rec reads this run's AP, AR cash reads this run's
-billing, and close (the M6 engine, when integrated) reads every delivery. AP uses the v0 rule
+billing and AP, and close (the M6 engine, when integrated) reads every delivery. AP uses the v0 rule
 engine; AR billing uses recorded source observations and the typed billing engine.
 A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl``
 produced elsewhere), or it is *unavailable*. Unavailable is not a failure: the web app scores a
@@ -102,13 +102,13 @@ def _ar_cash(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[s
     from .ar_cash import build_ar_cash
     from .ar_cash.io import write_ar_cash
     from .data import PhaseData
-    billing = _delivered(target, "ar_billing")
-    run = build_ar_cash(PhaseData(phase), billing=billing or [])
+    billing, ap = _delivered(target, "ar_billing"), _delivered(target, "ap")
+    run = build_ar_cash(PhaseData(phase), billing=billing or [], ap=ap or [])
     write_ar_cash(run, target)
     for result in run.results:
         notes.extend(note(f"ar_cash:{result.row['bank_line']}", "CHECK", "diagnostic", "INFO", text)
                      for text in result.diagnostics)
-    return {"billing_input": billing is not None, "diagnostics": list(run.diagnostics)}
+    return {"billing_input": billing is not None, "ap_input": ap is not None, "diagnostics": list(run.diagnostics)}
 
 
 def _bank_rec(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, Any]:
