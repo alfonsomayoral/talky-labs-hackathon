@@ -11,7 +11,7 @@ import { apCascade, PolicyCascade } from '@/features/item/kit'
 import { formatDate, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { DocumentPane } from './DocumentPane'
-import { DECISION_TONE, duplicateTarget, duplicatesOf, lineMatches, masterCompare, type CompareState, type LineState } from './model'
+import { actionDetails, DECISION_TONE, duplicateTarget, duplicatesOf, lineMatches, masterCompare, type CompareState, type LineState } from './model'
 import { useDocContext } from './useDocContext'
 import styles from './Ap.module.css'
 
@@ -226,7 +226,13 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
                   ),
                 },
                 ...(row.decision === 'NOT_INVOICE' && row.action
-                  ? [{ label: 'Acción en el maestro', value: AP_ACTION_CATALOG[row.action]?.label ?? row.action }]
+                  ? [
+                      { label: 'Acción en el maestro', value: AP_ACTION_CATALOG[row.action]?.label ?? row.action },
+                      ...actionDetails(row.action_data).map((d) => ({
+                        label: d.label,
+                        value: d.kind === 'money' ? <Amount cents={Number(d.value)} currency={currency} /> : d.kind === 'mono' ? <Mono>{d.value}</Mono> : d.value,
+                      })),
+                    ]
                   : []),
               ]}
             />
