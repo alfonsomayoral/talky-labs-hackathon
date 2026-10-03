@@ -31,9 +31,21 @@ The supplier line absorbs conversion/rounding differences after all components
 are built. This module performs no I/O, writes no ledger, modifies no masters,
 and does not emit `ap.jsonl` or implement extraction dependencies #41/#45/#50.
 
+The deterministic criteria of #52 are complete: all catalogue AP codes and
+ES/PT/MX variants, document/order/master precedence, mixed bases, capitalized
+VAT, reverse charge and observed DUA quotas have reproducible checks. The
+source-only `test_ap_tax_history.py` also reproduces fiscal postings for all 13
+treatments observed in historical AP entries, comparing account, partner,
+cost objects, currency, document/local amounts, sides and code. It does not use
+the ERP summary net as a DUA base: that summary includes customs disbursements,
+so only the evidenced DUA quota is supplied. Codes absent from source history
+remain covered by catalogue/policy fixtures, not claimed as observed examples.
+Documentary binding for all incoming tasks and full July delivery/evaluation
+remain in #41/#140/#55; completion of fiscal rules does not declare M1 complete.
+
 Reproduce synthetic checks and the source-only DUA evidence (no golden access):
 
 ```sh
 PYTHONPATH=src python3.12 -m unittest discover -s tests -p test_ap_tax.py -v
-KALMORA_PHASE_ERP=/path/participant/phase_dev/erp PYTHONPATH=src python3.12 -m unittest discover -s tests -p test_ap_tax.py -v
+KALMORA_PHASE_ERP=/path/participant/phase_dev/erp PYTHONPATH=src python3.12 -m unittest discover -s tests -p 'test_ap_tax*.py' -v
 ```
