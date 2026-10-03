@@ -127,8 +127,11 @@ class PaymentTests(unittest.TestCase):
 
     def test_unknown_or_unverified_notice_never_updates_state(self):
         state = replay_events([event("registered-cert", KINDS[0], valid_from="2026-01-01", valid_until="2026-12-31")])
-        for notice in (event("bank", KINDS[3], received_at="2026-07-01T00:00:00", value="ESNEW", verified=False),
-                       event("cert", KINDS[0], received_at="2026-07-01T00:00:00", valid_from="2026-01-01"),
+        bank = apply_notice(KINDS[3], event("bank", KINDS[3], received_at="2026-07-01T00:00:00", value="ESNEW", verified=False), state)
+        self.assertEqual((bank.decision, bank.action, bank.diagnostics), ("NOT_INVOICE", "UPDATE_BANK_DETAILS", ("BANK_CHANGE_NOT_VERIFIED",)))
+        self.assertIs(bank.state, state)
+        self.assertIs(apply_notice(KINDS[3], state=state).state, state)
+        for notice in (event("cert", KINDS[0], received_at="2026-07-01T00:00:00", valid_from="2026-01-01"),
                        event("aeat", KINDS[2]),
                        event("factor", KINDS[1], received_at="2026-07-01T00:00:00")):
             result = apply_notice(notice.kind, notice, state)

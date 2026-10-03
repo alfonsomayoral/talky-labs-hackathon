@@ -112,7 +112,8 @@ def apply_notice(
     """Register a complete explicit notice in simulated state, never in ERP.
 
     Unsupported/invoice document types are caller errors. Missing notice facts
-    stay UNKNOWN. Bank changes require verified evidence, not merely a new IBAN.
+    stay UNKNOWN. A bank letter always gets its action, but only verified
+    evidence with the new IBAN updates state, not merely a new IBAN.
     """
     if document_type not in ACTIONS:
         raise ValueError("document is not a supported non-invoice notice")
@@ -121,8 +122,11 @@ def apply_notice(
         if event is not None:
             raise ValueError("informational document cannot change vendor state")
         return NoticeResolution("NOT_INVOICE", action, state)
+    # §2.1 ties the action to the type; only a verified bank letter changes state.
+    keep = "NOT_INVOICE" if document_type == "BANK_DETAILS_CHANGE" else "UNKNOWN"
     if event is None:
-        return NoticeResolution("UNKNOWN", None, state, diagnostics=("NOTICE_FACTS_UNKNOWN",))
+        return NoticeResolution(keep, action if keep == "NOT_INVOICE" else None, state,
+                                diagnostics=("NOTICE_FACTS_UNKNOWN",))
     if event.kind != document_type:
         raise ValueError("notice type and event kind disagree")
     # Validate even when incomplete, without applying it to the supplied state.
@@ -137,6 +141,7 @@ def apply_notice(
     if document_type == "BANK_DETAILS_CHANGE" and (event.verified is not True or event.value is None):
         missing.append("BANK_CHANGE_NOT_VERIFIED")
     if missing:
-        return NoticeResolution("UNKNOWN", None, state, event.evidence, tuple(missing))
+        return NoticeResolution(keep, action if keep == "NOT_INVOICE" else None, state,
+                                event.evidence, tuple(missing))
     updated = replay_events((event,), state)
     return NoticeResolution("NOT_INVOICE", action, updated, event.evidence)
