@@ -302,6 +302,17 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(result.row["adjustment"][1]["account"], "55300000")
         self.assertEqual(result.row["adjustment"][1]["partner"], "FACTOR-BAE")
 
+    def test_factored_receipt_requires_matching_document_currency(self):
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 8000, factored=True, currency="USD")])
+        self._jsonl("erp/factoring_assignments.jsonl", [{
+            "invoice": "INV-1", "date": "2026-06-10", "customer": "C1",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["residuals"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
     def test_netting_against_same_counterparty_vendor_is_balanced(self):
         self._jsonl("erp/vendors.jsonl", [{"id": "V1", "name": "Cliente Alfa, S.A.",
                                             "tax_id": "TAX1", "companies": ["1100"]}])
