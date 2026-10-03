@@ -45,6 +45,22 @@ class APEngineTest(unittest.TestCase):
         self.assertEqual(stats["engines"], {"m1": 0, "v0": 1})
         self.assertEqual(stats["m1_error"], "ValueError: boom")
 
+    def test_llm_settings_from_the_environment_record_residual_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "luna.json").write_text(json.dumps({"model": "m"}), encoding="utf-8")
+            env = {"KALMORA_AP_LLM_CONFIG": str(root / "luna.json"), "KALMORA_AP_CAPTURES": str(root / "cap"),
+                   "KALMORA_AP_BUDGET_USD": "2"}
+            with mock.patch.dict("os.environ", env), \
+                    mock.patch("kalmora.ap_sources.residual_extractor", return_value="EXTRACTOR") as build:
+                settings = closing._m1_source_settings(_phase(root))
+        build.assert_called_once_with("record", {"model": "m"}, Path(root / "cap"), "2", None)
+        self.assertEqual((settings["mode"], settings["extractor"]), ("record", "EXTRACTOR"))
+
+    def test_without_llm_settings_m1_reads_sources_deterministically(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(closing._m1_source_settings(_phase(Path(tmp))), {"mode": "deterministic"})
+
     def test_posting_date_is_the_close_month_end_with_its_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             fact = closing._month_end_fact(_phase(Path(tmp)))

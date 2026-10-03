@@ -259,10 +259,9 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
         return 0 if not (statuses["UNKNOWN"] or statuses["UNSUPPORTED"]) else 1
     if args.command == "prepare-ap":
         import asyncio
-        from decimal import Decimal, InvalidOperation
-        from .ap_sources import prepare_ap_sources
+        from decimal import InvalidOperation
+        from .ap_sources import prepare_ap_sources, residual_extractor
         from .data import load_json
-        from .documents.replay import RecordedExtractor, RecordingConfig, RecordingStore
         from .facts import atomic_json
         try:
             extractor = None
@@ -272,31 +271,8 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
             else:
                 if args.config is None or args.captures is None:
                     raise ValueError("residual mode requires --config and --captures")
-                raw_config = load_json(args.config)
-                if args.mode == "record":
-                    if args.budget_usd is None:
-                        raise ValueError("record mode requires an explicitly authorized --budget-usd")
-                    budget = Decimal(args.budget_usd)
-                    if not budget.is_finite() or budget <= 0:
-                        raise ValueError("record mode requires a positive finite provider budget")
-                    from .llm.client import AsyncLLMClient, LLMConfig
-                    from .documents.extractor import LLMDocumentExtractor
-                    settings = dict(raw_config)
-                    include_aids = settings.pop("include_processing_aids", True)
-                    for name in ("input_rate", "output_rate"):
-                        if isinstance(settings[name], bool):
-                            raise ValueError("model pricing must use exact numeric rates")
-                        settings[name] = Decimal(settings[name])
-                    client = AsyncLLMClient(LLMConfig(budget_usd=budget, **settings), recorder)
-                    adapter = LLMDocumentExtractor(client, include_processing_aids=include_aids)
-                    config = RecordingConfig.from_adapter(adapter)
-                    extractor = RecordedExtractor(RecordingStore(args.captures), config, mode="record",
-                        callback=adapter.extract_with_response, budget_usd=budget, recorder=recorder)
-                else:
-                    if args.budget_usd is not None:
-                        raise ValueError("replay/fixture cannot accept a provider budget")
-                    config = RecordingConfig.from_dict(raw_config)
-                    extractor = RecordedExtractor(RecordingStore(args.captures), config, mode=args.mode, recorder=recorder)
+                extractor = residual_extractor(args.mode, load_json(args.config), args.captures,
+                                               args.budget_usd, recorder)
             transform = None
             if args.pdf_vision:
                 from .documents.ocr import PDFVisionProcessor

@@ -73,12 +73,35 @@ def _month_end_fact(phase: Path):
     return Fact(f"{month}-{monthrange(year, number)[1]:02d}", Evidence("tasks/close.json", "month", quote=month))
 
 
+def _m1_source_settings(phase: Path) -> dict[str, Any]:
+    """How M1 reads residual sources (PDFs): with the LLM when ``KALMORA_AP_LLM_CONFIG`` and
+    ``KALMORA_AP_CAPTURES`` are set (recording new captures when ``KALMORA_AP_BUDGET_USD`` authorizes a
+    spend, replaying them otherwise), and with page images when ``pdftoppm`` is installed."""
+    import os
+    config, captures = os.environ.get("KALMORA_AP_LLM_CONFIG"), os.environ.get("KALMORA_AP_CAPTURES")
+    if not config or not captures:
+        return {"mode": "deterministic"}
+    from .ap_sources import residual_extractor
+    budget = os.environ.get("KALMORA_AP_BUDGET_USD") or None
+    mode = "record" if budget else "replay"
+    settings: dict[str, Any] = {"mode": mode, "extractor": residual_extractor(
+        mode, json.loads(Path(config).read_text(encoding="utf-8")), Path(captures), budget, _RECORDER)}
+    if shutil.which("pdftoppm"):
+        from .documents.ocr import PDFVisionProcessor
+        settings["transform"] = PDFVisionProcessor(phase).process
+    return settings
+
+
+# The run's recorder, so M1's provider calls and cost reach the manifest.
+_RECORDER: RunRecorder | None = None
+
+
 def _m1_rows(phase: Path, work: Path) -> tuple[dict[str, Row], dict[str, Any]]:
-    """Rows the M1 evidence pipeline decides on its own (deterministic sources, no provider), by doc_id."""
+    """Rows the M1 evidence pipeline decides on its own, by doc_id."""
     import asyncio
     from .ap_phase_runner import run_ap_phase
     from .ap_sources import prepare_ap_sources
-    prepared = asyncio.run(prepare_ap_sources(phase, work / "m1-sources"))
+    prepared = asyncio.run(prepare_ap_sources(phase, work / "m1-sources", **_m1_source_settings(phase)))
     result = asyncio.run(run_ap_phase(phase, prepared.manifest_path, posting_date=_month_end_fact(phase)))
     atomic_json(work / "m1-run.json", result.report)
     return {row["doc_id"]: row for row in result.rows}, result.report["summary"]
@@ -322,6 +345,8 @@ def run_close(phase: Path, out: Path, modules: list[str] | None = None, submissi
     """Run the close. Returns ``{"ok", "tasks"}``; ``ok`` is False when any engine that ran failed.
 
     With a ``recorder``, the manifest takes its run id and its models and cost."""
+    global _RECORDER
+    _RECORDER = recorder
     phase, out = phase.resolve(), out.resolve()
     if out.is_relative_to(phase) or "golden" in out.parts:
         raise ValueError("close output must be outside the read-only phase directory")
