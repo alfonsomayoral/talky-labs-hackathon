@@ -1,6 +1,6 @@
 # API contracts: input and output
 
-Shared contract for backend and front end. Design rationale and alternatives are in [api.md](api.md); this file is what both sides build against. Status: **proposed, not implemented**. Where a shape comes from an existing Python type, the type is named so the contract can be generated from it instead of copied.
+Shared contract for backend and front end. Design rationale and alternatives are in [api.md](api.md); this file is what both sides build against. Status: **HTTP implemented** (see section 9 for what changed while building it); MCP not implemented. Where a shape comes from an existing Python type, the type is named so the contract can be generated from it instead of copied.
 
 Legend: **[now]** the data exists in `src/` today; **[blocked: Mx]** depends on a milestone; **[assumption]** inferred, to confirm.
 
@@ -411,3 +411,28 @@ Error mapping: an HTTP problem becomes an MCP tool result with `isError: true` a
 - **Upload limit and concurrency** (256 MB, one at a time) are proposals.
 - **Memory with several phases loaded at once** is not measured.
 - **MCP SDK version** for spec 2026-07-28 and Python 3.12 is not verified.
+
+## 9. As built (HTTP): differences from the proposal above
+
+Implemented in `kalmora.app` (use cases and ports), `kalmora.infra` (in-memory repository and file stores) and `kalmora.api` (FastAPI). Run with `kalmora serve` (needs `pip install 'kalmora-close[api]'`). Where this section and an earlier one disagree, **this section wins**.
+
+| Topic | As built |
+|---|---|
+| Upload (3.1) | Extraction is synchronous, so a bad archive fails the request: `400 package.invalid_archive` (not a ZIP), `400 package.unsafe_archive` (bad member path, duplicate member, or no `participant/` root), `400 package.invalid` (no phase). The response is `202` with `status: "inventoried"`; only the load runs in the background. `package.not_participant` does not exist. |
+| Job (3.2) | `load_report` is replaced by `load_reports: LoadReport[]`, one per phase, because a package can hold several phases. |
+| Load report | Codes: `open_items.master_match` (info), `open_items.master_mismatch` (warning), `open_items.partner_null` (warning). Real `phase_dev` result: 36,743 entries, 284 balance rows, 8,872 open-item keys, **39 non-zero open items present in the ledger but not in the ERP `open_items` master** (for example `1100/55210000/1910/None`) and 3 open-item keys without partner. |
+| Phases (4.1) | `GET /v1/phases` lists only loaded phases, so `status` is always `loaded`. A phase still loading answers `409 phase.not_loaded`; the loading/failed state is visible on the job. A phase name already loaded from another package is `409 phase.conflict`. |
+| Documents (4.4) | Only AP messages exist: `inbox/ap/<doc>/message.json`. The AR inbox holds files (CSV, JSON notices, PDF) with no `message.json`, so `kind=ar` is valid but returns nothing. Each row has a derived `kind`. |
+| Journal (4.5) | Sorted by `(posting_date, id)`. `include=header` replaces `lines` with `line_count`. `journal-lines` rows also carry `doc_type`. |
+| Balance summary (4.6) | Without `company`: `{ "companies": [ { company, debit_total, credit_total, net } ] }`. With `company`: one object. |
+| FX (4.8) | `date` requires `currency` (`400` otherwise). No rate on or before the date is `404 fx_rate.not_found`. `EUR` returns rate `"1"`. |
+| Validate (4.9) | `with_masters` defaults to **true**. The close window is `<month>-01` to the last day of the phase month (`tasks/close.month`). Partners accepted = vendors + customers + group companies + `FACTOR-BAE`. |
+| Simulate (4.9) | Works on a deep copy of the ledger; about 850 ms on `phase_dev`. A repeated `(event_id, stage)` across separate calls is allowed because nothing is stored. |
+| Evaluation (4.12) | `modules` is `{ name: { score } }` (no `weight`: the scorer does not expose one). `GET .../evaluation/{module}` returns that module's full comparator section. Enabled with `kalmora serve --evaluator <dir>` where `<dir>/<phase>/golden` must exist; otherwise `404 evaluation.unavailable`. The structure check (`submission:check`) never needs golden. |
+| Submission | The folder is `--submissions-dir/<phase>/<module>.jsonl` (default `outputs/submissions`). There is no upload endpoint for it yet. |
+| Extra routes | `GET /v1/health`, interactive docs at `/v1/docs`, generated schema at `/v1/openapi.json` (loose for request bodies: entries are free-form objects). |
+| Query strictness | Any query parameter a route does not declare is `400 request.invalid`. |
+| Extra error codes | `task.not_found`, `record.not_found`, `entry.not_found`, `document.not_found`, `bank_account.not_found`, `fx_rate.not_found`, `run.not_found`, `submission.not_found` (404); `submission.invalid` (422, unparseable JSONL); `route.not_found` (404), `method.not_allowed` (405); `phase.conflict` (409); `evaluation.failed` (500). |
+| Limits | Upload max 256 MB (`--max-upload-mb`), one ingestion at a time (`409 ingestion.busy`). Measured on `phase_dev`: about 2 s to load, 330 MB resident, most queries under 60 ms. |
+| Restart | `kalmora serve` reloads every package found in `--data-dir` at startup (`--no-restore` to skip). |
+| Decimals | Any decimal number in an ERP master row is rendered as a string (the data layer parses decimals exactly), for example a vendor `rate` of `1.5` is `"1.5"`. |
