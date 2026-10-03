@@ -3,7 +3,8 @@ import clsx from 'clsx'
 import { Bot, Check, ChevronDown, ChevronRight, Clock, CopyCheck, ListTree, Scale, StickyNote, Workflow } from 'lucide-react'
 import { Amount, Badge, Button, ConfidenceBand, KeyValue, Menu, Mono, Pill, Tooltip, type MenuItem } from '@/components'
 import { formatPercent } from '@/lib/format'
-import { TASK_LABEL, decisionLabel, decisionOptions, kindLabel, policyDescription, reasonLabel, rowKeyLabel, type AttentionRow } from './attentionModel'
+import { TASK_LABEL } from '@/domain/catalog/labels'
+import { decisionLabel, decisionOptions, kindLabel, policyDescription, reasonLabel, rowKeyLabel, type AttentionRow } from './attentionModel'
 import styles from './AttentionPage.module.css'
 
 export interface RowActions {

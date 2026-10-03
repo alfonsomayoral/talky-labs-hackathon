@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Amount, Button, Dialog, Mono } from '@/components'
 import { formatNumber } from '@/lib/format'
-import { TASK_LABEL, decisionLabel, kindLabel, reasonLabel, rowKeyLabel, totalsByCurrency, type AttentionRow } from './attentionModel'
+import { TASK_LABEL } from '@/domain/catalog/labels'
+import { decisionLabel, kindLabel, reasonLabel, rowKeyLabel, totalsByCurrency, type AttentionRow } from './attentionModel'
 import { Totals } from './Totals'
 import styles from './AttentionPage.module.css'
 

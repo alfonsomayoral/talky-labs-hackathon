@@ -11,22 +11,12 @@ import {
   reasonEntry,
   type PolicyEntry,
 } from '@/domain/catalog/policy'
+import { KIND_LABEL } from '@/domain/catalog/labels'
 import { parseItemId, sortAttention } from '@/engine'
 import type { Override } from './overridesStore'
 
 /** fraud goes first and alone; world = the agent is sure but someone must act outside; doubt = the agent is unsure. */
 export type Family = 'fraud' | 'world' | 'doubt'
-
-export const KIND_LABEL: Record<AttentionKind, string> = {
-  FRAUD_SIGNAL: 'Posible fraude',
-  POLICY_EXCEPTION: 'Excepción de política',
-  MASTER_DATA: 'Datos maestros',
-  CROSS_TASK: 'Vínculo entre tareas',
-  AGENT_DOUBT: 'Duda del agente',
-  ESTIMATE: 'Estimación',
-  MATERIAL_UNEXPLAINED: 'Diferencia sin explicar',
-  DATA_QUALITY: 'Calidad de datos',
-}
 
 const KIND_FAMILY: Record<AttentionKind, Family> = {
   FRAUD_SIGNAL: 'fraud',
@@ -42,15 +32,6 @@ const KIND_FAMILY: Record<AttentionKind, Family> = {
 export const familyOf = (kind: AttentionKind): Family => KIND_FAMILY[kind] ?? 'doubt'
 
 export const kindLabel = (kind: AttentionKind): string => KIND_LABEL[kind] ?? kind
-
-export const TASK_LABEL: Record<TaskKey, string> = {
-  ap: 'Bandeja AP',
-  ar_billing: 'Facturación',
-  ar_cash: 'Cobros',
-  bank_rec: 'Bancos',
-  ic: 'Intragrupo',
-  close: 'Cierre',
-}
 
 export const PRIORITIES: Priority[] = ['P0', 'P1', 'P2', 'P3']
 

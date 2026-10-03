@@ -6,7 +6,7 @@ import { Badge, Button, Mono, type Tone } from '@/components'
 import type { FileValidation, TaskKey, ValidationReport } from '@/domain/types'
 import { DELIVERABLE_FILES } from '@/domain/types'
 import { formatNumber } from '@/lib/format'
-import { PIPELINE, TASK_META } from '../runs/taskMeta'
+import { PIPELINE, TASK_META } from '@/domain/catalog/labels'
 import s from './FileValidationList.module.css'
 
 export type OpenKey = (task: TaskKey, key: string) => (() => void) | null

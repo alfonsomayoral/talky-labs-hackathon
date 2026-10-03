@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { toneColor, type Tone } from '@/components'
 import type { TaskKey } from '@/domain/types'
 import type { NodeState } from './live'
-import { TASK_META } from './taskMeta'
+import { TASK_META } from '@/domain/catalog/labels'
 import s from './PipelineDag.module.css'
 
 export interface DagNode {

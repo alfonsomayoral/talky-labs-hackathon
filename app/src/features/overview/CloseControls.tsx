@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Info } from 'lucide-react'
 import { Amount, Card, Skeleton, StatusDot, Tooltip } from '@/components'
 import type { DatasetCore, DerivedRun, RunBundle } from '@/domain/types'
+import { TASK_META } from '@/domain/catalog/labels'
 import { formatNumber } from '@/lib/format'
 import {
   banksControl,
@@ -9,7 +10,6 @@ import {
   eur,
   intercompanyControl,
   pending555,
-  TASK_META,
   type ControlTone,
   type ToEur,
 } from './model'

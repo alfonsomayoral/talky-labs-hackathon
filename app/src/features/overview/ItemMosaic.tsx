@@ -3,7 +3,8 @@ import { Card, ITEM_STATUS, ITEM_STATUS_ORDER, Tooltip } from '@/components'
 import type { RunStats, WorkItem } from '@/domain/types'
 import { formatNumber } from '@/lib/format'
 import { useActiveItemId, useOpenItem } from '@/shell/useOpenItem'
-import { mosaicRows, TASK_META } from './model'
+import { TASK_META } from '@/domain/catalog/labels'
+import { mosaicRows } from './model'
 import styles from './Overview.module.css'
 
 /** Every item as a square coloured by status, one row per task. Hover shows the title; click opens the peek. */

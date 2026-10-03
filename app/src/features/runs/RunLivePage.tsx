@@ -14,7 +14,8 @@ import { createLiveTracker, taskTotals, type LiveSnapshot, type StreamState, typ
 import { ManifestCard } from './ManifestCard'
 import { NODE_STATE, PipelineDag, type DagNode } from './PipelineDag'
 import { SourceBadge } from './SourceBadge'
-import { filesPresent, PIPELINE, runPath } from './taskMeta'
+import { PIPELINE } from '@/domain/catalog/labels'
+import { filesPresent, runPath } from './taskMeta'
 import s from './RunLivePage.module.css'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))

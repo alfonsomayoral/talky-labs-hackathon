@@ -19,25 +19,25 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { EventKind, EvidenceRef, ItemId, TaskKey } from '@/domain/types'
+import { TASK_KEYS } from '@/domain/types'
+import { TASK_META as CATALOG_TASK_META, type TaskInfo } from '@/domain/catalog/labels'
 import { parseItemId } from '@/engine'
 
-export interface TaskMeta {
-  /** Sidebar label. */
-  label: string
-  /** Page title of the task view. */
-  title: string
-  route: string
+export interface TaskMeta extends TaskInfo {
   icon: LucideIcon
 }
 
-export const TASK_META: Record<TaskKey, TaskMeta> = {
-  ap: { label: 'Bandeja AP', title: 'Bandeja de proveedores', route: '/tareas/ap', icon: FileText },
-  ar_billing: { label: 'Facturación', title: 'Facturación AR', route: '/tareas/facturacion', icon: Receipt },
-  ar_cash: { label: 'Cobros', title: 'Aplicación de cobros', route: '/tareas/cobros', icon: HandCoins },
-  bank_rec: { label: 'Bancos', title: 'Conciliación bancaria', route: '/tareas/bancos', icon: Landmark },
-  ic: { label: 'Intragrupo', title: 'Conciliación intragrupo', route: '/tareas/intragrupo', icon: Network },
-  close: { label: 'Cierre', title: 'Partidas de cierre', route: '/tareas/cierre', icon: CalendarCheck },
+const TASK_ICON: Record<TaskKey, LucideIcon> = {
+  ap: FileText,
+  ar_billing: Receipt,
+  ar_cash: HandCoins,
+  bank_rec: Landmark,
+  ic: Network,
+  close: CalendarCheck,
 }
+
+/** Catalog names and routes (`@/domain/catalog/labels`) plus the icon of each task. */
+export const TASK_META = Object.fromEntries(TASK_KEYS.map((t) => [t, { ...CATALOG_TASK_META[t], icon: TASK_ICON[t] }])) as Record<TaskKey, TaskMeta>
 
 /** Route of the task view that owns an item, keeping the peek open there (`?item=`). */
 export function itemTaskHref(itemId: ItemId): string | null {

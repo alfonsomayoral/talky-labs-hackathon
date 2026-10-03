@@ -26,12 +26,12 @@ import { formatDateTime, formatNumber } from '@/lib/format'
 import { shouldIgnoreHotkey } from '@/lib/keyboard'
 import { PageActions } from '@/shell/PageActions'
 import { useActiveItemId, useOpenItem } from '@/shell/useOpenItem'
+import { TASK_LABEL } from '@/domain/catalog/labels'
 import { AttentionCard, type RowActions } from './AttentionCard'
 import { NoteDialog, SimilarDialog } from './AttentionDialogs'
 import {
   NO_FILTERS,
   PRIORITIES,
-  TASK_LABEL,
   attentionIdOf,
   buildRows,
   decisionLabel,

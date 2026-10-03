@@ -7,7 +7,7 @@ import { Amount, Card, Mono } from '@/components'
 import type { ScoreReport, TaskKey, TrialBalanceComparison } from '@/domain/types'
 import { TASK_WEIGHTS } from '@/domain/types'
 import { formatNumber, formatPercent } from '@/lib/format'
-import { PIPELINE, TASK_META } from '../runs/taskMeta'
+import { PIPELINE, TASK_META } from '@/domain/catalog/labels'
 import s from './ScoreCard.module.css'
 
 type Row = TaskKey | 'trial_balance'

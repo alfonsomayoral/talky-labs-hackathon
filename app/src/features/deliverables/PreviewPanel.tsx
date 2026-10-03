@@ -6,7 +6,7 @@ import type { RunBundle, TaskKey } from '@/domain/types'
 import { DELIVERABLE_FILES } from '@/domain/types'
 import { rowKey } from '@/engine'
 import { formatNumber } from '@/lib/format'
-import { PIPELINE } from '../runs/taskMeta'
+import { PIPELINE } from '@/domain/catalog/labels'
 import type { OpenKey } from './FileValidationList'
 import s from './PreviewPanel.module.css'
 
