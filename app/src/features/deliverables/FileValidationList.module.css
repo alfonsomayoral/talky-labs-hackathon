@@ -1,0 +1,150 @@
+.list {
+  list-style: none;
+  padding: 0;
+}
+
+.item {
+  border-top: 1px solid var(--line-soft);
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px 140px auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.toggle:hover {
+  background: var(--bg-muted);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  transition: transform var(--duration-fast) ease;
+}
+
+.open {
+  transform: rotate(90deg);
+}
+
+.file {
+  color: var(--ink-strong);
+  font-weight: var(--weight-medium);
+}
+
+.task {
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rows {
+  text-align: right;
+  color: var(--ink-2);
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.panel {
+  padding: var(--space-1) var(--space-4) var(--space-4) 42px;
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.groupTitle {
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}
+
+.count {
+  color: var(--ink-3);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.key,
+.keyStatic {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--space-1-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  font-size: var(--text-12);
+}
+
+.key:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-muted);
+}
+
+.key:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.lines {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-12);
+  color: var(--ink-2);
+}
+
+.lines li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+.errors {
+  color: var(--danger-ink);
+}
