@@ -74,6 +74,25 @@ class RouterTests(unittest.TestCase):
         self.assertNotEqual(request.sha256,other_candidate.sha256)
         with self.assertRaises(ValueError): ResolutionRequest(document,(Candidate('one',{}),Candidate('one',{})))
 
+    def test_preparsed_snapshot_is_bound_to_source_path_and_hash(self):
+        source = b"synthetic original PDF bytes"
+        source_path = self.folder / "notice.pdf"
+        source_path.write_bytes(source)
+        normalized = self.root / "normalized_sources" / self.root.name / "inbox/ap/doc/notice.pdf.json"
+        normalized.parent.mkdir(parents=True)
+        document = ParsedDocument("inbox/ap/doc/notice.pdf", hashlib.sha256(source).hexdigest(),
+                                  "application/pdf", "source-router-test",
+                                  (ParsedBlock("page.1", "payment evidence", 1),))
+        normalized.write_text(json.dumps(document.to_dict()), encoding="utf-8")
+        router = DocumentRouter(self.root, use_preparsed=True,
+                                normalized_dir=self.root / "normalized_sources")
+        self.assertEqual(router.parse("inbox/ap/doc/notice.pdf").blocks[0].text, "payment evidence")
+
+        source_path.write_bytes(b"changed source bytes")
+        with self.assertRaises(ParseError) as error:
+            router.parse("inbox/ap/doc/notice.pdf")
+        self.assertEqual(error.exception.category, "preparsed_source_hash_mismatch")
+
     def test_nonfinite_json_and_unsupported_are_explicit(self):
         (self.folder/'message.json').write_text('{"amount": NaN}')
         (self.folder/'file.bin').write_bytes(b'unknown')

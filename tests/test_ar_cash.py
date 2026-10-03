@@ -38,9 +38,9 @@ class ArCashTests(unittest.TestCase):
 
     @staticmethod
     def invoice(invoice_id, payable, *, customer="C1", company="1100", due="2026-07-01",
-                date="2026-06-01", factored=False):
+                date="2026-06-01", factored=False, currency="EUR"):
         return {"id": invoice_id, "company": company, "customer": customer, "kind": "invoice",
-                "date": date, "due_date": due, "currency": "EUR", "payable": payable,
+                "date": date, "due_date": due, "currency": currency, "payable": payable,
                 "gross": payable, "factored": factored}
 
     @staticmethod
@@ -173,6 +173,38 @@ class ArCashTests(unittest.TestCase):
                                                       "invoice": "INV-1", "amount": 10000}])
         self.assertEqual(second.row["adjustment"][1]["account"], "43800000")
 
+    def test_receivable_posted_after_receipt_is_not_available_as_of_that_date(self):
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA INV-001",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-07-03", [self.line("43000000", 10000, 0, "C1", "INV-001"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["customer"], "C1")
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["adjustment"], [])
+
+    def test_explicit_reference_uses_an_open_item_from_dated_journal(self):
+        self._jsonl("erp/ar_invoices.jsonl", [])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST", "2026-06-01", [self.line("43000000", 10000, 0, "C1", "INV-001"),
+                                                     self.line("70500000", 0, 10000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA INV-001",
+        }])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "INV-001", "amount": 8000}])
+        self.assertTrue(any("dated ERP open item" in message for message in result.diagnostics))
+
     def test_non_customer_tax_refund_uses_structured_bank_description(self):
         self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
             "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
@@ -234,7 +266,26 @@ class ArCashTests(unittest.TestCase):
         ])
         result = self._run().results[0]
         self.assertEqual(result.row["applications"], [{"pagare": "7654321", "amount": 8000}])
-        self.assertEqual(result.row["adjustment"][1]["account"], "43100000")
+        self.assertEqual(result.row["adjustment"], [
+            {"company": "1100", "account": "55500000", "debit": 8000, "credit": 0},
+            {"company": "1100", "account": "43100000", "debit": 0, "credit": 8000,
+             "partner": "C1", "assignment": "PAG7654321"},
+        ])
+
+    def test_unmatured_promissory_note_is_not_available_on_receipt_date(self):
+        self._jsonl("erp/promissory_notes.jsonl", [{
+            "number": "7654321", "customer": "C1", "company": "1100",
+            "maturity": "2026-07-03", "amount": 8000,
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("NOTEPOST", "2026-06-01", [self.line("43100000", 8000, 0, "C1", "PAG7654321"),
+                                                    self.line("43000000", 0, 8000, "C1", "INV-1")]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 8000, 0),
+                                                    self.line("55500000", 0, 8000)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["adjustment"], [])
 
     def test_ambiguous_invoice_candidates_are_not_forced(self):
         self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-1", 10000),
@@ -252,6 +303,62 @@ class ArCashTests(unittest.TestCase):
         self.assertEqual(result.row["adjustment"], [])
         self.assertTrue(any("unique" in diagnostic or "ambiguous" in diagnostic
                             for diagnostic in result.diagnostics))
+
+    def test_unique_exact_subset_applies_all_invoices_in_compatible_company_and_currency(self):
+        self._jsonl("erp/ar_invoices.jsonl", [self.invoice("INV-001", 5000),
+                                               self.invoice("INV-002", 5000)])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 10000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
+        }])
+        self._jsonl("erp/journal_entries.jsonl", [
+            self.entry("INVPOST1", "2026-06-01", [self.line("43000000", 5000, 0, "C1", "INV-001"),
+                                                      self.line("70500000", 0, 5000)]),
+            self.entry("INVPOST2", "2026-06-02", [self.line("43000000", 5000, 0, "C1", "INV-002"),
+                                                      self.line("70500000", 0, 5000)]),
+            self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 10000, 0),
+                                                    self.line("55500000", 0, 10000)]),
+        ])
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [
+            {"invoice": "INV-001", "amount": 5000}, {"invoice": "INV-002", "amount": 5000},
+        ])
+        self.assertEqual(sum(line["debit"] for line in result.row["adjustment"]),
+                         sum(line["credit"] for line in result.row["adjustment"]))
+
+    def test_ambiguous_group_with_multiple_exact_subsets_is_not_tie_broken(self):
+        self._jsonl("erp/ar_invoices.jsonl", [
+            self.invoice("INV-001", 26749500), self.invoice("INV-002", 26749500),
+            self.invoice("INV-003", 13374750), self.invoice("INV-004", 13374750),
+        ])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-02", "value_date": "2026-07-02",
+            "amount": 53499000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA",
+        }])
+        postings = []
+        for index, (invoice_id, amount) in enumerate((("INV-001", 26749500), ("INV-002", 26749500),
+                                                       ("INV-003", 13374750), ("INV-004", 13374750)), 1):
+            postings.append(self.entry(f"INVPOST{index}", f"2026-06-0{index}", [
+                self.line("43000000", amount, 0, "C1", invoice_id),
+                self.line("70500000", 0, amount),
+            ]))
+        postings.append(self.entry("CASHPOST", "2026-07-02", [self.line("57200001", 53499000, 0),
+                                                                 self.line("55500000", 0, 53499000)]))
+        self._jsonl("erp/journal_entries.jsonl", postings)
+        result = self._run().results[0]
+        self.assertEqual(result.row["applications"], [])
+        self.assertEqual(result.row["adjustment"], [])
+        self.assertTrue(any("multiple exact invoice subsets" in item for item in result.diagnostics))
+
+    def test_matching_amount_does_not_override_company_or_currency(self):
+        for invoice_company, invoice_currency in (("1200", "EUR"), ("1100", "USD")):
+            with self.subTest(company=invoice_company, currency=invoice_currency):
+                self._jsonl("erp/ar_invoices.jsonl", [self.invoice(
+                    "INV-001", 8000, company=invoice_company, currency=invoice_currency)])
+                invoices = self._run()
+                # Keep the ERP journal and bank consistent with the invoice company/currency
+                # where possible; the receipt itself remains in company 1100 and EUR.
+                self.assertEqual(invoices.results[0].row["applications"], [])
 
     def test_inbox_pdf_and_xml_are_never_read(self):
         (self.phase / "inbox/ar/remittances/notice.pdf").write_text("not a PDF", encoding="utf-8")

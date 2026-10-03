@@ -5,13 +5,14 @@ selection and accounting calculations remain in their owning modules. Evidence
 and internal UNKNOWN states belong to the audit, never to the delivery contract.
 """
 from collections.abc import Collection, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 import json
 import os
 from pathlib import Path
 import re
-import tempfile
+import uuid
 
 from .ap_rejections import REJECTION_CODES
 from .ap_holds import HOLD_CODES
@@ -355,15 +356,10 @@ def build_ap_row(*, doc_id: str, document_type: str, decision: str,
     return row
 
 
-def write_ap_jsonl(path: Path, rows: Iterable[ApRow], *, expected_doc_ids: Iterable[str],
-                   context: ValidationContext | None = None, tax_catalog: TaxCatalog | None = None,
-                   overwrite: bool = False) -> None:
-    """Validate the entire task inventory before writing any destination bytes.
-
-    Sort by task ID for reproducibility. A missing, extra, duplicate, unresolved
-    or invalid result fails before replacing output. The caller commits journal
-    and receipt/advance states separately; serializing is not ledger posting.
-    """
+def _prepare_ap_payload(rows: Iterable[ApRow], *, expected_doc_ids: Iterable[str],
+                        context: ValidationContext | None = None,
+                        tax_catalog: TaxCatalog | None = None) -> bytes:
+    """Snapshot, validate and encode once, before publication."""
     expected = tuple(expected_doc_ids)
     if any(not _text(doc) for doc in expected) or len(set(expected)) != len(expected):
         raise ValueError("unique nonempty expected task IDs required")
@@ -378,21 +374,90 @@ def write_ap_jsonl(path: Path, rows: Iterable[ApRow], *, expected_doc_ids: Itera
         records[row["doc_id"]] = row
     if set(records) != set(expected):
         raise ValueError(f"AP coverage mismatch: missing={sorted(set(expected)-set(records))}, extra={sorted(set(records)-set(expected))}")
-    payload = "".join(json.dumps(records[doc], ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n" for doc in sorted(records))
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    return "".join(json.dumps(records[doc], ensure_ascii=False, sort_keys=True, allow_nan=False)
+                   + "\n" for doc in sorted(records)).encode("utf-8")
+
+
+def _open_ap_directory(path: Path, *, create: bool = False) -> int:
+    """Walk an absolute canonical directory without following swapped symlinks."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(path.anchor, flags)
+    try:
+        for part in path.parts[1:]:
+            if create:
+                try:
+                    os.mkdir(part, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+            following = os.open(part, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = following
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+@contextmanager
+def _pinned_ap_directory(path: Path, *, create: bool = False):
+    descriptor = _open_ap_directory(path.parent, create=create)
+    try:
+        yield descriptor
+    finally:
+        os.close(descriptor)
+
+
+def _check_ap_directory(path: Path, descriptor: int) -> None:
+    try:
+        current = _open_ap_directory(path.parent)
+    except OSError as error:
+        raise ValueError("AP output directory changed during export") from error
+    try:
+        before, after = os.fstat(descriptor), os.fstat(current)
+        if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+            raise ValueError("AP output directory changed during export")
+    finally:
+        os.close(current)
+
+
+def _publish_ap_payload(path: Path, payload: bytes, *, descriptor: int,
+                        overwrite: bool, before_publish=None) -> None:
+    """Publish only in the pinned directory, even if its pathname is redirected."""
+    _check_ap_directory(path, descriptor)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, prefix=".ap-", suffix=".tmp", delete=False) as stream:
-            temporary = Path(stream.name)
+        name = f".ap-{uuid.uuid4().hex}.tmp"
+        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o600, dir_fd=descriptor)
+        temporary = name
+        with os.fdopen(fd, "wb") as stream:
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
+        if before_publish is not None:
+            before_publish()
+        _check_ap_directory(path, descriptor)
         if overwrite:
-            os.replace(temporary, path)
+            os.replace(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor)
         else:
             # Exclusive atomic creation also guards against a destination race.
-            os.link(temporary, path)
+            os.link(temporary, path.name, src_dir_fd=descriptor, dst_dir_fd=descriptor,
+                    follow_symlinks=False)
     finally:
         if temporary is not None:
-            temporary.unlink(missing_ok=True)
+            try:
+                os.unlink(temporary, dir_fd=descriptor)
+            except FileNotFoundError:
+                pass
+
+
+def write_ap_jsonl(path: Path, rows: Iterable[ApRow], *, expected_doc_ids: Iterable[str],
+                   context: ValidationContext | None = None, tax_catalog: TaxCatalog | None = None,
+                   overwrite: bool = False) -> None:
+    """Validate exact coverage and publish atomically; never post ledger events."""
+    payload = _prepare_ap_payload(rows, expected_doc_ids=expected_doc_ids,
+                                  context=context, tax_catalog=tax_catalog)
+    path = Path(path).absolute()
+    path = path.parent.resolve() / path.name
+    with _pinned_ap_directory(path, create=True) as descriptor:
+        _publish_ap_payload(path, payload, descriptor=descriptor, overwrite=overwrite)

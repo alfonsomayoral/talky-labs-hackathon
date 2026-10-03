@@ -5,6 +5,27 @@
 and a separate list of operational errors. Every attachment and message keeps
 its own original SHA-256 and relative path; the router never decides AP outcomes.
 
+For development runs only, pass `use_preparsed=True` to bypass source parsing
+and load a previously serialized `ParsedDocument` instead:
+
+```python
+router = DocumentRouter(
+    "participant/phase_dev",
+    use_preparsed=True,
+    normalized_dir="participant/normalized_sources",
+)
+document = router.parse("inbox/ap/API004204/factura_E202636433.pdf")
+```
+
+The snapshot is located at
+`<normalized_dir>/<phase-name>/<relative-inbox-path>.json`. The router validates
+the snapshot schema, source path and SHA-256 against the current original before
+returning it. Missing, malformed or stale snapshots are errors; this mode never
+falls back to parsing. The default remains `use_preparsed=False`, so normal runs
+continue to parse original sources. This switch is a temporary development
+shortcut; snapshots are derived data and must not become the final source of
+truth.
+
 The `documents` extra installs pinned pypdf/Pillow. Native PDFs retain page text
 in layout mode, including table spacing and page breaks. Text-insufficient pages
 carry `page.N:vision_required` for subsequent whole-page rendering. Sparse text,

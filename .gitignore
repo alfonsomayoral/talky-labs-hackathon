@@ -4,7 +4,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-data/
+/data/
 outputs/
 .cache/
 .DS_Store
