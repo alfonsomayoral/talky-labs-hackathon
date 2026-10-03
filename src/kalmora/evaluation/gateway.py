@@ -4,12 +4,10 @@ from typing import Any
 
 from ..app.errors import DomainError
 from .report import evaluate, write_report
-from .structure import check_structure
 
 
 class EvaluatorGateway:
-    """``root/<phase>/golden`` must exist for a phase to be evaluated; ``root=None`` disables scoring
-    (structure checks stay available because they never read golden)."""
+    """``root/<phase>/golden`` must exist for a phase to be evaluated; ``root=None`` disables scoring."""
 
     def __init__(self, root: Path | None, reports_dir: Path) -> None:
         self._root = Path(root) if root is not None else None
@@ -18,9 +16,6 @@ class EvaluatorGateway:
     @property
     def enabled(self) -> bool:
         return self._root is not None
-
-    def check_structure(self, rows_by_module: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-        return check_structure(rows_by_module)
 
     def evaluate(self, phase: str, phase_dir: Path, submission_dir: Path) -> dict[str, Any]:
         if self._root is None:

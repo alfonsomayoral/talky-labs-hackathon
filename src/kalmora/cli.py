@@ -88,11 +88,41 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--reports-dir", type=Path, default=Path("outputs/evaluations"))
     serve.add_argument("--max-upload-mb", type=int, default=256)
     serve.add_argument("--cors-origin", action="append", help="Allowed browser origin (default: localhost only)")
+    serve.add_argument("--mcp", action="store_true", help="Also serve the read-only MCP server at /mcp/ from the same memory")
     serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
     serve.add_argument("--close-command", help="Command POST /v1/phases/{phase}/runs launches, with {phase}, {phase_dir}, "
                        "{month} and {out}; it writes the six JSONL under {out}/deliverables/")
     serve.add_argument("--serve-golden", action="store_true",
                        help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
+    mcp = commands.add_parser("mcp", help="Run the read-only MCP server (needs the 'mcp' package)")
+    mcp.add_argument("--transport", choices=("stdio", "streamable-http"), default="stdio")
+    mcp.add_argument("--host", default="127.0.0.1")
+    mcp.add_argument("--port", type=int, default=8001)
+    mcp.add_argument("--data-dir", type=Path, default=Path("outputs/data"), help="Where uploaded packages are extracted")
+    mcp.add_argument("--submissions-dir", type=Path, default=Path("outputs/submissions"))
+    mcp.add_argument("--evaluator", type=Path, help="Enable get_run_evaluation: <dir>/<phase>/golden must exist")
+    mcp.add_argument("--reports-dir", type=Path, default=Path("outputs/evaluations"))
+    chat = commands.add_parser("chat", help="Run the read-only chat assistant (POST /api/chat, needs the API with --mcp)",
+                               description="Provider and model come from the environment (see kalmora.assistant.config); flags override.")
+    chat.add_argument("--provider", choices=("ollama", "openai"), help="Overrides KALMORA_AI_PROVIDER")
+    chat.add_argument("--model", help="Overrides KALMORA_AI_MODEL (mode deep)")
+    chat.add_argument("--fast-model", help="Overrides KALMORA_AI_FAST_MODEL")
+    chat.add_argument("--env-file", type=Path, help="Variables file (default: .env if present). Real environment variables win")
+    chat.add_argument("--mcp-url", help="Overrides KALMORA_MCP_URL")
+    chat.add_argument("--host", default="127.0.0.1")
+    chat.add_argument("--port", type=int, default=8100)
+    chat.add_argument("--ollama-url", help="Overrides OLLAMA_HOST / KALMORA_OLLAMA_URL")
+    chat.add_argument("--num-ctx", type=int, help="Overrides KALMORA_OLLAMA_NUM_CTX")
+    chat.add_argument("--think", action="store_true", help="Overrides KALMORA_OLLAMA_THINK")
+    chat.add_argument("--openai-base-url", help="Overrides OPENAI_BASE_URL")
+    chat.add_argument("--trace-dir", type=Path, help="Overrides KALMORA_CHAT_TRACE_DIR")
+    chat.add_argument("--no-store-text", action="store_true", help="Overrides KALMORA_CHAT_STORE_TEXT")
+    chat.add_argument("--allow-evaluation", action="store_true", help="Offer get_run_evaluation (development phases only)")
+    chat.add_argument("--compact-knowledge", action="store_true", help="Leave the workflows and examples out of the prompt")
+    chat.add_argument("--cors-origin", action="append")
+    chat.add_argument("--deep-timeout", type=float, help="Overrides KALMORA_AI_DEEP_TIMEOUT")
+    chat.add_argument("--fast-timeout", type=float, help="Overrides KALMORA_AI_FAST_TIMEOUT")
+    chat.add_argument("--no-warm-up", action="store_true", help="Do not prefill the model's prompt cache at start")
     arguments = sys.argv[1:] if argv is None else list(argv)
     args = parser.parse_args(arguments)
     if args.command in {"prepare-ap", "plan-ap", "run-ap"}:
@@ -403,7 +433,46 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
         services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
         if not args.no_restore:
             print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
-        uvicorn.run(create_app(services), host=args.host, port=args.port, log_level="info")
+        print(json.dumps({"recovered_runs": services.recover_runs()}), file=sys.stderr)
+        uvicorn.run(create_app(services, mcp=args.mcp), host=args.host, port=args.port, log_level="info")
+        return 0
+    if args.command == "chat":
+        try:
+            import uvicorn
+            from .assistant.config import ConfigError, chat_settings, describe, load_environment
+            from .assistant.service import build_assistant, create_app as create_chat_app
+        except ImportError as exc:
+            print(json.dumps({"error": f"{exc}. Install the extras: pip install 'kalmora-close[assistant]'"}), file=sys.stderr)
+            return 2
+        try:
+            chat_cfg = chat_settings(load_environment(env_file=args.env_file), provider=args.provider, model=args.model,
+                                     fast_model=args.fast_model, mcp_url=args.mcp_url, ollama_url=args.ollama_url, num_ctx=args.num_ctx,
+                                     think=args.think, openai_base_url=args.openai_base_url, trace_dir=args.trace_dir,
+                                     no_store_text=args.no_store_text, allow_evaluation=args.allow_evaluation,
+                                     compact=args.compact_knowledge, cors_origins=args.cors_origin, deep_timeout=args.deep_timeout,
+                                     fast_timeout=args.fast_timeout, no_warm_up=args.no_warm_up)
+            assistant = build_assistant(chat_cfg)
+        except (ConfigError, RuntimeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 2
+        print(json.dumps({"assistant": describe(chat_cfg)}), file=sys.stderr)
+        uvicorn.run(create_chat_app(assistant, chat_cfg), host=args.host, port=args.port, log_level="info")
+        return 0
+    if args.command == "mcp":
+        try:
+            from .mcp.server import create_server
+        except ImportError as exc:
+            print(json.dumps({"error": f"{exc}. Install the MCP SDK: pip install mcp"}), file=sys.stderr)
+            return 2
+        from .app.container import Services, Settings
+        from .evaluation.gateway import EvaluatorGateway
+        settings = Settings(data_dir=args.data_dir, run_dir=args.run_dir, submissions_dir=args.submissions_dir)
+        services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
+        # stdout belongs to the protocol on stdio: everything else goes to stderr
+        print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
+        server = create_server(services)
+        server.settings.host, server.settings.port = args.host, args.port
+        server.run(transport=args.transport)
         return 0
     if args.command == "evaluate":
         from .evaluation.report import evaluate, text_summary, write_report
