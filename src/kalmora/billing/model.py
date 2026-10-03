@@ -119,7 +119,21 @@ class Unresolved:
 
 
 @dataclass(frozen=True, slots=True)
+class PendingWip:
+    """Executed work awaiting approval, available to close without an invoice posting."""
+    item: BillingItem
+    amount: Cents
+    lines: tuple[InvoiceLine, ...]
+    evidence: tuple[Evidence, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.amount) is not int or self.amount < 0 or sum(x.amount for x in self.lines) != self.amount:
+            raise ValueError("pending WIP requires nonnegative integer cents equal to its lines")
+
+
+@dataclass(frozen=True, slots=True)
 class BillingRun:
     results: tuple[BillingResult, ...]
     """In input order, resolved items only."""
     unresolved: tuple[Unresolved, ...] = field(default=())
+    pending_wip: tuple[PendingWip, ...] = field(default=())
