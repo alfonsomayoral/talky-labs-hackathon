@@ -35,6 +35,7 @@ export const routes: RouteObject[] = [
       { path: 'ejecuciones/:runId', lazy: page(() => import('@/features/runs/RunLivePage')) },
       { path: 'comparar', lazy: page(() => import('@/features/compare/ComparePage')) },
       { path: 'coste', lazy: page(() => import('@/features/observability/CostPage')) },
+      { path: 'demo', lazy: page(() => import('@/features/demo/DemoPage')) },
       { path: 'dev/ui', lazy: page(() => import('@/components/gallery/GalleryPage')) },
       { path: 'dev/data', lazy: page(() => import('@/data/devtools/DataDebugPage')) },
       { path: '*', lazy: page(() => import('@/shell/NotFoundPage')) },
