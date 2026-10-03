@@ -473,8 +473,27 @@ def _as_of_balances(data: PhaseData) -> list[JournalEntry]:
     return list(data.iter_journal())
 
 
+def _billed(billing: Iterable[dict[str, Any]]) -> tuple[dict[str, _Invoice], list[JournalEntry]]:
+    """Invoices issued by this month's AR billing delivery: they are receivables from their posting date."""
+    invoices: dict[str, _Invoice] = {}
+    entries: list[JournalEntry] = []
+    for row in billing:
+        invoice, entry = row.get("invoice") or {}, row.get("journal_entry")
+        if row.get("expected") != "INVOICE" or not invoice.get("number") or not entry:
+            continue
+        receivable = next((line for line in entry["lines"] if line.get("account") == "43000000"), None)
+        if receivable is None:
+            continue
+        invoices[invoice["number"]] = _Invoice(invoice["number"], str(entry["company"]), str(receivable.get("partner")),
+                                               invoice["date"], invoice.get("due_date") or "9999-12-31",
+                                               invoice.get("currency") or "", False, int(invoice.get("payable") or 0))
+        entries.append(cast(JournalEntry, {**entry, "id": f"billing:{row['billing_item']}"}))
+    return invoices, entries
+
+
 def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
-                  normalized_dir: str | Path | None = None) -> ArCashRun:
+                  normalized_dir: str | Path | None = None,
+                  billing: Iterable[dict[str, Any]] = ()) -> ArCashRun:
     """Build one application result per receipt task using ERP/bank evidence.
 
     Exact unique matches are auto-applied. Ambiguous payer/invoice relationships are
@@ -491,10 +510,12 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
 
     customers = list(data.table("customers"))
     invoices = _invoice_index(data)
+    billed_invoices, billed_entries = _billed(billing)
+    invoices.update(billed_invoices)
     vendors = _casefold_map(list(data.table("vendors")))
     penalty_rows = _penalty_inputs(data)
     factoring_rows = list(data.table("factoring_assignments"))
-    entries = _as_of_balances(data)
+    entries = _as_of_balances(data) + billed_entries
     timeline = _ReceivableTimeline(cast(Iterable[JournalEntry], entries))
 
     # Existing AP/open-item balances are calculated at each receipt date from the
