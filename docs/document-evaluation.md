@@ -31,6 +31,20 @@ Runtime reports are actual `RunRecorder` JSON per case, including completed call
 
 `capture_correctness_passed` reports offline correctness separately. `passed` requires correctness plus live provenance, performance, and cost. Missing runtime reports fail the live gate. This commit does not contain scores, latency estimates asserted as observations, or fabricated provider bills. Any later full-AP run needs an explicit estimated budget before execution.
 
+## Independent image quotation review
+
+Unlabelled image observations and quotes extending beyond a sealed transcription
+remain unreviewed. The evaluator accepts an optional `image_reviews` mapping, or
+`--image-reviews` typed-v1 registry file. Reviews bind the exact field, typed value,
+unit and complete quote to the original source, page, actual image and captured
+transformation hashes. Only an explicit `VERIFIED` original-page-image review
+can establish quote fidelity; `REJECTED`, missing or stale records fail acceptance.
+Source/image identity and literal value support are checked independently first.
+OCR text or confidence cannot verify an observation. Review records remain solely
+in the evaluator and never enter capture prompts, solver inputs or expected field
+answers. The report includes the review-registry fingerprint. The records attest
+the reviewer's inspection; they cannot cryptographically prove honest inspection.
+
 ## Validation
 
 Run the focused unittest module with `PYTHONPATH=src`. Set `KALMORA_PARTICIPANT_ROOT` to the original participant root to additionally verify the sealed label hash, partition size and original source/quote anchors. PDF source auditing requires the existing documents runtime's `pypdf`; no OCR or commercial judge is invoked. Tests use clearly synthetic fixtures for wrong numbers, missing fields, fake evidence, hash tampering, invented IDs, ambiguous abstention, threshold mutation and cache/mock runtime rejection.

@@ -223,6 +223,30 @@ class EvaluationTests(unittest.TestCase):
         prediction['evidence'].update(page=1, field='text')
         self.assertEqual(audit.proof(prediction, label)[0], 'unsupported')
 
+    def test_exact_manual_review_still_requires_real_image_and_literal_value(self):
+        from kalmora.documents.image_reviews import image_review_identity, image_review_key
+        image_hash = hashlib.sha256(b'original-image').hexdigest()
+        transform = hashlib.sha256(b'original-transform').hexdigest()
+        prediction = {'field': 'gross', 'value': '1234.50', 'source_sha256': self.sha,
+            'evidence': {'document': self.path, 'page': 1, 'field': 'image:' + image_hash,
+                         'quote': '1.234,50 EUR'}}
+        key = image_review_key(prediction, transform)
+        record = {'schema_version': 1, 'key': key, 'identity': image_review_identity(prediction, transform),
+            'status': 'VERIFIED', 'review_basis': 'original_page_image', 'reviewer': 'synthetic reviewer',
+            'date': '2026-10-03'}
+        audit = SourceAudit(self.root, self.manifest, transformation_hashes={self.path: transform},
+                            image_reviews={key: record})
+        audit.content = lambda document: {'pages': [''], 'images': {(1, image_hash)}}
+        self.assertEqual(audit.proof(prediction)[0], 'grounded')
+        record['status'] = 'REJECTED'
+        self.assertEqual(audit.proof(prediction)[0], 'unsupported')
+        record['status'] = 'VERIFIED'
+        audit.content = lambda document: {'pages': [''], 'images': {(1, '0' * 64)}}
+        self.assertEqual(audit.proof(prediction)[0], 'unsupported')
+        audit.content = lambda document: {'pages': [''], 'images': {(1, image_hash)}}
+        prediction['evidence']['quote'] += ' unreviewed invented approval'
+        self.assertEqual(audit.proof(prediction)[0], 'unreviewed')
+
     def test_fresh_validated_source_tools_zero_cost_is_distinct_from_cache(self):
         proof = {'adapter_name': 'xml_extractor', 'adapter_version': 'fixture-v1',
             'adapter_sha256': '1' * 64, 'config_sha256': '2' * 64,

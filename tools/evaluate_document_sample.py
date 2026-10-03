@@ -225,6 +225,7 @@ async def verify_replay(args, cases):
 
 def evaluate(args, manifest, cases):
     from kalmora.documents.evaluation import evaluate_sample
+    from kalmora.documents.image_reviews import load_registry
     from kalmora.data import PhaseData
     if args.annotations is None:
         raise ValueError('--annotations is required for evaluator mode')
@@ -277,7 +278,8 @@ def evaluate(args, manifest, cases):
     result = evaluate_sample(manifest, annotations, captures, source_root=root,
         semantic_results=semantic_results, candidate_sets=candidate_sets, run_reports=reports,
         scope=args.partition, output_path=args.output, parsed_documents=parsed_documents,
-        transformation_hashes=transformation_hashes)
+        transformation_hashes=transformation_hashes,
+        image_reviews=load_registry(args.image_reviews) if args.image_reviews else None)
     if request_errors:
         from kalmora.facts import atomic_json
         result['violations'].extend(request_errors)
@@ -295,6 +297,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--annotations', type=Path)
+    parser.add_argument('--image-reviews', type=Path, help='Evaluator-only exact original-image quotation reviews')
     parser.add_argument('--captures-dir', type=Path, required=True)
     parser.add_argument('--participant-root', type=Path, required=True)
     parser.add_argument('--partition', choices=('tuning', 'holdout'), required=True)
