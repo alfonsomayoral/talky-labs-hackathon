@@ -3,7 +3,8 @@ import clsx from 'clsx'
 import { ProgressBar, Section, StatusDot, statusSegments } from '@/components'
 import type { DerivedRun, RunBundle } from '@/domain/types'
 import { formatNumber, formatPercent } from '@/lib/format'
-import { PIPELINE, TASK_META, type AttentionSummary } from './model'
+import { PIPELINE, TASK_META } from '@/domain/catalog/labels'
+import type { AttentionSummary } from './model'
 import styles from './Overview.module.css'
 
 interface ProcessDagProps {

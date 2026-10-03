@@ -1,0 +1,264 @@
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stepDisabled .stepBody,
+.stepDisabled .stepTitle {
+  color: var(--ink-4);
+}
+
+.stepHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--text-12);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepDone {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+}
+
+.stepDone svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stepTitle {
+  font-size: var(--text-16);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+  line-height: 24px;
+}
+
+.stepDescription {
+  color: var(--ink-3);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-left: 36px;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.grow {
+  flex: 1;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dropIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--ink-3);
+}
+
+.dropTitle {
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.progressText {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-2);
+}
+
+.loaded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.loadedHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.loadedTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--ink-strong);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--row-height);
+  padding: var(--space-1) var(--space-4);
+  border-top: 1px solid var(--line-soft);
+}
+
+.listRow:first-child {
+  border-top: 0;
+}
+
+.listName {
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  border-radius: var(--radius-md);
+  color: var(--danger-ink);
+  font-size: var(--text-12);
+}
+
+.error svg {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.optionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.optionTitle svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+}
+
+.optionBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.importDrop {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.found {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.foundTitle {
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+  margin-bottom: var(--space-2);
+}
+
+.fileList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-1) var(--space-4);
+}
+
+.fileList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 24px;
+}
+
+.fileList svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fileList li[data-ok='true'] svg {
+  color: var(--ok);
+}
+
+.fileList li[data-ok='false']:not([data-optional]) svg {
+  color: var(--danger);
+}
+
+.dash {
+  width: 14px;
+  text-align: center;
+  color: var(--ink-4);
+}
+
+.next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.nextTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}
+
+.nextTitle svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+}

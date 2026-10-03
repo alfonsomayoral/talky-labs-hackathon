@@ -1,7 +1,8 @@
 import { Metric } from '@/components'
 import type { Priority, RunManifest, RunStats } from '@/domain/types'
 import { formatDuration, formatMoney, formatNumber, formatPercent } from '@/lib/format'
-import { eur, TASK_META, type AttentionSummary, type BalanceSummary } from './model'
+import { TASK_META } from '@/domain/catalog/labels'
+import { eur, type AttentionSummary, type BalanceSummary } from './model'
 import styles from './Overview.module.css'
 
 const PRIORITIES: Priority[] = ['P0', 'P1', 'P2', 'P3']

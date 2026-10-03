@@ -4,7 +4,8 @@ import { Badge, Card, Section } from '@/components'
 import type { DerivedRun, TaskKey } from '@/domain/types'
 import { TASK_WEIGHTS } from '@/domain/types'
 import { formatNumber, formatPercent } from '@/lib/format'
-import { eur, outcomeBreakdown, PIPELINE, scoreFacts, TASK_META, type BalanceSummary } from './model'
+import { PIPELINE, TASK_META } from '@/domain/catalog/labels'
+import { eur, outcomeBreakdown, scoreFacts, type BalanceSummary } from './model'
 import styles from './Overview.module.css'
 
 const TOP_OUTCOMES = 4

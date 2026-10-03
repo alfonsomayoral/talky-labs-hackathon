@@ -5,6 +5,8 @@ import { Button, ButtonLink, EmptyState, Page, QueryState, Skeleton, toast } fro
 import type { DatasetApi, DerivedRun, RunBundle } from '@/domain/types'
 import { useDatasetStore, useRunStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
+import { useOverridesStore } from '@/features/attention/overridesStore'
+import { pendingAttentionItems } from '@/shell/attentionBadge'
 import { CloseControls } from './CloseControls'
 import { Hero } from './Hero'
 import { ItemMosaic } from './ItemMosaic'
@@ -35,6 +37,9 @@ export function Overview({ data, api, run }: { data: DerivedRun; api: DatasetApi
   const { core, meta } = api
   const toEur = useMemo(() => eurConverter(core.companies, core.fxRates, meta.month), [core, meta.month])
   const attention = useMemo(() => attentionSummary(data.attention, data.itemsById, toEur), [data.attention, data.itemsById, toEur])
+  const overrides = useOverridesStore((s) => s.byRun[run.id])
+  const pending = useMemo(() => pendingAttentionItems(data.attention, overrides ?? []), [data.attention, overrides])
+  const needs = useMemo(() => attentionSummary(pending, data.itemsById, toEur), [pending, data.itemsById, toEur])
   const balance = useMemo(() => (data.trialBalance ? balanceSummary(data.trialBalance, toEur) : null), [data.trialBalance, toEur])
 
   return (
@@ -43,7 +48,7 @@ export function Overview({ data, api, run }: { data: DerivedRun; api: DatasetApi
       <Vitals stats={data.stats} attention={attention} balance={balance} scoreTotal={data.score?.total ?? null} manifest={run.manifest} />
       <ProcessDag data={data} run={run} attention={attention} />
       <div className={styles.split}>
-        <NeedsYou data={data} attention={attention} />
+        <NeedsYou data={data} pending={pending} attention={needs} />
         <LastRun run={run} />
       </div>
       <div className={styles.split}>

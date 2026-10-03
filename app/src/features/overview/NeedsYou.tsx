@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { ArrowRight, CircleCheck } from 'lucide-react'
 import { Amount, ButtonLink, Card, EmptyState, KeyValue, Mono, PriorityBadge, type KeyValueItem } from '@/components'
-import type { DerivedRun, RunBundle } from '@/domain/types'
+import type { AttentionItem, DerivedRun, RunBundle } from '@/domain/types'
 import { sortAttention } from '@/engine'
 import { formatDateTime, formatDuration, formatMoney, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
@@ -11,10 +11,10 @@ import styles from './Overview.module.css'
 
 const TOP = 5
 
-/** First five attention items (priority, then impact); each opens the peek. */
-export function NeedsYou({ data, attention }: { data: DerivedRun; attention: AttentionSummary }) {
+/** First five pending attention items (priority, then impact); each opens the peek. */
+export function NeedsYou({ data, pending, attention }: { data: DerivedRun; pending: AttentionItem[]; attention: AttentionSummary }) {
   const openItem = useOpenItem()
-  const top = useMemo(() => sortAttention(data.attention).slice(0, TOP), [data.attention])
+  const top = useMemo(() => sortAttention(pending).slice(0, TOP), [pending])
   return (
     <Card
       title="Te necesitan"

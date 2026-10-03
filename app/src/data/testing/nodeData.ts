@@ -12,9 +12,10 @@ interface NodeFs {
 
 export const nodeFs = (await import('node:fs' as string)) as NodeFs
 
-/** Paths relative to app/ (vitest's cwd), as in .env.example. */
-export const DEV_PHASE = '../../participant/phase_dev'
-export const TEST_PHASE = '../../participant-2/phase_test'
+/** From .env.local (KALMORA_DATASETS, via vitest.config.ts) or relative to app/ as in .env.example. */
+const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {}
+export const DEV_PHASE = env.KALMORA_DEV_PHASE ?? '../../participant/phase_dev'
+export const TEST_PHASE = env.KALMORA_TEST_PHASE ?? '../../participant-2/phase_test'
 export const hasDev = nodeFs.existsSync(`${DEV_PHASE}/tasks/close.json`)
 export const hasTest = nodeFs.existsSync(`${TEST_PHASE}/tasks/close.json`)
 

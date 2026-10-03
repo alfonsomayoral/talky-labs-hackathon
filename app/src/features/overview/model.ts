@@ -1,4 +1,4 @@
-// Pure helpers behind the overview: task metadata, EUR normalisation, outcome breakdowns,
+// Pure helpers behind the overview: run source labels, EUR normalisation, outcome breakdowns,
 // score facts and the close controls (555, banks, intercompany, validation).
 
 import type {
@@ -17,22 +17,11 @@ import type {
 } from '@/domain/types'
 import { TASK_KEYS } from '@/domain/types'
 import { BANK_CATEGORY_CATALOG, outcomeEntry } from '@/domain/catalog/policy'
+import { PIPELINE } from '@/domain/catalog/labels'
 import { ITEM_STATUS_ORDER } from '@/components'
 import { formatMoney, formatPercent } from '@/lib/format'
 
 // ---------------------------------------------------------------- tasks and runs
-
-/** Execution order of the close: AP feeds banks, cash and close; close goes last. */
-export const PIPELINE: readonly TaskKey[] = ['ap', 'ar_billing', 'bank_rec', 'ar_cash', 'ic', 'close']
-
-export const TASK_META: Record<TaskKey, { label: string; route: string }> = {
-  ap: { label: 'Bandeja AP', route: '/tareas/ap' },
-  ar_billing: { label: 'Facturación', route: '/tareas/facturacion' },
-  bank_rec: { label: 'Bancos', route: '/tareas/bancos' },
-  ar_cash: { label: 'Cobros', route: '/tareas/cobros' },
-  ic: { label: 'Intragrupo', route: '/tareas/intragrupo' },
-  close: { label: 'Cierre', route: '/tareas/cierre' },
-}
 
 export const RUN_SOURCE_LABEL: Record<RunSource, string> = {
   golden: 'Referencia (golden)',

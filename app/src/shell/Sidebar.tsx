@@ -1,11 +1,14 @@
+import { useMemo } from 'react'
 import { NavLink } from 'react-router'
 import clsx from 'clsx'
 import { Blocks, Command, Keyboard } from 'lucide-react'
 import { NAV, type NavEntry } from '@/app/nav'
 import { Kbd, Tooltip } from '@/components'
-import { useDerivedRun } from '@/engine/useDerivedRun'
+import { useActiveRun, useAttention } from '@/engine/useDerivedRun'
+import { useOverridesStore } from '@/features/attention/overridesStore'
 import { formatNumber } from '@/lib/format'
 import { MOD_KEY } from '@/lib/keyboard'
+import { pendingAttention } from './attentionBadge'
 import { ContextSwitcher } from './ContextSwitcher'
 import { navIcon } from './icons'
 import { useShellUi } from './uiStore'
@@ -33,9 +36,10 @@ function NavItem({ entry, badge, urgent }: { entry: NavEntry; badge?: number; ur
 }
 
 export function Sidebar() {
-  const stats = useDerivedRun().data?.stats
-  const attention = stats?.attention.count
-  const urgent = (stats?.attention.byPriority.P0 ?? 0) > 0
+  const attentionItems = useAttention()
+  const runId = useActiveRun()?.id
+  const overrides = useOverridesStore((s) => (runId ? s.byRun[runId] : undefined))
+  const { count: attention, urgent } = useMemo(() => pendingAttention(attentionItems, overrides ?? []), [attentionItems, overrides])
   const togglePalette = useShellUi((s) => s.togglePalette)
   const setHelpOpen = useShellUi((s) => s.setHelpOpen)
 
