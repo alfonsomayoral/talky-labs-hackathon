@@ -5,6 +5,7 @@ from kalmora.documents.native_table import extract_native_table
 
 
 HEADER = "Descripción                         Cant.  Ud.  Precio   Importe"
+PT_HEADER = "Descrição                                      Qtd.   Un.    Preço    Valor"
 
 
 def source(pages):
@@ -22,6 +23,73 @@ def row(description, quantity, unit, price, amount):
 
 
 class NativeTableTests(unittest.TestCase):
+    def test_extracts_portuguese_header_rows_units_and_gr_references_literally(self):
+        source_rows = [
+            row("Hormigón HA-25/B/20/IIa – GR-053273 (04/08)", "16", "m3",
+                "82,83", "1.325,28 EUR"),
+            row("Material acondicionado", "2", "un", "10,00", "20,00"),
+            row("Material em caixas", "1,5", "caixa", "4,00", "6,00"),
+            row("Instalação de climatização", "0,3", "PA", "76.500,00", "22.950,00"),
+        ]
+        document = source([(1, "\n".join([
+            PT_HEADER, *source_rows,
+            "Incidência 1.351,28", "IVA 23% 310,79", "TOTAL 1.662,07 EUR",
+        ]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 4)
+        self.assertEqual([item.description for item in result.rows], [
+            "Hormigón HA-25/B/20/IIa – GR-053273 (04/08)",
+            "Material acondicionado", "Material em caixas", "Instalação de climatização",
+        ])
+        self.assertEqual(result.rows[0].delivery_reference, "GR-053273")
+        facts = result.to_facts(document)
+        self.assertEqual(facts["line.1.delivery_reference"][0].value, "GR-053273")
+        self.assertEqual(facts["line.1.unit_price"][0].value, "82,83")
+        self.assertEqual(facts["line.1.amount"][0].value, "1.325,28")
+        self.assertEqual(facts["line.1.amount"][0].evidence.quote, source_rows[0])
+
+    def test_portuguese_wrapped_description_and_malformed_currency_abstain(self):
+        wrapped = source([(1, "\n".join([
+            PT_HEADER,
+            "Hormigón HA-25/B/20/IIa – descripción con continuación",
+            row("GR-053273 (04/08)", "16", "m3", "82,83", "1.325,28"),
+        ]))])
+        malformed = source([(1, "\n".join([
+            PT_HEADER,
+            row("Hormigón HA-25/B/20/IIa – GR-053273", "16", "m3",
+                "EUR 82,83", "1.325,28"),
+        ]))])
+
+        wrapped_result = extract_native_table(wrapped)
+        malformed_result = extract_native_table(malformed)
+
+        self.assertEqual(wrapped_result.status, "ambiguous")
+        self.assertEqual(wrapped_result.to_facts(wrapped), {})
+        self.assertEqual(malformed_result.status, "ambiguous")
+        self.assertEqual(malformed_result.to_facts(malformed), {})
+
+    def test_explicit_timesheet_supplement_does_not_change_invoice_table_status(self):
+        invoice = source([
+            (1, "\n".join([
+                PT_HEADER,
+                row("Dúmper articulado", "2", "día", "347,76", "695,52"),
+                "Incidência 695,52", "IVA 23% 159,97", "TOTAL 855,49 EUR",
+            ])),
+            (2, "\n".join([
+                "PARTE DE TRABAJO / HOJA DE HORAS",
+                "Fecha                          Operario / categoría                          Tarea                               Horas",
+                "01/08/2026                    DUMPER-10                                 Dúmper articulado 10 t              8,0",
+            ])),
+        ])
+
+        result = extract_native_table(invoice)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 1)
+
     def test_extracts_26_explicit_rows_and_keeps_literal_source_evidence(self):
         source_rows = [row(f"Material {index:02}", f"{index},25", "t", "19,53", "455,24")
                        for index in range(1, 27)]

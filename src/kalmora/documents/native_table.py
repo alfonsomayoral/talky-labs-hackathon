@@ -16,8 +16,8 @@ from .contracts import ParsedDocument
 
 _UNIT = (
     r"(?:t|tn|ton|tons|tonelada|toneladas|h|hr|hrs|hora|horas|kg|kgs|kilogramo|kilogramos|"
-    r"m|ml|km|m2|m²|m3|m³|u|ud|uds|unidad|unidades|unit|units|pieza|piezas|pza|pzas|"
-    r"caja|cajas|lote|lotes|día|dias|dia|mes|meses|servicio|servicios|viaje|viajes)"
+    r"m|ml|km|m2|m²|m3|m³|u|ud|uds|un|uns|unidad|unidades|unit|units|pieza|piezas|pza|pzas|"
+    r"caja|cajas|caixa|caixas|pa|lote|lotes|día|dias|dia|mes|meses|servicio|servicios|viaje|viajes)"
     r"\.?"
 )
 _QUANTITY = r"[+-]?\d[\d.,]*"
@@ -34,11 +34,13 @@ _ROWISH = re.compile(
 )
 _SUMMARY = re.compile(
     r"^\s*(?:base\s+(?:imponible|impositiva|taxable)|subtotal|iva\b|impuesto\b|"
-    r"total\s+(?:factura|a\s+pagar|liquidado|due|payable)|importe\s+total|grand\s+total|tax\b)",
+    r"total\s+(?:factura|a\s+pagar|liquidado|due|payable)|total\b|importe\s+total|"
+    r"grand\s+total|tax\b|incidencia\b|certificado\s+a\s+origen\b|"
+    r"certificado\s+anterior\b|importe\s+de\s+esta\s+certificacion\b)",
     re.IGNORECASE,
 )
 _ROW_FIELD = re.compile(r"^(?:line|lines|detail_lines)\.(\d+)\.")
-_DELIVERY_REFERENCE = re.compile(r"(?<![A-Za-z0-9])AL-\d+(?!\d)")
+_DELIVERY_REFERENCE = re.compile(r"(?<![A-Za-z0-9])(?:AL|GR)-\d+(?!\d)")
 _PAGE_FOOTER = re.compile(r"^\s*(?:p[aá]gina|page)\s+\d+\s*$", re.IGNORECASE)
 _LEGAL_FOOTER = re.compile(
     r"^\s*[^·]{2,120},\s*S\.L\.U\.\s*·\s*[^·]{3,100}\s*·\s*"
@@ -47,6 +49,10 @@ _LEGAL_FOOTER = re.compile(
 )
 _SYNTHETIC_FOOTER = re.compile(
     r"^\s*synthetic test document\s*[–—-]\s*no fiscal validity\s*$",
+    re.IGNORECASE,
+)
+_SUPPLEMENTAL_TIMESHEET = re.compile(
+    r"^\s*parte\s+de\s+trabajo\s*/\s*hoja\s+de\s+horas\s*$",
     re.IGNORECASE,
 )
 
@@ -61,11 +67,11 @@ def _header(text: str) -> bool:
     positions = [
         [match.start() for match in tokens if match.group() in labels]
         for labels in (
-            {"descripcion", "description"},
-            {"cant", "cantidad", "quantity", "qty"},
-            {"ud", "uds", "unidad", "unidades", "unit", "units"},
-            {"precio", "price"},
-            {"importe", "amount"},
+            {"descripcion", "descricao", "description"},
+            {"cant", "cantidad", "quantity", "qty", "qtd"},
+            {"ud", "uds", "un", "uns", "unidad", "unidades", "unit", "units"},
+            {"precio", "preco", "price"},
+            {"importe", "amount", "valor"},
         )
     ]
     if any(not group for group in positions):
@@ -179,6 +185,8 @@ def _parse_row(line: str, *, index: int, page: int) -> NativeTableRow | None:
 def _parse_page_rows(text: str, *, page: int, start_index: int,
                      has_local_header: bool) -> tuple[list[NativeTableRow], bool]:
     lines = text.splitlines()
+    if any(_SUPPLEMENTAL_TIMESHEET.fullmatch(_plain(line)) for line in lines[:5]):
+        return [], False
     header_positions = [i for i, line in enumerate(lines) if _header(line)]
     start = min(header_positions) + 1 if header_positions else 0
     rows: list[NativeTableRow] = []
