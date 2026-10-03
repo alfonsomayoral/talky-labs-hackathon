@@ -301,3 +301,70 @@ and [summarize_current.py](../outputs/m1-owned-validation/integrated-producer/su
 reproduce the AP-only comparison and current summary without repairing a row.
 Audit reports use exclusive creation: rerun to a new report destination, preserving
 this frozen snapshot. No complete test suite was rerun for this evidence work.
+
+## Independent criteria and the explicit v0 contract view
+
+`audit_ap_delivery(..., project_v0=True,
+ documentary_acceptance_reference="User instruction accepting the documentary base provisionally")`
+opts into the `ap-v0-contract-v1` view. The default audits the raw contract. The
+reference must identify actual user authorization; a caller-supplied string is
+recorded evidence, not a signature or proof of document understanding.
+
+The view removes only the v0 root `action_data`, coded-line `goods_receipts`, and
+null values of optional header fields on known non-posting decisions. Every
+omission has a line number, document ID, JSON pointer, reason and original value
+in `projection.changes`. `output_sha256` and `projection.original_sha256` still
+identify the untouched delivery bytes; `projection.projected_sha256` identifies
+the validation view. Malformed JSON and unknown fields remain failures. Required
+posting values, reasons (including `DUPLICATE`), money, payees, decisions, coding,
+journals and contradictory non-null facts are never filled or changed. A raw
+artifact requiring projection retains `RAW_OUTPUT_REQUIRES_CONTRACT_PROJECTION`;
+the auditor never rewrites it as an accepted export.
+
+Reports now contain one `documents` record for each exact task ID and a
+`criteria_summary` with independent statuses. Duplicate rows are ambiguous and
+missing rows are absent; neither selects an arbitrary output row. Criteria are:
+
+- `documentary`: public source-loader compatibility, attachment classification,
+  packet diagnostics and declared field unknowns. Provisional documentary
+  acceptance preserves `INCOMPLETE`, `MISSING`, `AMBIGUOUS` and `CONTRADICTORY`.
+- `contract`: TypedDict shape and permitted fields, with the documented
+  `action:null` exception; domain invariants are reported separately.
+- `strict_row_validation`: the complete existing accounting/decision validator,
+  with all diagnostics retained.
+- `master_scope`: observed company/vendor/currency, PO/item and coded dimension
+  ownership against the active phase, even when shape or documentary checks fail.
+- `journal_validation`: the independent ledger validator for posted rows, checking
+  integer local cents, debit/credit, balance, dates, partner and cost objects.
+- `nonposting_journal`: no journal field on non-posting rows, including null.
+- `document_currency_conservation`: strict document/local correspondence. Absent
+  optional `amount_doc` on foreign document components is `INCONCLUSIVE`, not a
+  shape contradiction or an inferred conversion. Explicit local-currency FX
+  lines do not require foreign document cents. Observed currency contradictions
+  remain failures; the full strict diagnostics also remain visible.
+- `transaction_replay`: actual typed transaction proof, or `ABSENT`. Posted rows
+  must match in full; non-posting replay covers identity/type/decision only.
+
+`accounting_summary.validated` counts only rows clearing contract, the complete
+strict validator and active-master scope. It is independent of documentary
+accuracy and replay. `monthly_acceptance` is always false: readiness for later
+evaluation, structural checks and partial non-posting replay do not prove monthly
+policy accuracy. `delivery_ready_for_evaluation` names the narrower readiness
+condition. Existing overall blockers remain explicit. A high score, byte repeat,
+provisional documentary acceptance or a count of valid rows cannot turn absent
+transaction replay into a proof.
+
+The CLI exposes `--project-v0` and `--documentary-acceptance-reference`; it prints
+criterion counts and preserves exit status 1 for blocked evidence. Repeated and
+independent-phase comparisons additionally freeze the projection version and
+documentary acceptance reference, along with existing rule/policy/format and
+source configuration checks. July facts are never transported into September.
+
+Focused verification uses `tests/test_ap_acceptance_projection.py` (actual
+transaction factories on explicit synthetic fixtures, not monthly results).
+It covers raw-byte/metadata retention, unknown sources, absent replay, invalid
+posting money, scope and partner/balance failures hidden by an invalid header,
+non-posting journals, duplicate tasks, malformed JSON/rows, optional foreign
+cents, legitimate local FX components, and explicit CLI scope. Real producer
+runs and their audits remain separate evidence; this test suite does not invent
+rows for missing tasks or claim a monthly delivery.

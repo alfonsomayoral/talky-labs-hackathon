@@ -75,6 +75,21 @@ class APOutputTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.posted(journal_entry=entry)
 
+    def test_duplicate_policy_reason_is_preserved_without_allowing_other_reasons(self):
+        row = {"doc_id": "RECEIVED-AGAIN", "document_type": "INVOICE", "decision": "DUPLICATE",
+               "reasons": ["DUPLICATE"], "duplicate_of": "FIRST-RECEIPT"}
+        before = deepcopy(row)
+        self.assertEqual(validate_ap_row(row), ())
+        self.assertEqual(row, before)
+        built = build_ap_row(doc_id=row["doc_id"], document_type=row["document_type"],
+                             decision=row["decision"], reasons=row["reasons"], duplicate_of=row["duplicate_of"])
+        self.assertEqual(built["reasons"], ["DUPLICATE"])
+        for reasons in (["PRICE_VARIANCE"], ["DUPLICATE", "DUPLICATE"], ["OTHER"]):
+            self.assertTrue(validate_ap_row({**row, "reasons": reasons}))
+        for changes in ({"duplicate_of": row["doc_id"]}, {"journal_entry": self.entry},
+                        {"decision": "POST"}, {"decision": "HOLD"}):
+            self.assertTrue(validate_ap_row({**row, **changes}))
+
     def test_coded_line_ownership_positions_and_cents(self):
         for fields in (dict(wbs="W1"), dict(cost_center="FOREIGN"), dict(po="PO1", po_item=None),
                        dict(po="PO1", po_item=0), dict(amount=9999), dict(tax_code=""), dict(amount=True)):

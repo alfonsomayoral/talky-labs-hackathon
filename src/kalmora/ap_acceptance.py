@@ -17,12 +17,16 @@ from .ap_output import POSTING, _pinned_ap_directory, _prepare_ap_payload, valid
 from .ap_phase_export import load_ap_task_inventory
 from .ap_sources import load_prepared_ap_sources
 from .ap_tax import TaxCatalog
+from .ap_v0_projection import project_v0_output
+from .output_models.ap import ApRow, ApLine
+from .output_validation import check_structure
+from .validation import validate_entry
 from .ap_transaction import APTransactionRequest, APTransactionState, commit_ap_transaction
 from .data import PhaseData
 from .documents.contracts import fingerprint
 from .money import company_local_currency
 
-ACCEPTANCE_VERSION = "ap-acceptance-v1"
+ACCEPTANCE_VERSION = "ap-acceptance-v2"
 
 
 def _safe(path, root=None):
@@ -240,12 +244,25 @@ def _facts_audit(path, phase, inventory, inputs, watched):
                     diagnostic["raw"] = unknown
                     invalid_unknowns.append(f"SOURCE_UNKNOWN_SCHEMA_INVALID:{doc_id}:{attachment.path}:{index}")
                 source_unknowns.append(diagnostic)
+    document_sources = {}
+    for doc_id, task in prepared.items():
+        unknowns = [item for item in source_unknowns if item["doc_id"] == doc_id]
+        packet_diagnostics = list(prepared.diagnostics.get(doc_id, ()))
+        incomplete = (any(a.facts is None or a.error is not None or a.classification is None
+                          or a.classification.status != "CLASSIFIED" for a in task.attachments)
+                      or bool(unknowns) or any(not item.startswith("UNLISTED_ATTACHMENT:")
+                                               for item in packet_diagnostics))
+        document_sources[doc_id] = dict(status="INCOMPLETE" if incomplete else "COMPLETE",
+            source_mode=prepared.source_mode, unknowns=unknowns, diagnostics=packet_diagnostics,
+            attachments=[dict(path=a.path, facts_present=a.facts is not None,
+                error=a.error, classification=a.classification.status if a.classification else None)
+                         for a in task.attachments])
     diagnostics = [doc_id + ":" + diagnostic for doc_id, values in prepared.diagnostics.items()
                    for diagnostic in values]
     return dict(status="INCOMPATIBLE" if invalid_unknowns else "COMPATIBLE", sha256=_hash(payload),
                 stable_source_sha256=prepared.stable_source_sha256,
                 configuration_sha256=fingerprint(manifest["configuration"]),
-                source_mode=prepared.source_mode,
+                source_mode=prepared.source_mode, documents=document_sources,
                 accepted_attachments=sum(a.facts is not None and a.error is None for a in attachments),
                 unknown_attachments=sum(a.facts is None or a.error is not None for a in attachments),
                 unclassified_attachments=sum(a.classification is None or a.classification.status != "CLASSIFIED"
@@ -256,14 +273,162 @@ def _facts_audit(path, phase, inventory, inputs, watched):
                                                if prepared.source_mode == "fixture" else []))
 
 
+def _criterion(status, errors=(), **evidence):
+    return dict(status=status, errors=list(errors), **evidence)
+
+
+def _scope_errors(row, context, vendors, orders):
+    """Check observed scopes even when another criterion has already failed."""
+    errors = []
+    company = row.get("company")
+    if isinstance(company, str) and company not in context["companies"]:
+        errors.append("unknown AP header company")
+    if not _posting(row):
+        return errors
+    vendor, currency = row.get("vendor_id"), row.get("currency")
+    if isinstance(vendor, str) and isinstance(company, str):
+        master = vendors.get(vendor)
+        if master is None or ("companies" in master and company not in master["companies"]):
+            errors.append("vendor not enabled for posting company")
+    coded_lines = row.get("lines")
+    for coded in coded_lines if isinstance(coded_lines, list) else ():
+        if not isinstance(coded, dict):
+            continue
+        for field, registry in (("account", "accounts"), ("cost_center", "cost_centers"), ("wbs", "wbs")):
+            value = coded.get(field)
+            if isinstance(value, str):
+                records = context[registry]
+                if value not in records:
+                    errors.append(f"unknown coded-line {field}")
+                elif isinstance(records, dict) and isinstance(records[value], dict) and records[value].get("company", company) != company:
+                    errors.append(f"coded-line {field} belongs to another company")
+        po = coded.get("po")
+        if isinstance(po, str) and type(coded.get("po_item")) is int and all(isinstance(item, str) for item in (company, vendor, currency)):
+            order = orders.get(po)
+            if (order is None or (order["company"], order["vendor"], order["currency"]) !=
+                    (company, vendor, currency)
+                    or not any(item["item"] == coded.get("po_item") for item in order["items"])):
+                errors.append("coded PO position outside company/vendor/currency scope")
+    return errors
+
+
+def _contract_errors(row):
+    # The official optional action:null example is accepted without changing raw.
+    shape = dict(row)
+    if shape.get("action") is None:
+        shape.pop("action", None)
+    errors = [item["message"] for item in check_structure({"ap": [shape]})]
+    if set(row) - ApRow.__annotations__.keys():
+        errors.append("unexpected AP fields")
+    for line in row.get("lines", ()) if isinstance(row.get("lines"), list) else ():
+        if isinstance(line, dict) and set(line) - ApLine.__annotations__.keys():
+            errors.append("unexpected coded line fields")
+    return errors
+
+
+def _document_audit(doc_id, candidates, facts, context, vendors, orders, catalog, replay):
+    source = facts.get("documents", {}).get(doc_id)
+    if facts["status"] != "COMPATIBLE":
+        documentary = _criterion(facts["status"], facts.get("diagnostics", ()))
+    elif source is None:
+        documentary = _criterion("UNKNOWN", ["DOCUMENT_SOURCE_ABSENT"])
+    else:
+        documentary = _criterion(source["status"], source["diagnostics"], **{
+            key: value for key, value in source.items() if key not in {"status", "diagnostics"}})
+    criteria = {"documentary": documentary}
+    if len(candidates) != 1:
+        status = "ABSENT" if not candidates else "AMBIGUOUS"
+        for key in ("contract", "strict_row_validation", "master_scope", "journal_validation",
+                    "nonposting_journal", "document_currency_conservation", "transaction_replay"):
+            criteria[key] = _criterion(status, ["ROW_ABSENT" if not candidates else "ROW_DUPLICATE"])
+        return dict(doc_id=doc_id, criteria=criteria, accounting_status="INCONCLUSIVE")
+    number, row = candidates[0]
+    contract = _contract_errors(row)
+    strict = list(validate_ap_row(row, context, tax_catalog=catalog))
+    scopes = _scope_errors(row, context, vendors, orders)
+    criteria["contract"] = _criterion("FAIL" if contract else "PASS", contract,
+                                     scope="typed shape and permitted fields; domain invariants are separate")
+    criteria["strict_row_validation"] = _criterion("FAIL" if strict else "PASS", strict)
+    known_decision = row.get("decision") in {"POST", "POST_PAYMENT_BLOCK", "HOLD", "REJECT", "DUPLICATE", "NOT_INVOICE"} if isinstance(row.get("decision"), str) else False
+    posting = _posting(row)
+    scope_known = not posting or all(isinstance(row.get(key), str) and row[key] for key in ("company", "vendor_id", "currency"))
+    if posting:
+        scope_known = scope_known and isinstance(row.get("lines"), list) and bool(row["lines"])
+        scope_known = scope_known and all(isinstance(line, dict)
+            and isinstance(line.get("account"), str)
+            and (line.get("po") is None or isinstance(line["po"], str) and type(line.get("po_item")) is int)
+            for line in row.get("lines", ()) if isinstance(row.get("lines"), list))
+    criteria["master_scope"] = _criterion("FAIL" if scopes else "PASS" if known_decision and scope_known else "UNKNOWN", scopes)
+    if posting:
+        journal_errors = validate_entry(row.get("journal_entry"), context)
+        criteria["journal_validation"] = _criterion("FAIL" if journal_errors else "PASS", journal_errors)
+        criteria["nonposting_journal"] = _criterion("NOT_APPLICABLE")
+        entry = row.get("journal_entry")
+        lines = entry.get("lines", ()) if isinstance(entry, dict) else ()
+        missing_doc_cents = (row.get("currency") != company_local_currency(row["company"])) if isinstance(row.get("company"), str) and row["company"] in context["companies"] else False
+        missing_doc_cents = missing_doc_cents and isinstance(lines, list) and any(
+            isinstance(line, dict) and (line.get("account", "").startswith(("2", "4", "6")))
+            and line.get("currency", row.get("currency")) == row.get("currency")
+            and "amount_doc" not in line for line in lines if isinstance(line, dict) and isinstance(line.get("account"), str))
+        monetary_errors = [error for error in strict if any(token in error for token in
+            ("cents", "document amount", "document base", "document withholding", "document payable",
+             "payable", "gross", "charged VAT", "self-assessed VAT", "currency", "coded net",
+             "document net", "journal base side"))]
+        observed_conflicts = [error for error in monetary_errors if any(token in error for token in
+            ("must be unsigned", "zero local side", "local-currency journal document cents differ",
+             "currency differs", "currency is outside"))]
+        monetary_shape_known = (all(type(row.get(field)) is int for field in
+            ("net", "tax", "gross", "withholding", "retention", "payable"))
+            and isinstance(row.get("lines"), list) and bool(row["lines"])
+            and all(isinstance(line, dict) and type(line.get("amount")) is int for line in row["lines"])
+            and isinstance(lines, list) and bool(lines)
+            and all(isinstance(line, dict) and type(line.get("debit")) is int
+                    and type(line.get("credit")) is int for line in lines))
+        currency_status = ("FAIL" if observed_conflicts else "INCONCLUSIVE" if missing_doc_cents or contract or not monetary_shape_known
+                           else "FAIL" if monetary_errors else "PASS")
+        criteria["document_currency_conservation"] = _criterion(currency_status,
+            (["FOREIGN_DOCUMENT_CENTS_NOT_OBSERVED"] if missing_doc_cents else []) + monetary_errors,
+            scope="strict document-currency correspondence; optional absent journal amount_doc is not a shape contradiction")
+    elif known_decision:
+        illegal = "journal_entry" in row
+        criteria["journal_validation"] = _criterion("NOT_APPLICABLE")
+        criteria["nonposting_journal"] = _criterion("FAIL" if illegal else "PASS", ["NONPOSTING_JOURNAL_PRESENT"] if illegal else ())
+        criteria["document_currency_conservation"] = _criterion("NOT_APPLICABLE")
+    else:
+        for key in ("journal_validation", "nonposting_journal", "document_currency_conservation"):
+            criteria[key] = _criterion("UNKNOWN", ["DECISION_UNKNOWN"])
+    if replay is None:
+        criteria["transaction_replay"] = _criterion("ABSENT", ["TRANSACTION_REPLAY_ABSENT"])
+    elif posting:
+        replayed = [_json(line) for line in replay.rows_json.splitlines() if line.strip()]
+        expected = [item for item in replayed if item.get("doc_id") == doc_id]
+        criteria["transaction_replay"] = _criterion("MATCH" if expected == [row] else "MISMATCH",
+            scope="full posted row and transaction state proof")
+    else:
+        identity = (doc_id, row.get("document_type"), row.get("decision"))
+        criteria["transaction_replay"] = _criterion("MATCH" if identity in replay.nonposting_projection else "MISMATCH",
+            scope="identity/type/decision only; reasons/header are not replayed")
+    clear = not contract and not strict and not scopes and criteria["master_scope"]["status"] == "PASS"
+    return dict(doc_id=doc_id, line=number, decision=row.get("decision"), criteria=criteria,
+                accounting_status="VALIDATED" if clear else "NOT_VALIDATED")
+
+
 def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_path=None,
-                      replay: APReplayProof | None = None, rules_root=None):
+                      replay: APReplayProof | None = None, rules_root=None, project_v0=False,
+                      documentary_acceptance_reference: str | None = None):
     """Audit existing RunBundle files and compatible source artifacts without writes.
 
     The public bundle contract is ``deliverables/ap.jsonl`` with optional manifest
     and trace. Incomplete deliveries are reported, never repaired. Static byte
     comparison alone is not reported as transaction replay or policy accuracy.
     """
+    if type(project_v0) is not bool:
+        raise TypeError("project_v0 must be an explicit boolean")
+    if documentary_acceptance_reference is not None and (not isinstance(documentary_acceptance_reference, str)
+            or not documentary_acceptance_reference.strip()):
+        raise ValueError("documentary acceptance requires an explicit nonempty authorization reference")
+    if replay is not None and not isinstance(replay, APReplayProof):
+        raise TypeError("APReplayProof required")
     inventory = load_ap_task_inventory(phase_path)
     phase, bundle, policy = inventory.phase_path, _safe(bundle_path), _safe(policy_path)
     if bundle.is_relative_to(phase):
@@ -284,8 +449,11 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
     payload = _read(output) if output.is_file() else None
     if payload is not None:
         watched[output] = _hash(payload)
+    projection = project_v0_output(payload) if project_v0 and payload is not None else None
+    validation_payload = projection.projected_bytes if projection else payload
     errors, rows, line_errors, journal_totals, dimensions = [], [], [], {}, []
-    for number, line in enumerate((payload or b"").splitlines(), 1):
+    row_candidates = {}
+    for number, line in enumerate((validation_payload or b"").splitlines(), 1):
         if not line.strip():
             continue
         try:
@@ -296,20 +464,11 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
         problems = list(validate_ap_row(row, context, tax_catalog=catalog))
         if isinstance(row, dict):
             rows.append(row)
+            if isinstance(row.get("doc_id"), str):
+                row_candidates.setdefault(row["doc_id"], []).append((number, row))
+            problems.extend(_scope_errors(row, context, vendors, orders))
         if not problems:
-            if row.get("company") is not None and row["company"] not in context["companies"]:
-                problems.append("unknown AP header company")
             if row["decision"] in POSTING:
-                master = vendors.get(row["vendor_id"])
-                if master is None or ("companies" in master and row["company"] not in master["companies"]):
-                    problems.append("vendor not enabled for posting company")
-                for coded in row["lines"]:
-                    if coded.get("po") is not None:
-                        order = orders.get(coded["po"])
-                        if (order is None or (order["company"], order["vendor"], order["currency"]) !=
-                                (row["company"], row["vendor_id"], row["currency"])
-                                or not any(item["item"] == coded["po_item"] for item in order["items"])):
-                            problems.append("coded PO position outside company/vendor/currency scope")
                 key = row["company"] + "/" + company_local_currency(row["company"])
                 totals = journal_totals.setdefault(key, dict(debit=0, credit=0))
                 totals["debit"] += sum(item["debit"] for item in row["journal_entry"]["lines"])
@@ -322,6 +481,7 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
                     journal=[{field: line.get(field) for field in
                               ("account", "partner", "cost_center", "wbs", "debit", "credit", "currency", "amount_doc", "assignment")}
                              for line in row["journal_entry"]["lines"]]))
+        problems = list(dict.fromkeys(problems))
         if problems:
             line_errors.append(dict(line=number, doc_id=row.get("doc_id") if isinstance(row, dict) else None,
                                     errors=problems))
@@ -332,6 +492,8 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
     coverage = dict(expected=len(expected), rows=len(rows), missing=sorted(expected - set(valid_ids)),
                     extra=sorted(set(valid_ids) - expected), duplicate=sorted(key for key, count in counts.items() if count > 1))
     coverage["exact"] = not coverage["missing"] and not coverage["extra"] and not coverage["duplicate"] and len(rows) == len(expected)
+    if projection is not None and projection.changes:
+        errors.append("RAW_OUTPUT_REQUIRES_CONTRACT_PROJECTION")
     if payload is None:
         errors.append("AP_DELIVERY_ABSENT")
     if not coverage["exact"]:
@@ -397,6 +559,10 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
                 errors.append("TRACE_POSTING_DUPLICATE")
             if any(event["item"].startswith("ap:") and event["item"][3:] not in expected for event in events):
                 errors.append("TRACE_TASK_UNKNOWN")
+    documents = [_document_audit(doc_id, row_candidates.get(doc_id, ()), facts,
+                  context, vendors, orders, catalog, replay) for doc_id in inventory.doc_ids]
+    criteria_summary = {criterion: dict(sorted(Counter(document["criteria"][criterion]["status"]
+                        for document in documents).items())) for criterion in documents[0]["criteria"]} if documents else {}
     if (_phase_paths(phase, inventory.doc_ids) != paths or _snapshot(phase, paths) != inputs
             or load_ap_task_inventory(phase) != inventory
             or tuple(sorted(path for path in rules.rglob("*.py") if "evaluation" not in path.relative_to(rules).parts)) != rule_paths
@@ -404,7 +570,7 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
             or any(not path.is_file() or _hash(_read(path)) != value for path, value in watched.items())
             or (payload is None and output.exists())):
         raise ValueError("AP acceptance inputs, rules, facts or output changed during audit")
-    report = dict(schema_version=1, acceptance_version=ACCEPTANCE_VERSION, month=data.month,
+    report = dict(schema_version=2, acceptance_version=ACCEPTANCE_VERSION, month=data.month,
                   phase_path=str(phase), bundle_path=str(bundle),
                   status="READY_FOR_EVALUATION" if not errors else "BLOCKED",
                   scope="COMPLETE_DELIVERY" if coverage["exact"] else "PARTIAL_DELIVERY" if rows else "SOURCE_ONLY",
@@ -416,6 +582,16 @@ def audit_ap_delivery(*, phase_path, bundle_path, policy_path, source_manifest_p
                   output_sha256=_hash(payload) if payload is not None else None,
                   artifact_hashes={str(path): value for path, value in sorted(watched.items())},
                   facts=facts, replay=replay_report, journal_totals=journal_totals,
+                  projection=projection.evidence() if projection else {"version": None},
+                  documentary_acceptance=dict(status="PROVISIONAL_USER_ACCEPTANCE" if documentary_acceptance_reference else "NOT_ASSUMED",
+                    reference=documentary_acceptance_reference,
+                    scope="documentary base only; source unknowns retained; no transaction replay or monthly acceptance inferred"),
+                  documents=documents, criteria_summary=criteria_summary,
+                  accounting_summary=dict(scope="contractual row validation against active masters, separate from documentary accuracy and transaction replay",
+                    validated=sum(doc["accounting_status"] == "VALIDATED" for doc in documents),
+                    not_validated=sum(doc["accounting_status"] == "NOT_VALIDATED" for doc in documents),
+                    inconclusive=sum(doc["accounting_status"] == "INCONCLUSIVE" for doc in documents),
+                    monthly_acceptance=False, delivery_ready_for_evaluation=not errors),
                   accounting_dimensions=sorted(dimensions, key=lambda row: row["doc_id"]),
                   decision_counts=dict(sorted(Counter(row.get("decision") for row in rows if isinstance(row.get("decision"), str)).items())),
                   evaluation={"performed": False, "score": None}, provider_calls=0)
@@ -432,10 +608,13 @@ def compare_ap_acceptance(previous, current, *, independent_phase=False):
     for report in (previous, current):
         if report.get("report_sha256") != fingerprint({k: v for k, v in report.items() if k != "report_sha256"}):
             raise ValueError("AP acceptance report hash mismatch")
-    fields = ["acceptance_version", "rules_sha256", "policies_sha256", "delivery_format_sha256"]
+    fields = ["acceptance_version", "rules_sha256", "policies_sha256", "delivery_format_sha256", "documentary_acceptance"]
     if not independent_phase:
         fields += ["month", "inputs_sha256", "output_sha256", "facts", "replay"]
-    differences = [field for field in fields if previous.get(field) != current.get(field)]
+    differences = []
+    if previous.get("projection", {}).get("version") != current.get("projection", {}).get("version"):
+        differences.append("projection.version")
+    differences += [field for field in fields if previous.get(field) != current.get(field)]
     previous_config = previous.get("facts", {}).get("configuration_sha256")
     current_config = current.get("facts", {}).get("configuration_sha256")
     if previous_config != current_config:

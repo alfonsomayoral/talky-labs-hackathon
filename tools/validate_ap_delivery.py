@@ -17,6 +17,8 @@ def main(argv=None):
     parser.add_argument("--against", type=Path, help="Previous acceptance report, checked by its self-hash")
     parser.add_argument("--independent-phase", action="store_true",
                         help="Require frozen rules/policy/format but independent phase inputs")
+    parser.add_argument("--project-v0", action="store_true", help="Audit an explicit contract view; retain raw bytes/hash and every omitted value")
+    parser.add_argument("--documentary-acceptance-reference", help="Explicit user authorization for provisional documentary scope; unknowns and replay blockers remain")
     args = parser.parse_args(argv)
     if args.independent_phase and args.against is None:
         parser.error("--independent-phase requires --against")
@@ -28,7 +30,9 @@ def main(argv=None):
         parser.error("report must be separate from originals, saved sources and RunBundle")
     try:
         report = audit_ap_delivery(phase_path=args.phase, bundle_path=args.bundle,
-                                  policy_path=args.policy, source_manifest_path=args.sources)
+                                  policy_path=args.policy, source_manifest_path=args.sources,
+                                  project_v0=args.project_v0,
+                                  documentary_acceptance_reference=args.documentary_acceptance_reference)
         comparison = None
         if args.against:
             if "golden" in args.against.parts or "golden" in args.against.resolve().parts:
@@ -45,7 +49,8 @@ def main(argv=None):
     summary = {key: coverage[key] for key in ("expected", "rows", "exact")}
     summary.update({key: len(coverage[key]) for key in ("missing", "extra", "duplicate")})
     print(json.dumps(dict(status=report["status"], scope=report["scope"], coverage=summary,
-                          blockers=report["blockers"], report=str(destination), comparison=comparison)))
+                          blockers=report["blockers"], accounting_summary=report["accounting_summary"],
+                          criteria_summary=report["criteria_summary"], report=str(destination), comparison=comparison)))
     # An incomplete acceptance artifact is useful evidence but never a green exit.
     return 0 if report["status"] == "READY_FOR_EVALUATION" and (comparison is None or comparison["compatible"]) else 1
 

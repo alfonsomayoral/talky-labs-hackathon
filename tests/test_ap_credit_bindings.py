@@ -152,3 +152,63 @@ class CreditBindingSourceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sorted(deliveries), [(5000, 1050, 6050), (118802, 0, 118802)])
         self.assertEqual(found.count(("RESOLVED", "RESOLVED")), 2)
         self.assertEqual(found.count(("NOT_FOUND", "UNKNOWN")), 1)
+
+    @unittest.skipUnless(os.environ.get("KALMORA_PHASE_ERP"), "original ERP not configured")
+    async def test_original_credit_deliveries_match_provider_free_transaction_replay(self):
+        """Original-source bindings interoperate with the real typed transaction boundary."""
+        import json
+        from pathlib import Path
+        from unittest.mock import patch
+        from kalmora import ap_credit_delivery
+        from kalmora.ap_acceptance import replay_ap_transactions, _master_context
+        from kalmora.ap_tax import TaxLine
+        from kalmora.ap_transaction import APPostingInputs, APTransactionRequest, APTransactionState, CodedAPLine
+        from kalmora.ap_valuation import ValuationLine
+        from kalmora.ap_withholding import WithholdingBase, WithholdingCatalog
+        from kalmora.data import PhaseData
+
+        captured = []
+        real = ap_credit_delivery.build_ap_credit_delivery
+        def capture(**options):
+            result = real(**options)
+            captured.append((options, result))
+            return result
+        with patch.object(ap_credit_delivery, "build_ap_credit_delivery", side_effect=capture):
+            await self.test_original_xml_two_bindings_have_unique_observed_imputation_without_line_guess()
+
+        data = PhaseData(Path(os.environ["KALMORA_PHASE_ERP"]).parent)
+        context, _, _ = _master_context(data)
+        withholdings = WithholdingCatalog(data.table("tax_codes"))
+        for options, delivered in captured:
+            arguments = options["journal_arguments"]
+            valuation, tax = arguments["valuation"], arguments["tax"]
+            # This regression's observed originals are direct expenses without
+            # deductions or 407. A future expanded fixture must supply its
+            # quantity/advance facts explicitly rather than infer them here.
+            self.assertEqual({part.kind for part in valuation.components}, {"DIRECT"})
+            self.assertFalse(arguments["withholding"].components)
+            assignments = dict(valuation.assignments)
+            coded = tuple(options["lines"])
+            self.assertEqual(len(coded), len(tax.components))
+            inputs = APPostingInputs(
+                header=options["header"], country="ES", posting_date=arguments["posting_date"],
+                reconciliation_account=arguments["reconciliation_account"], gr_ir_account="40090000",
+                valuation_lines=tuple(ValuationLine(part.line_id, part.amount_doc, assignments[part.line_id])
+                                      for part in valuation.components),
+                tax_lines=tuple(TaxLine(part.line_id, part.base_doc, part.tax_code, tax_doc=part.tax_doc)
+                                for part in tax.components),
+                withholding_bases=tuple(WithholdingBase(part.line_id, part.base_doc, ()) for part in tax.components),
+                coded_lines=tuple(CodedAPLine(part.line_id, line) for part, line in zip(tax.components, coded, strict=True)),
+                credit_references=arguments["credit_references"],
+            )
+            request = APTransactionRequest(scope=valuation.scope, document_type="CREDIT_NOTE",
+                                           posting=inputs, evidence=options["evidence"])
+            baseline = APTransactionState(options["consumption"], arguments["state"])
+            proof = replay_ap_transactions((request,), baseline, tax_catalog=options["tax_catalog"],
+                                           withholding_catalog=withholdings, context=context)
+            self.assertEqual(json.loads(proof.rows_json), delivered.row)
+            self.assertEqual(proof.committed_doc_ids, (delivered.row["doc_id"],))
+            self.assertEqual(proof.duplicate_attempts_rejected, 1)
+            self.assertFalse(baseline.rows)
+            self.assertNotEqual(proof.initial_state_sha256, proof.final_state_sha256)
+        self.assertEqual(len(captured), 2)
