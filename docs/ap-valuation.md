@@ -1,4 +1,4 @@
-# Net AP valuation core — partial #51
+# Net AP valuation (#51)
 
 `kalmora.ap_valuation.value_ap_lines` accepts an explicit AP `decision`, invoice
 scope/date, `ValuationLine` amounts in document cents, company-owned cost coding,
@@ -22,22 +22,34 @@ company are never combined across invoices. Scope and quantity mismatches fail.
 `VALUED` requires the upstream POST or POST_PAYMENT_BLOCK decision. Other valid
 decisions return `INELIGIBLE` with no components; missing/blocked allocations return
 `UNALLOCATED`. No price tolerance, tax, fraud, certificate or payee rule is inferred.
-Negative invoice net values are rejected pending credit-note/reversal integration.
+Input net values are unsigned document cents. #54 reverses eligible credit-note
+debit/credit sides after validating the original imputation and fiscal evidence.
 Master existence and cost-object ownership must be validated by the caller using
 M0 validation; the core checks the explicit assignment's company and exclusivity.
 
-## Connections still pending
+## Integration boundaries
 
 - #43/#44 adapters provide resolved quantities and historical consumption.
-- #45 supplies expense/asset accounts and company-owned cost objects; defaults or
-  historical recovery are not implemented here.
+- #45 supplies expense/asset accounts and company-owned cost objects through
+  the deterministic coding resolver; recovery remains outside valuation.
 - #49/#50 supply eligibility and price-tolerance/payment-block decisions. Retain
   tentative #44 state only after every posting stage succeeds.
-- #52/#53/#54 add taxes, withholding, guarantees, advances, supplier reconciliation
-  account/payable and a complete balanced journal. They must use `net_local` as
-  the net posting contribution rather than independently converting its total.
-- #32 adapts to the final six delivery contracts; no interface changes here.
+- #52/#53 supply fiscal components; #54 assembles complete scoped journals with
+  credits and advances. They use `net_local` as the posting contribution rather
+  than independently converting its total.
+- #55 exports validated delivery rows. #140 binds documentary facts to these
+  interfaces and owns full-phase coverage and final evaluation.
 
 Synthetic tests compose a net-only supplier fixture and validate Debe/Haber with
 M0. They cover fragmented receipts, multiple prices, signed differences, direct
 expense/asset coding, FX boundaries and scope isolation, without reading golden.
+
+The optional `test_ap_valuation_history.py` reconstructs the original historical
+invoice API000186 through the real PO, receipt, coding, valuation, fiscal and
+journal APIs. It compares every monetary/fiscal field and journal header against
+ERP source history and validates master ownership. Run with
+`KALMORA_PHASE_ERP=/path/participant/phase_dev/erp` and
+`.venv/bin/python -m unittest discover -s tests -p 'test_ap_valuation*.py' -v`.
+The fixture ID exists only in the regression; valuation has no document/month
+exceptions. This completes #51's deterministic criteria, while #140/#55 retain
+documentary adaptation and full-phase delivery/evaluation.
