@@ -12,6 +12,7 @@ KALMORA_AI_MODEL                      model for mode deep
 KALMORA_AI_FAST_MODEL                 model for mode fast (default: the deep model)
 OPENAI_API_KEY                        OpenAI key (required for the ``openai`` provider)
 OPENAI_BASE_URL                       default ``https://api.openai.com/v1``; any OpenAI-compatible server
+KALMORA_OPENAI_API                    ``chat`` (default, ``/chat/completions``) or ``responses`` (``/responses``)
 OLLAMA_HOST / KALMORA_OLLAMA_URL      Ollama address (``host:port`` or URL); default ``http://127.0.0.1:11434``
 KALMORA_OLLAMA_NUM_CTX                context window requested from Ollama (default 32768)
 KALMORA_OLLAMA_THINK                  ``true`` lets the model think before answering (slower)
@@ -36,6 +37,7 @@ from .loop import Rates
 from .service import ChatSettings
 
 PROVIDERS = ("ollama", "openai")
+OPENAI_APIS = ("chat", "responses")
 TRUE = {"1", "true", "yes", "on"}
 FALSE = {"0", "false", "no", "off", ""}
 
@@ -122,6 +124,9 @@ def chat_settings(env: Mapping[str, str], **flags: Any) -> ChatSettings:
     key = env.get("OPENAI_API_KEY") or None
     if provider == "openai" and not key:
         raise ConfigError("OPENAI_API_KEY is required for the openai provider (set it in the environment or in .env)")
+    openai_api = (env.get("KALMORA_OPENAI_API") or "chat").strip().lower()
+    if openai_api not in OPENAI_APIS:
+        raise ConfigError(f"KALMORA_OPENAI_API must be one of: {', '.join(OPENAI_APIS)} (got '{openai_api}')")
     prices = [env.get("KALMORA_AI_INPUT_USD_PER_MTOK"), env.get("KALMORA_AI_OUTPUT_USD_PER_MTOK"), env.get("KALMORA_AI_PRICE_SOURCE")]
     rates = None
     if any(prices):
@@ -136,7 +141,7 @@ def chat_settings(env: Mapping[str, str], **flags: Any) -> ChatSettings:
         num_ctx=given.get("num_ctx") or _number(env, "KALMORA_OLLAMA_NUM_CTX", int, defaults.num_ctx),
         think=given.get("think") if given.get("think") else _flag(env, "KALMORA_OLLAMA_THINK", False),
         openai_base_url=given.get("openai_base_url") or env.get("OPENAI_BASE_URL") or defaults.openai_base_url,
-        openai_api_key=key,
+        openai_api=openai_api, openai_api_key=key,
         mcp_url=given.get("mcp_url") or env.get("KALMORA_MCP_URL") or defaults.mcp_url,
         trace_dir=given.get("trace_dir") or Path(env.get("KALMORA_CHAT_TRACE_DIR") or "outputs/chat"),
         store_text=False if given.get("no_store_text") else _flag(env, "KALMORA_CHAT_STORE_TEXT", True),

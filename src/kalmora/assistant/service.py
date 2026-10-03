@@ -21,6 +21,7 @@ from .loop import Assistant, ChatRequest, FAST, DEEP, Rates
 from .model import AgentModel
 from .ollama import OllamaModel
 from .openai_compat import OpenAICompatModel
+from .openai_responses import OpenAIResponsesModel
 from .tools import McpHttpSource
 
 ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
@@ -35,6 +36,7 @@ class ChatSettings:
     num_ctx: int = 32768
     think: bool = False
     openai_base_url: str = "https://api.openai.com/v1"
+    openai_api: str = "chat"                       # chat | responses
     openai_api_key: str | None = field(default=None, repr=False)
     mcp_url: str = "http://127.0.0.1:8000/mcp/"
     trace_dir: Path | None = Path("outputs/chat")
@@ -57,7 +59,8 @@ def make_models(settings: ChatSettings) -> dict[str, AgentModel]:
         if settings.provider == "openai":
             if not settings.openai_api_key:
                 raise RuntimeError("OPENAI_API_KEY is not set (environment or .env).")
-            return OpenAICompatModel(name, settings.openai_api_key, settings.openai_base_url)
+            adapter = OpenAIResponsesModel if settings.openai_api == "responses" else OpenAICompatModel
+            return adapter(name, settings.openai_api_key, settings.openai_base_url)
         raise RuntimeError(f"Unknown provider '{settings.provider}'.")
 
     return {"deep": one(settings.model), "fast": one(settings.fast_model or settings.model)}

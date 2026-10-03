@@ -163,6 +163,7 @@ pkill -f "app/node_modules/.bin/vite"
 | `KALMORA_AI_FAST_MODEL` | `.env` | Modelo del modo Rápido (por defecto, el mismo que el profundo) |
 | `KALMORA_MCP_URL` | `.env` | Endpoint MCP del backend (`…/mcp/`) |
 | `OPENAI_API_KEY` | `.env` | Clave de OpenAI; solo con `openai` |
+| `KALMORA_OPENAI_API` | `.env` | `chat` (por defecto, `/chat/completions`) o `responses` (`/responses`) |
 | `OLLAMA_HOST` / `KALMORA_OLLAMA_URL` | `.env` | Dirección de Ollama (por defecto `http://127.0.0.1:11434`) |
 | `KALMORA_OLLAMA_NUM_CTX` | `.env` | Ventana de contexto pedida a Ollama (32768) |
 | `VITE_API_URL` | `app/.env.local` | Backend `/v1` |
@@ -174,7 +175,7 @@ La lista completa del agente está en `src/kalmora/assistant/config.py`; el dise
 
 - **El backend responde 404 a una subida desde el front.** Casi siempre la petición llegó a otro servicio en el mismo puerto (Docker en IPv6). Usa `127.0.0.1` en `VITE_API_URL`, o cambia de puerto. Comprueba quién escucha con `lsof -nP -iTCP:8001 -sTCP:LISTEN`.
 - **`Cannot find native binding` al arrancar Vite (o oxlint).** Bug de npm con dependencias opcionales ([npm/cli#4828](https://github.com/npm/cli/issues/4828)): falta el paquete nativo de tu plataforma. Instálalo sin guardarlo, con la misma versión que `rolldown`: `npm install --no-save --no-package-lock @rolldown/binding-darwin-arm64@$(node -p "require('./node_modules/rolldown/package.json').version")`. Cambia `darwin-arm64` por tu plataforma.
-- **El agente con OpenAI responde 401 `Missing scopes: model.request`.** La clave es restringida. Dale el permiso *Model capabilities → Request* en OpenAI, o usa una clave con acceso completo, y reinicia solo el agente (lee el `.env` al arrancar).
+- **El agente con OpenAI responde 401 `Missing scopes: model.request`.** La clave es restringida. Dale el permiso *Model capabilities → Request* en OpenAI, usa una clave con acceso completo o, si la clave solo tiene permiso para la Responses API, pon `KALMORA_OPENAI_API=responses` en el `.env`. Después reinicia solo el agente (lee el `.env` al arrancar).
 - **El agente dice que el dataset no está cargado.** Ver [Cargar datos](#6-cargar-datos).
 - **La primera pregunta con Ollama tarda.** El modelo se está cargando en memoria; `ollama ps` muestra qué hay cargado. Mientras `llama-server` use CPU o GPU, está generando.
 - **`kalmora chat` dice que falta `OPENAI_API_KEY` o el modelo.** Con `openai` ambos son obligatorios; revisa el `.env` de la raíz.
