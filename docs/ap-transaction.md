@@ -39,7 +39,9 @@ The state contains `ConsumptionState`, `AdvanceState`, published keys, evidence
 and canonical JSON snapshots of validated rows. `state.rows` and `result.row`
 return fresh copies, so later caller edits cannot alter a confirmed journal or
 delivery row. A previously committed key, historical posted event, historical
-allocation key, or published task ID raises before factories. Replaying AP starts
+allocation key, or published task ID raises before factories. Historical events
+protect the company/document identity even if incoming supplier or currency
+fields change. Replaying AP starts
 from the original baseline and cached facts; it does not append to a posted state.
 
 This is an in-memory commit boundary. Persisting the complete resulting snapshot

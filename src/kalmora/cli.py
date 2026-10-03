@@ -1,4 +1,4 @@
-"""Command-line entry point; M0 provides infrastructure, not an AP solver."""
+"""Command-line entry point for the Kalmora close backend and solver modules."""
 
 import argparse
 import json
@@ -23,6 +23,9 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("phase", type=Path)
     ledger = commands.add_parser("ledger-summary", help="Reconstruct the recorded book and summarize its dimensions")
     ledger.add_argument("phase", type=Path)
+    ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from JSON/JSONL phase data")
+    ar_cash.add_argument("phase", type=Path)
+    ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
     evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
     evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
     evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
@@ -45,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(arguments)
     from .runlog import RunRecorder
     metadata: dict[str, object] = {"package_version": __version__}
-    for name in ("phase", "archive", "destination", "submission", "evaluator"):
+    for name in ("phase", "archive", "destination", "submission", "evaluator", "output"):
         if getattr(args, name, None) is not None:
             metadata[name] = str(getattr(args, name).resolve())
     with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata) as run:
@@ -100,6 +103,27 @@ def _execute(args: argparse.Namespace) -> int:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 1
         print(json.dumps(summary))
+        return 0
+    if args.command == "solve-ar-cash":
+        from .ar_cash import build_ar_cash
+        from .ar_cash.io import write_ar_cash
+        from .data import PhaseData
+        try:
+            phase = args.phase.resolve()
+            output = args.output.expanduser().resolve()
+            if output.is_relative_to(phase):
+                raise ValueError("AR cash output must be outside the read-only phase directory")
+            run = build_ar_cash(PhaseData(phase))
+            written = write_ar_cash(run, output)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        resolved = sum(bool(result.row["applications"] or result.row["residuals"])
+                       for result in run.results)
+        print(json.dumps({"output": str(written), "rows": len(run.results),
+                          "with_decision": resolved,
+                          "unresolved": len(run.results) - resolved,
+                          "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
         return 0
     if args.command == "serve":
         try:

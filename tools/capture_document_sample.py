@@ -130,7 +130,7 @@ async def capture(args):
             checked_source(root, source)
     config = LLMConfig(args.model, args.budget, args.input_usd_per_million / Decimal(1_000_000),
                        args.output_usd_per_million / Decimal(1_000_000), args.pricing_provenance,
-                       reasoning_effort=args.reasoning_effort, concurrency=2, timeout_seconds=60,
+                       reasoning_effort=args.reasoning_effort, concurrency=2, timeout_seconds=args.timeout_seconds,
                        max_attempts=2, max_output_tokens=args.max_output_tokens,
                        model_output_capacity_tokens=128_000,
                        image_detail=args.image_detail)
@@ -233,6 +233,7 @@ def main():
     parser.add_argument('--budget', type=Decimal, default=Decimal('1'))
     parser.add_argument('--model', default='gpt-6-luna')
     parser.add_argument('--reasoning-effort', default='low')
+    parser.add_argument('--timeout-seconds', type=float, default=None, help='Optional explicit request deadline; default has no temporal limit')
     parser.add_argument('--max-output-tokens', type=int, default=None)
     parser.add_argument('--image-detail', choices=('auto', 'low', 'high'), default='high')
     parser.add_argument('--pdf-ocr', action='store_true', help='Render scanned PDF pages and include unverified local OCR aids')
