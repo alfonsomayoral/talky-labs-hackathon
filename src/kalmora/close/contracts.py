@@ -6,7 +6,6 @@ contract. Hashes bind facts and coverage to a phase, not to a particular adapter
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 import json
@@ -15,7 +14,6 @@ from typing import Any
 
 from ..data import load_json
 from ..facts import DocumentFacts
-from ..money import integer
 from .rules import month_bounds
 
 SCHEMA = "kalmora.close.dependencies/v1"
@@ -23,7 +21,7 @@ PRODUCERS = ("ap", "ar_billing", "bank_rec", "ar_cash", "ic")
 
 
 def encoded(value: Any) -> bytes:
-    return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
                        default=lambda x: str(x) if isinstance(x, Decimal) else _unsupported(x)) + "\n").encode()
 
 

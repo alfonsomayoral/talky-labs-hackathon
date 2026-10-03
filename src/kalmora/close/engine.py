@@ -3,7 +3,7 @@
 No document reader, upstream solver, evaluation package or golden access here.
 """
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from statistics import median
@@ -15,7 +15,7 @@ from ..model import BalanceKey, OpenItemKey
 from ..money import RateTable, company_local_currency, integer, round_cents
 from ..output_models.close import CloseRow
 from .contracts import Handoff, digest, require
-from .projection import Projection, account_balances, dense_balances, project
+from .projection import Projection, project
 from .rules import (entry, estimate_daily, fx_difference, impairment_bp, line,
                     month_bounds, prepaid_remaining, uncovered_ranges)
 
@@ -33,6 +33,7 @@ class CloseResult:
 class CloseEngine:
     def __init__(self, entries, handoff: Handoff, rates: RateTable, customers: list[dict],
                  ar_invoices: list[dict], promissory_notes: list[dict] = ()):
+        handoff = Handoff.from_dict(handoff.payload)
         self.handoff = handoff
         self.month = handoff.payload["month"]
         self.first, self.closing = month_bounds(self.month)
@@ -154,6 +155,7 @@ class CloseEngine:
             desired = prepaid_remaining(f["total_local"], start, end, self.closing)
             amount = desired - existing
             components = f["components"]
+            require(f["total_local"] > 0, "prepaid requires positive original cost")
             require(sum(c["amount"] for c in components) == f["total_local"], "prepaid allocation does not tie")
             lines = [line("48000000", amount, company=company, text="Prepaid balance movement")]
             allocated = 0
@@ -184,6 +186,9 @@ class CloseEngine:
                                       filter_partner=True, filter_assignment=True)
             amount = cert.current - existing
             require(amount >= 0, "WIP already exceeds pending certification; conflicting upstream coverage")
+            if not amount:
+                self._post("WIP_REVENUE", company, identity, "billing_item", 0, [], dict(f, existing=existing))
+                continue
             lines = [line("43090000", amount, company=company, partner=f["customer"], assignment=identity)]
             remaining = amount
             for i, chapter in enumerate(cert.chapters):

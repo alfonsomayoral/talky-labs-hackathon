@@ -90,7 +90,7 @@ def main() -> int:
         print(f"close: {type(error).__name__}: {error}", file=sys.stderr)
         return 2
     print(encoded({k: manifest[k] for k in ("integration", "rows", "types", "files", "engine_data_complete")}).decode(), end="")
-    return 0
+    return 0 if manifest["engine_data_complete"] else 3
 
 
 if __name__ == "__main__":

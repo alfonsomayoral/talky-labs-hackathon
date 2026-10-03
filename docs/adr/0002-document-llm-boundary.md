@@ -12,8 +12,10 @@ paying for repeated model calls. Final accounting remains in the AP engines.
 
 Use Python 3.12, PydanticAI with OpenAI Responses for typed interpretation,
 explicit Python stages, and DuckDB as a reconstructible landing adapter. Use
-pypdf for native PDF text with page provenance and embedded images for scanned
-pages. Structured XML is parsed directly and keeps its own evidence. The model
+pypdf for native PDF text with page provenance. Scanned pages can be rendered
+with Poppler and receive unverified Tesseract locator text, followed by visual
+interpretation against the rendered original. Structured XML is parsed directly
+and keeps its own evidence. The model
 receives only selected originals and bounded candidates from the active phase.
 It has no filesystem, SQL, web, shell or golden tools.
 
@@ -23,7 +25,8 @@ It has no filesystem, SQL, web, shell or golden tools.
 | OpenAI client with Pydantic | Small, viable implementation, with provider-specific control in application code. | Comparison baseline and transport dependency; avoid a second agent runtime. |
 | LangGraph | Persistent graph execution useful for branching, long interruptions and human review. | Current stages have explicit state, bounded concurrency and no agent loops. Reconsider only if the workflow needs these features. |
 | pypdf | Native page text and embedded images, with a small local runtime. | Initial PDF adapter; evaluate layout fidelity on the selected two-page/table cases. |
-| Docling | Rich layout/OCR representation; requires additional runtime/model artifacts for its PDF pipeline. | Evaluated alternative for future OCR/layout requirements. No Docling/OCR weights are loaded by the initial implementation. |
+| Poppler/Tesseract | Optional bounded page rendering and OCR locator aids; source pixels remain authoritative. | Explicit CLI configuration, tool/weight hashes, no automatic downloads or OCR-as-fact. |
+| Docling | Rich layout/OCR representation; requires additional runtime/model artifacts for its PDF pipeline. | Assessed alternative; no Docling weights loaded. |
 
 ## Reproducible dependencies and licensing
 
@@ -40,12 +43,20 @@ Optional extras keep M0 and replay imports independent of provider libraries.
 | duckdb | 1.5.5 | MIT | `landing` extra; embedded database, coordinated writer. |
 | Docling | 2.132.0 | MIT | Assessed alternative; not an installed runtime dependency. |
 | docling-ibm-models | 4.0.3 | MIT for code | Assessed companion package; no associated weights used. |
+| Poppler `pdftoppm` | 26.05.0, conda-forge ARM64 build hd83632c_3 | GPL-2.0-or-later (installed package metadata) | Optional separate rendering executable; binary version/hash captured per run. |
+| Tesseract | 5.5.0 | Apache-2.0 | Optional separate OCR executable; unverified aids only. |
 
-No local OCR weights are required for the chosen native-text/image-input path.
-OpenAI models are commercial services, allowed by the user. A package's code
-license does not establish its downloadable weights' license. Activating local
-OCR requires a separate inventory of model identifier, revision/hash, license,
-download origin and platform compatibility. Record installed transitive versions
+Native PDF text and direct image input require no OCR weights. The optional
+development OCR path uses `tessdata_fast/4.1.0/eng.traineddata`, Apache-2.0,
+SHA-256 `7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2`,
+installed by the Homebrew formula from the upstream Tesseract repository.
+Only `eng` is configured; Spanish/Portuguese weights are not silently installed.
+The renderer's installed conda package SHA-256 is
+`ef68570a8e06e890c1e800e4ce25fe6108b16d7482bdd2de6bf751b3be97183e`.
+These native tools were exercised on macOS ARM64; Linux must supply explicit
+compatible executables and language data, whose actual hashes enter provenance.
+OpenAI models are commercial services, allowed by the user. A code package's
+license does not establish downloadable weights' licensing. Record transitive versions
 and licenses with each release's environment inventory. `requirements-m1.lock`
 pins the initial runtime closure and `docs/dependencies-m1.json` records package
 licenses/primary project URLs. CI installs this closure on Linux; direct pins
@@ -65,8 +76,9 @@ conflicts are preserved for deterministic normalization and policy evaluation.
 | Contract | Meaning and owner |
 | --- | --- |
 | `ParsedBlock(id, text, page, source_field)` | Original page/XML-field text and stable locator. #39. |
-| `PageImage(page, media_type, data)` | Original embedded image bytes with content hash; source page is explicit. #39. |
-| `ParsedDocument(path, source_sha256, media_type, parser_version, blocks, images)` | Relative source identity plus parsed representation and transformation hash. #39/#137. |
+| `PageImage(page, media_type, data)` | Embedded or original-page-rendered image bytes with content hash and explicit source page. Render transformation provenance is preserved. #39. |
+| `ProcessingAid(page, text, provenance)` | Unverified OCR locator text and tool/configuration/weight/image/text hashes; never a source block or accepted fact. #39. |
+| `ParsedDocument(path, source_sha256, media_type, parser_version, blocks, images, warnings, processing_aids)` | Relative original identity plus parsed representation and transformation hash including aids. #39/#137. |
 | `DocumentExtractor.extract(ParsedDocument) -> DocumentFacts` | Asynchronous typed extraction. Same interface for real, recorded and synthetic responses. #137/#138. |
 | `ResolutionRequest(document, candidates, context)` | Bounded candidates with stable IDs and relevant active-phase context. Candidate/context hash is part of recording identity. #137/#43. |
 | `SemanticResolver.resolve(ResolutionRequest) -> ResolutionResult` | Asynchronous selection/abstention with evidence; selected IDs must belong to candidates. #137/#43. |
@@ -79,9 +91,9 @@ Canonical observed fields include `supplier_tax_id`, `recipient_tax_id`,
 `document_number`, `document_date`, `currency`, `document_type_hint`, `net`,
 `tax`, `gross`, `iban`, `po_reference`, `receipt_reference`, and
 `line.<id>.<field>`. Values preserve original text; monetary normalization happens
-in code. Normalization may add a singleton `lines` fact with explicit
-`*_cents`, `*_milli` and `*_e4` units for landing projection while retaining
-the raw individual evidence fields.
+in code. Normalization retains individual `line.N.*` observations and evidence,
+using explicit `*_cents`, `*_milli` and `*_e4` units where applicable; it does not
+invent a different aggregate line contract.
 
 Missing extraction is not an invented negative observation. A missing field
 has no observed value. An explicit absence may be `Fact(None, evidence)` only
@@ -89,7 +101,10 @@ when supported by source content. Model confidence does not create evidence.
 Text quotations must match the referenced source block. For image-only pages,
 page/hash validation identifies the source; quotation fidelity needs source
 review and the separate vision evaluation, and is not claimed as a deterministic
-substring check.
+substring check. Short source-local image IDs select actual supplied bytes;
+the caller retains their exact hash/page. Conflicting supplied identity fails.
+Independent quotation reviews belong only to the evaluator and never enter
+production prompts. OCR text/confidence cannot certify a quotation.
 
 AP identity/order engines consume these facts and filtered candidates. Their
 tax, arithmetic, duplicate, receipt, allocation, decision and posting policies
@@ -129,7 +144,7 @@ quality on this package has not yet been established. A capability/schema match
 does not close the quality issue.
 
 Initial configuration: timeout 60 seconds, two attempts, concurrency two,
-maximum 200,000 conservatively estimated input tokens, maximum 8,192 output tokens, run budget
+maximum 200,000 conservatively estimated input tokens, no application output-token limit (per subsequent user instruction), run budget
 USD 1. Reserve an upper estimate before each real request; unknown usage retains
 the conservative reservation. Auth/quota/refusal/schema/incomplete/network and
 timeout failures remain distinct. SDK/agent automatic retries are disabled.
@@ -180,5 +195,8 @@ golden absent from the solver, and identical accounting output from replay.
   [pricing](https://developers.openai.com/api/docs/pricing), consulted 2026-10-03.
 - [pypdf](https://pypdf.readthedocs.io/) and
   [Docling converter](https://docling-project.github.io/docling/reference/document_converter/).
+- [Poppler](https://poppler.freedesktop.org/),
+  [Tesseract](https://github.com/tesseract-ocr/tesseract), and
+  [tessdata_fast 4.1.0 weights license](https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/LICENSE).
 - [DuckDB concurrency](https://duckdb.org/docs/stable/connect/concurrency) and
   repository landing proposal/DDL, reviewed by the loader implementation.
