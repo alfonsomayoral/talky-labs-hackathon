@@ -74,6 +74,7 @@ export function JournalEntryView({ entry, lines: bare, company, currency, chart,
               const n = typeof l.line === 'number' ? l.line : i + 1
               const lineCurrency = multiCompany ? (companyCurrency(str(l.company) ?? defaultCompany) ?? cur) : cur
               const cost = [str(l.cost_center), str(l.wbs)].filter(Boolean).join(' · ')
+              const label = accountLabel(String(l.account), accounts)
               return (
                 <tr key={i} className={clsx(highlight?.includes(n) && styles.highlight)}>
                   {multiCompany && (
@@ -82,11 +83,15 @@ export function JournalEntryView({ entry, lines: bare, company, currency, chart,
                     </td>
                   )}
                   <td className={styles.shrink}>
-                    <span className={styles.account}>
+                    <span className={styles.account} title={`${String(l.account)} ${label}`}>
                       <Mono>{String(l.account)}</Mono>
-                      <span className={styles.accountLabel}>{accountLabel(String(l.account), accounts)}</span>
+                      <span className={styles.accountLabel}>{label}</span>
                     </span>
-                    {str(l.text) && <span className={styles.lineText}>{String(l.text)}</span>}
+                    {str(l.text) && (
+                      <span className={styles.lineText} title={String(l.text)}>
+                        {String(l.text)}
+                      </span>
+                    )}
                   </td>
                   <td className={styles.shrink}>
                     {str(l.partner) || cost || str(l.assignment) ? (

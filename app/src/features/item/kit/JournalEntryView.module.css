@@ -120,7 +120,7 @@
 .lineText {
   display: block;
   margin-top: 1px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--text-11);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -153,6 +153,7 @@
 }
 
 .lineCount {
+  white-space: nowrap;
   margin-left: var(--space-2);
   color: var(--ink-3);
   font-weight: var(--weight-regular);
