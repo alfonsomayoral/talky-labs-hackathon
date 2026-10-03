@@ -294,6 +294,7 @@ def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) 
     Originals, task/clock inventory, configuration versions, packet fingerprint
     and every content-addressed artifact must still agree. Normalization and
     classification are recomputed, preserving all candidates and unknowns.
+    Default local PDF vision v2 is reproduced; other transformations are refused.
     Preparation failures remain attachment errors, never accounting decisions.
     """
     import json
@@ -414,13 +415,29 @@ def load_prepared_ap_sources(phase_path: str | Path, manifest_path: str | Path) 
                 raise ValueError("prepared attachment differs from its exact original source/path")
             parsed = ParsedDocument.from_dict(artifact["parsed"]) if artifact.get("parsed") is not None else None
             if parsed is not None:
+                _safe_file(phase, relative)
                 current = router.parse(relative)
                 if (parsed.path != relative or parsed.source_sha256 != original_hashes[relative]
-                        or parsed.parser_version != current.parser_version or parsed.media_type != current.media_type
-                        or parsed.blocks != current.blocks
-                        or any(image not in parsed.images for image in current.images)
-                        or (parsed.media_type != "application/pdf" and parsed.images != current.images)
-                        or any(image.page not in {block.page for block in current.blocks} for image in parsed.images)):
+                        or parsed.media_type != current.media_type or parsed.blocks != current.blocks):
+                    raise ValueError("prepared parsed document differs from original blocks/pages/parser")
+                if parsed.parser_version != current.parser_version:
+                    if (current.media_type != "application/pdf" or not re.fullmatch(
+                            re.escape(current.parser_version) + r"/pdf-vision-v2:[0-9a-f]{64}",
+                            parsed.parser_version)):
+                        raise ValueError("prepared parsed document differs from original blocks/pages/parser")
+                    from .documents.ocr import PDFVisionConfig, PDFVisionProcessor
+
+                    # Saved configuration is evidence to compare, never a source
+                    # of executable tool paths or processing instructions.
+                    default_config = PDFVisionConfig()
+                    if (not parsed.processing_aids or any(aid.provenance.get("config")
+                            != asdict(default_config) for aid in parsed.processing_aids)):
+                        raise ValueError("prepared PDF vision requires the current local default configuration")
+                    _safe_file(phase, relative)
+                    current = PDFVisionProcessor(phase, default_config).process(current)
+                # Authenticate the full view, including image bytes, warnings,
+                # OCR aids and their provenance, even when hashes were rewritten.
+                if parsed != current:
                     raise ValueError("prepared parsed document differs from original blocks/pages/parser")
             status, error, origin = artifact.get("status"), artifact.get("error"), stage.get("origin")
             if status != stage.get("status") or status not in {"ACCEPTED", "UNKNOWN"}:
