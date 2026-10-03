@@ -786,8 +786,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     apps.extend({"invoice": c.invoice.id, "amount": c.balance} for c in chosen)
                     for candidate in chosen:
                         timeline.apply(candidate, candidate.balance)
-                        applied_receipts[(company, str(bank_line.get("currency", "")), customer, amount)
-                                         ].extend(c.invoice.id for c in chosen)
+                    applied_receipts[(company, str(bank_line.get("currency", "")), customer, amount)
+                                     ].extend(c.invoice.id for c in chosen)
                 elif due_candidates and not residuals:
                     if sum(candidate.balance == amount for candidate in due_candidates) > 1:
                         diagnostics.append("multiple exact invoice matches; left unapplied")
@@ -838,6 +838,7 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     invoice_id = str(assignment.get("invoice", ""))
                     invoice = invoices.get(invoice_id)
                     if (invoice is None or invoice.customer != customer or invoice.company != company
+                            or invoice.currency != str(bank_line.get("currency", ""))
                             or assignment.get("customer") != customer
                             or str(assignment.get("date", "9999-12-31")) > receipt_date):
                         continue
