@@ -94,4 +94,7 @@ tr[data-state='different'] .label {
   background: var(--danger-border);
   color: var(--danger-ink);
   font-weight: var(--weight-semibold);
+  /* Keeps the wash on both halves when a long value wraps. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
