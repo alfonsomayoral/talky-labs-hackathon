@@ -8,7 +8,7 @@ import { AP_DECISION_CATALOG, AP_DOCUMENT_TYPE_CATALOG, AP_REASON_CATALOG } from
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
 import { formatDate, formatNumber } from '@/lib/format'
-import { findFlowFilter, MissingTaskFile, ProcessMap, useProcessFlow } from '@/features/item/kit'
+import { findFlowFilter, itemEurCents, MissingTaskFile, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { ApDocCard } from './ApDocCard'
 import { ApSankey, type SankeySelection } from './ApSankey'
 import { apListRows, apSankey, DECISION_TONE, EMPTY_FILTER, facetCounts, filterRows, isFiltering, NO_REASON, type ApFilter, type ApListRow } from './model'
@@ -78,7 +78,7 @@ function ApInbox({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
       { id: 'number', header: 'Factura', width: 120, cell: (r) => <Mono muted>{r.row.invoice_number ?? '—'}</Mono> },
       { id: 'company', header: 'Soc.', width: 60, cell: (r) => <Mono muted>{r.row.company ?? '—'}</Mono>, sortValue: (r) => r.row.company },
       { id: 'date', header: 'Fecha', width: 90, cell: (r) => formatDate(r.row.invoice_date), sortValue: (r) => r.row.invoice_date },
-      { id: 'gross', header: 'Total', width: 156, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => r.item.amount },
+      { id: 'gross', header: 'Total', width: 156, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => (r.item.amount === null ? null : itemEurCents(r.item, r.item.amount, api.core)) },
       {
         id: 'decision',
         header: 'Decisión',
@@ -93,7 +93,7 @@ function ApInbox({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
         cell: (r) => (r.row.duplicate_of ? <>Duplicado de <Mono>{r.row.duplicate_of}</Mono></> : r.item.reasons.map((x) => label(AP_REASON_CATALOG, x)).join(', ') || <span className={styles.muted}>—</span>),
       },
     ],
-    [],
+    [api.core],
   )
 
   const byDecision = useMemo(() => {
