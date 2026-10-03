@@ -5,11 +5,12 @@ normalized independently and classified as an invoice upstream. Nothing is
 guessed: a prerequisite that documents or masters cannot resolve is omitted, so
 its gate stays unknown. Rule calculation stays in ``ap_rejections``.
 """
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 import re
+from typing import Any
 
-from .ap_identity import IdentityCatalog
+from .ap_identity_sources import resolve_ap_identity
 from .ap_pipeline import source_rejection_stage
 from .ap_rejections import RuleStage
 from .data import PhaseData
@@ -18,7 +19,7 @@ from .facts import DocumentFacts, Evidence, Fact
 VENDORS, ORDERS, COMPANIES = "erp/vendors.jsonl", "erp/purchase_orders.jsonl", "erp/companies.json"
 WORKS_REVERSE_CODES = frozenset({"SISP", "PAUT"})  # construction reverse charge (ES/PT)
 _PO_FIELD = re.compile(r"(?:line\.\d+\.)?po_reference")
-_RATE_FIELD = re.compile(r"(?:.+\.)?tax_rate_e4")
+_RATE_FIELD = re.compile(r"(?:tax\.charge\.\d+\.)?tax_rate_e4")  # invoice-level VAT, not line levies
 
 
 def _charged_rate(row: dict | None):
@@ -77,6 +78,33 @@ def _gross(source: DocumentFacts) -> Fact | None:
                 Evidence(proof.document, f"{proof.field}+{withheld.evidence.field}", proof.page))
 
 
+def _resolved(source: DocumentFacts) -> DocumentFacts:
+    """One amount view per source: printed deduction signs dropped, a zero-rated quota beside
+    the charged one ignored, net summed from every line, and gross/withholding derived."""
+    fields = dict(source.fields)
+    for name in ("withholding_cents", "certification_previous_cents"):
+        fact = _one(source, name)
+        if fact is not None and type(fact.value) is int:
+            fields[name] = [Fact(abs(fact.value), fact.evidence)]  # printed as "-x" deduction
+    taxes = {f.value for f in fields.get("tax_cents", [])}
+    if 0 in taxes and len(taxes) == 2:
+        fields["tax_cents"] = [f for f in fields["tax_cents"] if f.value != 0]
+    count = _one(source, "line_count")
+    if "net_cents" not in fields and count is not None:
+        lines = [_one(source, f"line.{n}.net_cents") or _one(source, f"line.{n}.amount_cents")
+                 for n in range(1, count.value + 1)]
+        if all(line is not None and type(line.value) is int for line in lines):
+            proof = lines[0].evidence
+            fields["net_cents"] = [Fact(sum(line.value for line in lines),
+                                        Evidence(proof.document, "sum(line.N.amount)", proof.page))]
+    view = DocumentFacts(source.source_sha256, source.extractor_version, fields)
+    for name, derive in (("withholding_cents", _withholding), ("gross_cents", _gross)):
+        fact = derive(view)
+        if fact is not None and name not in fields:
+            fields[name] = [fact]
+    return view
+
+
 def _certification(source: DocumentFacts) -> tuple[Fact | None, Fact | None]:
     current, previous, cumulative = (_one(source, f"certification_{name}_cents")
                                      for name in ("current", "previous", "cumulative"))
@@ -97,18 +125,46 @@ def _cfdi_view(source: DocumentFacts, pdf_number: str | None) -> dict:
         series = value("raw.series")
         if _is_cfdi(source) and isinstance(series, str) and number != pdf_number:
             number = re.sub(r"[^0-9A-Z]", "", series.upper()) + number
-    gross = _gross(source)
     return {"number": number, "date": value("document_date"), "issuer_tax_id": value("supplier_tax_id"),
             "recipient_tax_id": value("recipient_tax_id"), "currency": value("currency"),
             "net_cents": value("net_cents"), "tax_cents": value("tax_cents"),
-            "gross_cents": None if gross is None else gross.value}
+            "gross_cents": value("gross_cents")}
 
 
-def rejection_stage(sources: Sequence[DocumentFacts], data: PhaseData) -> RuleStage:
+_XML_RECIPIENT = {"Facturae": "/Facturae/Parties[1]/BuyerParty[1]/TaxIdentification[1]/TaxIdentificationNumber[1]",
+                  "Comprobante": "/Comprobante/Receptor[1]/@Rfc"}
+
+
+def invoice_sources(attachments) -> list[DocumentFacts]:
+    """Normalized facts of loader attachments classified INVOICE; failed extractions are skipped.
+
+    A recipient tax ID is explicitly absent only when the extractor reported it MISSING or a
+    parsed Facturae/CFDI lacks that mandatory element; otherwise it stays unobserved.
+    """
+    sources = []
+    for attachment in attachments:
+        if attachment.normalized is None or attachment.classification.document_type != "INVOICE":
+            continue
+        facts = attachment.normalized.facts
+        fields = dict(facts.fields)
+        if "recipient_tax_id" not in fields:
+            root = next((r for r in _XML_RECIPIENT if any(n.startswith(f"raw.xml./{r}") for n in fields)), None)
+            missing = next((u for u in attachment.unknowns if u.get("status") == "MISSING"
+                            and u.get("field") in {"recipient_tax_id", "customer_tax_id", "buyer_tax_id"}), None)
+            if root is not None:
+                fields["recipient_tax_id"] = [Fact(None, Evidence(attachment.path, _XML_RECIPIENT[root]))]
+            elif missing is not None:
+                fields["recipient_tax_id"] = [Fact(None, Evidence(attachment.path, missing["field"],
+                                                                  quote=missing.get("reason")))]
+        sources.append(DocumentFacts(facts.source_sha256, facts.extractor_version, fields))
+    return sources
+
+
+def rejection_stage(sources: Sequence[DocumentFacts], message: Mapping[str, Any], data: PhaseData) -> RuleStage:
     """Ordered rejection gates for one invoice from its attachments and phase masters."""
-    sources = tuple(sources)
     if any(not isinstance(source, DocumentFacts) or not source.fields for source in sources):
         raise TypeError("rejection sources require nonempty normalized DocumentFacts")
+    sources = tuple(map(_resolved, sources))
     every = lambda name: [f for s in sources for f in s.fields.get(name, [])]
     agreed = lambda pick: [f for f in map(pick, sources) if f is not None]
     fields: dict[str, list[Fact]] = {}
@@ -117,20 +173,12 @@ def rejection_stage(sources: Sequence[DocumentFacts], data: PhaseData) -> RuleSt
     refs = sorted({f.value for s in sources for name, facts in s.fields.items()
                    if _PO_FIELD.fullmatch(name) for f in facts if isinstance(f.value, str)})
     found = [orders[ref] for ref in refs if ref in orders]
-    identity = IdentityCatalog.from_phase(data).resolve(
-        supplier_tax_ids=every("supplier_tax_id"), recipient_tax_ids=every("recipient_tax_id"),
-        expected_company=None)
-    vendor = None
-    if identity.supplier.status == "RESOLVED":
-        vendor = data.get("vendors", identity.supplier.identity)
-    # The ordering company is the referenced PO's; without a PO, a vendor enabled
-    # for a single company can only have been engaged by that company.
-    fields["order_company"] = [Fact(po["company"], Evidence(ORDERS, f"id={po['id']}.company")) for po in found]
-    if not found and vendor is not None and len(vendor.get("companies") or ()) == 1:
-        fields["order_company"] = [Fact(vendor["companies"][0], Evidence(VENDORS, f"id={vendor['id']}.companies"))]
-    ordering = {f.value for f in fields["order_company"]}
+    binding = resolve_ap_identity(sources, message, data)
+    company, recipient = binding.company, binding.identity.recipient
+    vendor = data.get("vendors", binding.vendor_id) if binding.vendor_id is not None else None
+    if company is not None:  # the PO's company, else the recipient the vendor serves (#42)
+        fields["order_company"] = [Fact(company, e) for e in binding.evidence]
 
-    recipient = identity.recipient
     nif = every("recipient_tax_id")
     if recipient.status not in {"CONFLICT", "UNKNOWN"}:  # presence only; formats may differ
         fields["recipient_nif"] = [f if f.value is None or not str(f.value).strip() else Fact("PRESENT", f.evidence)
@@ -138,7 +186,6 @@ def rejection_stage(sources: Sequence[DocumentFacts], data: PhaseData) -> RuleSt
     if recipient.status == "RESOLVED":
         fields["recipient_company"] = [Fact(recipient.identity, e) for e in recipient.evidence]
 
-    company = next(iter(ordering)) if len(ordering) == 1 else None
     if found:
         codes = [Fact(item["tax_code"], Evidence(ORDERS, f"id={po['id']}.items[item={item['item']}].tax_code"))
                  for po in found for item in po["items"]]
@@ -154,30 +201,36 @@ def rejection_stage(sources: Sequence[DocumentFacts], data: PhaseData) -> RuleSt
     fields["charged_vat_cents"] = agreed(lambda s: _one(s, "tax_cents"))
 
     catalogue = data.table("tax_codes")["tax_codes"]
-    expected = {_charged_rate(catalogue.get(n)) for n in names}
+    country = next((row["country"] for row in data.companies if row["code"] == company), None)
+    # A code of another country than the posting company is a cross-border case, not a rate check.
+    expected = {"UNKNOWN_COMPANY" if country is None else
+                _charged_rate(catalogue.get(n)) if catalogue.get(n, {}).get("country") in {None, country}
+                else None for n in names}
     if names and expected == {None}:
         fields["vat_check_applicable"] = [Fact(False, f.evidence) for f in codes]
     elif len(expected) == 1 and isinstance(next(iter(expected)), Decimal):
         fields["vat_check_applicable"] = [Fact(True, f.evidence) for f in codes]
         rates = [f for s in sources for name, facts in s.fields.items()
-                 if _RATE_FIELD.fullmatch(name) and ".withheld." not in name
+                 if _RATE_FIELD.fullmatch(name)
                  for f in facts if type(f.value) is int]
         applicable = next(iter(expected))
+        applied = {f.value for f in rates}
+        if applied - {0}:
+            applied -= {0}  # a zero-rated component beside charged VAT is a non-subject levy (tasas)
         lines = [{"applied_rate": Decimal(rate) / 10000, "applicable_rate": applicable}
-                 for rate in sorted({f.value for f in rates})]
+                 for rate in sorted(applied)]
         fields["vat_lines"] = [Fact(lines, f.evidence) for f in rates]
 
     if vendor is not None:
         fields["withholding_required"] = [Fact(vendor["withholding"] is not None,
                                                Evidence(VENDORS, f"id={vendor['id']}.withholding"))]
-    fields["withholding_cents"] = agreed(_withholding)
+    fields["withholding_cents"] = agreed(lambda s: _one(s, "withholding_cents"))
 
     fields["billed_net_cents"] = agreed(lambda s: _one(s, "net_cents"))
     fields["certification_current_cents"] = agreed(lambda s: _certification(s)[0])
     fields["certification_cumulative_cents"] = agreed(lambda s: _certification(s)[1])
 
-    if company is not None:
-        country = next(row["country"] for row in data.companies if row["code"] == company)
+    if country is not None:
         xml = [s for s in sources if _is_cfdi(s)]
         pdf = [s for s in sources if not _is_xml(s)]
         applicable = country == "MX" and bool(xml) and bool(pdf)
@@ -188,6 +241,6 @@ def rejection_stage(sources: Sequence[DocumentFacts], data: PhaseData) -> RuleSt
             fields["cfdi_pdf"] = [Fact(view, Evidence(_document(s), "cfdi_view")) for s, view in zip(pdf, pdf_views)]
             fields["cfdi_xml"] = [Fact(_cfdi_view(s, number), Evidence(_document(s), "cfdi_view")) for s in xml]
 
-    amount_sources = [DocumentFacts(s.source_sha256, s.extractor_version, {**s.fields, "gross_cents": [g]})
-                      if (g := _gross(s)) is not None and "gross_cents" not in s.fields else s for s in sources]
+    # The PDF is the invoice as issued; its XML twin is compared under CFDI_MISMATCH.
+    amount_sources = [s for s in sources if not _is_xml(s)] or sources
     return source_rejection_stage(fields, amount_sources=amount_sources)
