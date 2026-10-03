@@ -23,9 +23,13 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("phase", type=Path)
     ledger = commands.add_parser("ledger-summary", help="Reconstruct the recorded book and summarize its dimensions")
     ledger.add_argument("phase", type=Path)
-    ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from JSON/JSONL phase data")
+    ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from ERP and bank evidence")
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
+    ar_cash.add_argument("--use-preparsed", action="store_true",
+                         help="Development shortcut: load remittance source snapshots instead of parsing originals")
+    ar_cash.add_argument("--normalized-dir", type=Path,
+                         help="Source snapshot root (default: <phase-parent>/normalized_sources)")
     bank_rec = commands.add_parser("solve-bank-rec", help="Reconcile bank statements and journal entries")
     bank_rec.add_argument("phase", type=Path)
     bank_rec.add_argument("--output", type=Path, required=True, help="Destination bank_rec.jsonl")
@@ -116,7 +120,8 @@ def _execute(args: argparse.Namespace) -> int:
             output = args.output.expanduser().resolve()
             if output.is_relative_to(phase):
                 raise ValueError("AR cash output must be outside the read-only phase directory")
-            run = build_ar_cash(PhaseData(phase))
+            run = build_ar_cash(PhaseData(phase), use_preparsed=args.use_preparsed,
+                                normalized_dir=args.normalized_dir)
             written = write_ar_cash(run, output)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
