@@ -40,7 +40,9 @@ class NormalizationTests(unittest.TestCase):
         result = self.normalize({"document_date": "13/02/2026", "currency": "eur", "tax": None})
         self.assertEqual(result.facts.fields["document_date"][0].value, "2026-02-13")
         self.assertIsNone(result.facts.fields["tax_cents"][0].value)
-        for value in ("03/04/2026", "2026-02-30"):
+        for value, expected in (("30 de junio de 2026", "2026-06-30"), ("7 de julho de 2026", "2026-07-07")):
+            self.assertEqual(self.normalize({"document_date": value}).facts.fields["document_date"][0].value, expected)
+        for value in ("03/04/2026", "2026-02-30", "30 de juny de 2026"):
             self.assertFalse(self.normalize({"document_date": value}).facts.fields)
         self.assertFalse(self.normalize({"currency": "$"}).facts.fields)
 

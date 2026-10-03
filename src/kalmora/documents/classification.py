@@ -71,7 +71,7 @@ def classify_document(facts: DocumentFacts) -> DocumentClassification:
     if len(documents) > 1:
         diagnostic = ClassificationDiagnostic("MIXED_SOURCE", "classify each attachment independently")
         return DocumentClassification(None, "UNKNOWN", (), (diagnostic,))
-    hints = tuple(fact for name in ("document_type_hint", "document_type", "type_hint", "raw.document_type_hint")
+    hints = tuple(fact for name in ("document_type_hint", "document_type", "type_hint", "notice_type_hint", "raw.document_type_hint")
                   for fact in facts.fields.get(name, ()))
     typed: dict[str, list[Fact]] = {}
     diagnostics = []
