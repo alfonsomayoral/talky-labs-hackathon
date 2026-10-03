@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ApRow, Company, EInvoiceSummary, GoodsReceipt, PurchaseOrder, Vendor, WorkItem } from '@/domain/types'
-import { apListRows, apSankey, duplicateTarget, EMPTY_FILTER, facetCounts, filterRows, lineMatches, masterCompare, NO_REASON, overTolerance } from './model'
+import { actionDetails, apListRows, apSankey, duplicateTarget, EMPTY_FILTER, facetCounts, filterRows, lineMatches, masterCompare, NO_REASON, overTolerance } from './model'
 
 const row = (over: Partial<ApRow>): ApRow =>
   ({
@@ -209,5 +209,31 @@ describe('duplicateTarget', () => {
     expect(duplicateTarget('H1', rows, history)?.kind).toBe('history')
     expect(duplicateTarget('ZZ', rows, history)?.kind).toBe('missing')
     expect(duplicateTarget(null, rows, history)).toBeNull()
+  })
+})
+
+describe('actionDetails', () => {
+  it('spells out an embargo with its reference and amount', () => {
+    expect(actionDetails({ ref: '20263092743099K', amount: 6193020 })).toEqual([
+      { label: 'Referencia', value: '20263092743099K', kind: 'mono' },
+      { label: 'Importe', value: 6193020, kind: 'money' },
+    ])
+  })
+
+  it('formats dates, IBANs and flags of a bank details change', () => {
+    expect(actionDetails({ old_iban: 'ES52', new_iban: 'ES27', certificate: true, effective: '2026-09-22' })).toEqual([
+      { label: 'IBAN anterior', value: 'ES52', kind: 'mono' },
+      { label: 'IBAN nuevo', value: 'ES27', kind: 'mono' },
+      { label: 'Certificado bancario', value: 'Sí', kind: 'text' },
+      { label: 'Desde', value: '22 sept 2026', kind: 'text' },
+    ])
+  })
+
+  it('keeps unknown fields and returns nothing without data', () => {
+    expect(actionDetails({ valid_days: 30, extra: 'x' })).toEqual([
+      { label: 'Validez', value: '30 días', kind: 'text' },
+      { label: 'extra', value: 'x', kind: 'text' },
+    ])
+    expect(actionDetails(null)).toEqual([])
   })
 })
