@@ -7,8 +7,9 @@ working files (IC audit, close handoff, decisions and balance snapshots, their r
 ``OUT/trace/<module>.zip``: the web app downloads every JSON of a bundle, and the IC audit alone is ~20 MB.
 
 Modules run in dependency order and feed each other: bank rec reads this run's AP, AR cash reads this run's
-billing and AP, and close (the M6 engine, when integrated) reads every delivery. AP uses the v0 rule
-engine; AR billing uses recorded source observations and the typed billing engine.
+billing and AP, and close (the M6 engine, when integrated) reads every delivery. AP takes the M1 evidence pipeline's
+decision for every task it resolves and the v0 rule engine's (``kalmora.v0``) for the rest, and says which in
+the trace; AR billing uses recorded source observations and the typed billing engine.
 A module is *delivered* by its engine, by ``--from-submissions`` (a ``<module>.jsonl``
 produced elsewhere), or it is *unavailable*. Unavailable is not a failure: the web app scores a
 missing file as absent.
@@ -63,15 +64,45 @@ def _delivered(target: Path, module: str) -> list[Row] | None:
     return read_rows(path) if path.is_file() else None
 
 
-def _ap(phase: Path, target: Path, _work: Path, notes: list[Row]) -> dict[str, Any]:
+def _month_end_fact(phase: Path):
+    """The AP posting date of a month-end close: the last day of ``tasks/close.json``'s month."""
+    from calendar import monthrange
+    from .facts import Evidence, Fact
+    month = json.loads((phase / "tasks" / "close.json").read_text(encoding="utf-8"))["month"]
+    year, number = (int(part) for part in month.split("-"))
+    return Fact(f"{month}-{monthrange(year, number)[1]:02d}", Evidence("tasks/close.json", "month", quote=month))
+
+
+def _m1_rows(phase: Path, work: Path) -> tuple[dict[str, Row], dict[str, Any]]:
+    """Rows the M1 evidence pipeline decides on its own (deterministic sources, no provider), by doc_id."""
+    import asyncio
+    from .ap_phase_runner import run_ap_phase
+    from .ap_sources import prepare_ap_sources
+    prepared = asyncio.run(prepare_ap_sources(phase, work / "m1-sources"))
+    result = asyncio.run(run_ap_phase(phase, prepared.manifest_path, posting_date=_month_end_fact(phase)))
+    atomic_json(work / "m1-run.json", result.report)
+    return {row["doc_id"]: row for row in result.rows}, result.report["summary"]
+
+
+def _ap(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
+    """M1 decides every task it can resolve with evidence; the v0 rule engine delivers the rest."""
     from .v0.solve import POSTING, solve_ap, write_jsonl
     rows, errors = solve_ap(phase)
+    try:
+        m1, summary, m1_error = *_m1_rows(phase, work), None
+    except Exception as exc:  # noqa: BLE001 - M1 failing must not lose the AP delivery
+        m1, summary, m1_error = {}, None, f"{type(exc).__name__}: {exc}"
+    rows = [m1.get(row["doc_id"], row) for row in rows]
     write_jsonl(target, rows)
     for row in rows:
+        by_m1 = row["doc_id"] in m1
+        notes.append(note(f"ap:{row['doc_id']}", "CHECK", "engine", "INFO",
+                          "Decidido por M1 con evidencia" if by_m1 else "Decidido por v0 (M1 no lo resolvió)"))
         if row.get("decision") in POSTING and not row.get("journal_entry"):
             notes.append(note(f"ap:{row['doc_id']}", "POST", "coding", "FAIL",
                               f"Decisión {row['decision']}, pero el motor no pudo codificar el asiento"))
-    return {"coding_errors": errors}
+    return {"coding_errors": errors, "engines": {"m1": len(m1), "v0": len(rows) - len(m1)},
+            "m1_summary": summary, "m1_error": m1_error}
 
 
 def _ar_billing(phase: Path, target: Path, work: Path, notes: list[Row]) -> dict[str, Any]:
