@@ -162,3 +162,51 @@ _Avoid_: scorer, when referring to the organizer's scoring.
 The identity under which the scorer groups submission rows for one module, such as a close key or an intercompany pair and cause.
 _Avoid_: row, when several rows share one key.
 
+
+## Runs and review
+
+**Run**:
+One execution of the close on a phase, left as a folder with its delivery files, trace and manifest.
+_Avoid_: job (a job is the load of a package), execution when it could mean the process.
+
+**Run bundle**:
+The folder of one run: manifest, the six delivery files, the trace and the human overrides.
+_Avoid_: output folder, submission when the golden is not involved.
+
+**Item id**:
+The `<task>:<key>` identifier of one thing a run decided, such as `ap:API004151` or `bank_rec:BIN-1100/BL0000650`.
+_Avoid_: document id when the task is not AP.
+
+**Trace event**:
+One recorded step an engine took on one item, with its result and evidence.
+_Avoid_: log line.
+
+**Attention item**:
+Something an engine hands to a person to review, with a priority and an impact.
+_Avoid_: alert, ticket.
+
+**Override**:
+A human correction recorded next to a run; it never changes the delivered files.
+_Avoid_: edit, fix.
+
+## Assistant
+
+**Assistant**:
+The read-only conversational agent that answers a reviewer's questions about a phase and its runs.
+_Avoid_: bot, copilot, chatbot.
+
+**Knowledge pack**:
+The policies, glossary and close workflows given to the assistant verbatim, with the policies' hash and an index of their sections.
+_Avoid_: training data, memory.
+
+**Grounded figure**:
+A number in an answer that also appears in a tool result of the same turn, or in the knowledge pack or the user's message.
+_Avoid_: verified number, when only its presence was checked.
+
+**Card**:
+A typed piece of an answer (metric, table, items, reasoning, process) built from a tool result, never typed by the model.
+_Avoid_: widget, chart.
+
+**Citation**:
+A reference from an answer to an item id or to a policy section such as `§2.2.3`.
+_Avoid_: source, link.
