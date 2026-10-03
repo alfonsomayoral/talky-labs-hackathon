@@ -19,8 +19,9 @@ PYTHONPATH=src .venv/bin/python tools/validate_ap_rejections_july.py \
 | Golden REJECT matched (decision and reason) | 13 / 18 |
 | Golden REJECT missed (stage UNKNOWN or CLEAR) | 5 |
 | False REJECT on non-rejected tasks | 0 |
-| Non-rejected, gates CLEAR | 223 |
-| Non-rejected, stage UNKNOWN (missing prerequisite) | 21 |
+| Non-rejected, gates CLEAR | 212 |
+| Non-rejected, stage UNKNOWN (missing prerequisite) | 17 |
+| Non-rejected, decided DUPLICATE first (10 golden, 5 false; see below) | 15 |
 | No invoice-classified attachment | 26 |
 | Every invoice attachment failed extraction | 15 |
 | VENDOR_NOT_IN_MASTER (HOLD, identity scope; stage UNKNOWN) | 2 |
@@ -58,8 +59,35 @@ MANDATORY_FIELD_MISSING 0/2, WITHHOLDING_MISSING 0/2.
   1910, a company the vendor serves. No document or master evidence names another
   ordering company. Supply-contract ownership is not in the package.
 
-The 21 non-rejected UNKNOWN stages are missing prerequisites, not errors:
-- 6 CFDI PDFs omit the currency or date needed for a complete comparison.
+The 17 non-rejected UNKNOWN stages are missing prerequisites, not errors:
 - 6 works-subcontractor invoices carry no certification breakdown.
-- 6 invoices print no VAT rate.
-- 3 carry no observable withholding.
+- 5 invoices print no VAT rate.
+- 4 CFDI PDFs omit the currency or date needed for a complete comparison.
+- 2 carry no observable withholding.
+
+## Combined with duplicate detection (#47)
+
+The validator passes every REJECT outcome to `month_duplicate_results(..., statuses=...)` as a
+month status. A rejected original therefore cannot make its corrected reissue a duplicate.
+DUPLICATE wins over REJECT, following policy §2.2 order.
+
+| Golden → predicted | Tasks |
+| --- | --- |
+| DUPLICATE → DUPLICATE (same root) | 10 |
+| REJECT → REJECT (same reason) | 13 |
+| DUPLICATE → not flagged | 4 |
+| REJECT → not flagged | 4 |
+| REJECT → DUPLICATE | 1 |
+| other → DUPLICATE (false duplicate) | 5 |
+| other → other | 268 |
+
+- API004206, API004323 and API004466 no longer show as duplicates, because their
+  originals are now rejected.
+- API004242, API004478 and API004480 remain false duplicates, because their originals
+  are the rejections this binding still misses (API005223, API005219, API005220).
+- API005224, a missed MANDATORY_FIELD_MISSING, is flagged as a duplicate of API004222.
+- API004468 is a duplicate whose root is reversed (golden: API005203 → API004468).
+- API005230 is a golden HOLD (BANK_DETAILS_CHANGED) detected as a duplicate.
+
+The last two cases are on the duplicate side and fall outside the rejection gates.
+
