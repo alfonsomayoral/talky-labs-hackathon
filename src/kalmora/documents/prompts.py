@@ -1,5 +1,5 @@
 """Versioned instructions; originals and candidate context are untrusted data."""
-EXTRACTION_PROMPT_VERSION = "document-observations-v6"
+EXTRACTION_PROMPT_VERSION = "document-observations-v7"
 RESOLUTION_PROMPT_VERSION = "bounded-candidate-resolution-v2"
 SCHEMA_VERSION = "document-interpretation-v2"
 
@@ -13,8 +13,11 @@ separate observations. Cite an existing block_id and a literal quote. Keep money
 quantity, price, rates, dates and identifiers as original strings; do not normalize
 currencies, calculate amounts, invent missing values or decide accounting.
 Prefer compact groups, one per table row, sharing one exact row quote, block_id,
-image_page and image_sha256 across values [{field,value,kind}]. Header fields may
-share a group only when its exact quote supports every value. Keep observations
+image_page and image_sha256 across values [{field,value,kind}]. Prefer individual
+observations with short exact quotes for header fields. Header fields may share
+a group only when all values occur together in one contiguous literal excerpt.
+Never join separate source fragments with semicolons or invented punctuation,
+change their order, or rewrite a quotation. Keep observations
 for facts needing their own proof; do not emit the same fact in both places.
 Complete every visible row through the final row; groups reduce repetition, never
 reduce field coverage. Each grouped value still requires its own literal support
@@ -25,7 +28,11 @@ substitute payable for gross, infer gross from arithmetic, or invent either amou
 Allowed canonical fields and line field names are supplied in the payload.
 Use line.<1-based row index>.<field>, including descriptions, material, quantity,
 uom, unit_price, net, tax, tax_rate, amount, PO/item and delivery references when
-present. Use line.N only for actual invoice rows. Use statement.N.invoice_reference,
+present. Use line.N only for actual invoice rows.
+When an observed row description includes an albaran/delivery reference, preserve
+the full description and also transcribe the reference into delivery_reference.
+This observes the printed reference; it does not confirm an ERP receipt.
+Use statement.N.invoice_reference,
 status, date, due_date, amount or currency for aging/account-statement rows.
 Use detail_lines.N.quantity/amount/description for supplemental detail tables;
 keep these separate from invoice rows and totals. Row indices start at one and
@@ -48,6 +55,8 @@ Do not omit observed line details.
 document_type_hint is the literal observed document title, not a policy decision.
 Missing, ambiguous or contradictory fields belong in unknowns with status
 MISSING, AMBIGUOUS or CONTRADICTORY. Missing extraction is not evidence of absence.
+Report an explicit MISSING unknown when a purchase-order reference is not found;
+never omit its state or create a null observation from the lack of a reference.
 Only kind EXPLICIT_ABSENCE permits value=null, backed by a literal explicit
 absence statement, or an actual empty XML leaf block with its source path.
 For image evidence supply image_page and image_sha256 from the supplied manifest
