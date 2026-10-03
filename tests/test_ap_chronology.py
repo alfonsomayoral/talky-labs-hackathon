@@ -53,6 +53,33 @@ class ChronologyTests(unittest.TestCase):
         self.assertFalse(event_support_facts(wrong)["factoring_supported"][0].value)
         self.assertEqual(event_support_facts(observe([factor]))["factoring_supported"], ())
 
+    def test_active_factor_conflicts_are_not_resolved_by_document_id(self):
+        first = event("a", KINDS[1], received_at="2026-07-01T10:00:00", valid_from="2026-07-01", value="ESFACTOR1")
+        for value in ("ESFACTOR2", None):
+            other = replace(first, event_id="z", value=value)
+            state = observe([first, other], bank_iban="ESFACTOR1")
+            self.assertTrue(state.factoring_active)
+            self.assertIsNone(state.factoring_bank_supported)
+            self.assertIsNone(state.factoring)
+            self.assertEqual(state, observe([other, first], bank_iban="ESFACTOR1"))
+            self.assertIn("FACTORING_NOTICE:CONFLICT:a,z", state.diagnostics)
+            self.assertEqual(event_support_facts(state)["factoring_supported"], ())
+        same_factor = replace(first, event_id="z")
+        equivalent = observe([first, same_factor], bank_iban="ESFACTOR1")
+        self.assertTrue(equivalent.factoring_bank_supported)
+        self.assertEqual(equivalent.factoring.event_id, "z")
+
+    def test_verified_conflicting_bank_letters_do_not_authorize_arbitrary_bank(self):
+        first = event("a", KINDS[3], received_at="2026-07-01T10:00:00", verified=True, value="ESBANK1")
+        for value in ("ESBANK2", None):
+            other = replace(first, event_id="z", value=value)
+            state = observe([first, other], bank_iban="ESBANK1")
+            self.assertIsNone(state.bank_change_supported)
+            self.assertIsNone(state.bank_change)
+            self.assertEqual(state, observe([other, first], bank_iban="ESBANK1"))
+            self.assertIn("BANK_DETAILS_CHANGE:CONFLICT:a,z", state.diagnostics)
+        self.assertTrue(observe([first, replace(first, event_id="z")], bank_iban="ESBANK1").bank_change_supported)
+
     def test_embargo_strictly_before_receipt_and_unknown_same_day(self):
         before = event("aeat", KINDS[2], received_at="2026-07-16T09:59:59")
         self.assertTrue(observe([before]).embargo_active)

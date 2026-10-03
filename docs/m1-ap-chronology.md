@@ -6,6 +6,14 @@ post entries, write ERP, or serialize the AP contract. Exact repeated events are
 idempotent; conflicting identities fail. Stable ordering is scope, reception,
 validity start, then event ID. Selection uses latest validity start, reception,
 then ID, so input/filesystem order cannot change the evidence selected.
+This tie break applies only to equivalent operative data. Multiple active
+assignments or verified bank letters with different IBANs (including known
+versus unknown IBAN) are contradictory: no selected event supplies a bank.
+Factoring existence remains true, while its bank support is unknown. Bank-letter
+support is unknown. Both report CONFLICT with stable event IDs. Two unknown
+IBANs cannot prove equivalence either. Certificates independently prove a valid
+certificate and embargo notices independently prove the same AEAT payee type;
+their current boolean observations do not depend on choosing differing amounts.
 
 `invoice_state(events, scope, invoice_date, received_at, month, ...)` keeps
 reception and validity separate. Certificate and factoring validity is inclusive

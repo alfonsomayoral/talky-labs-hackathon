@@ -30,8 +30,9 @@ def receipt_key(value: str) -> datetime:
     Date-only receipts are allowed for history but their same-day ordering is
     unknown. Callers must not mix local timestamps from different time zones.
     """
-    if len(value) == 10:
-        _date(value)
+    if not isinstance(value, str) or len(value) < 10:
+        raise ValueError("receipt requires an ISO date or timestamp")
+    _date(value[:10])
     parsed = datetime.fromisoformat(value)
     return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
 
@@ -142,12 +143,11 @@ def invoice_state(
                     continue
                 if event.verified is False:
                     continue
-                if event.verified is None or event.value is None or bank_iban is None:
+                if event.verified is None:
                     unknown = True
                     diagnostics.append(f"{event.event_id}:BANK_VERIFICATION_UNKNOWN")
                     continue
-                if event.value == bank_iban:
-                    matches.append(event)
+                matches.append(event)
                 continue
             if kind == "TAX_GARNISHMENT_ORDER":
                 if event.received_at is None:
@@ -178,10 +178,23 @@ def invoice_state(
         matches.sort(key=lambda e: (e.valid_from or "", event_key(e)))
         selected[kind] = matches[-1] if matches else None
         observations[kind] = True if matches else None if unknown or kind not in complete else False
+        if kind in ("FACTORING_NOTICE", "BANK_DETAILS_CHANGE") and matches:
+            values = {event.value for event in matches}
+            if len(values) > 1 or (len(matches) > 1 and None in values):
+                selected[kind] = None
+                diagnostics.append(f"{kind}:CONFLICT:" + ",".join(sorted(event.event_id for event in matches)))
+                # Assignment existence is known even when its recipient bank is
+                # contradictory. No arbitrary event may supply operative data.
+                if kind == "BANK_DETAILS_CHANGE":
+                    observations[kind] = None
+            elif kind == "BANK_DETAILS_CHANGE":
+                observations[kind] = None if bank_iban is None or selected[kind].value is None else selected[kind].value == bank_iban
+                if observations[kind] is None:
+                    diagnostics.append(f"{kind}:BANK_DETAILS_UNKNOWN")
         if observations[kind] is None and not unknown:
             diagnostics.append(f"{kind}:INVENTORY_UNKNOWN")
     factor = selected[KINDS[1]]
-    factor_bank = observations[KINDS[1]]
+    factor_bank = False if observations[KINDS[1]] is False else None
     if factor is not None:
         factor_bank = None if factor.value is None or bank_iban is None else factor.value == bank_iban
     return InvoiceEventState(*(observations[k] for k in KINDS),
@@ -241,6 +254,6 @@ def event_support_facts(
             continue
         evidence = event.evidence if event is not None else (inventory_evidence or {}).get(kind, ())
         if not evidence:
-            raise ValueError("false event support requires complete-inventory Evidence")
+            raise ValueError("negative event support requires complete-inventory Evidence")
         result[field] = tuple(Fact(value, item) for item in evidence)
     return result
