@@ -45,6 +45,10 @@ export interface DatasetState {
   loadFromFolder(input: File[] | FileSystemDirectoryHandle): Promise<DatasetMeta>
   loadFromZip(file: File): Promise<DatasetMeta>
   loadFromHttp(id: string): Promise<DatasetMeta>
+  /** True when the backend accepts phase uploads. */
+  canUploadToBackend(): boolean
+  /** Uploads the organizers' ZIP to the backend and opens the first phase it loaded. */
+  uploadToBackend(file: File): Promise<DatasetMeta>
   /** Re-open a persisted dataset by id. */
   activate(id: string): Promise<void>
   remove(id: string): Promise<void>
@@ -62,6 +66,8 @@ export interface RunState {
   /** Bundles served by the dev middleware (`/__runs`) or the backend API. */
   listRemoteRuns(): Promise<{ id: string; label: string; source: 'dev' | 'api' }[]>
   loadRemoteRun(id: string): Promise<RunBundle>
+  /** True when the backend can launch a close and stream it (its provider implements startRun). */
+  canStartApiRun(): boolean
   /** Starts a close on the backend (requires VITE_API_URL); resolves with the run id. Events stream via subscribeRun. */
   startApiRun(datasetId: string): Promise<string>
   subscribeRun(runId: string, onEvent: (e: MessageEvent) => void): () => void
@@ -143,6 +149,17 @@ export const useDatasetStore = create<DatasetState>()((set, get) => ({
     const entry = get().available.find((a) => a.id === id)
     const provider: RemoteProviderId = entry?.source ?? 'dev'
     return openOrigin({ provider, id, name: entry?.name ?? id })
+  },
+
+  canUploadToBackend: () => remoteProviders.api.enabled() && Boolean(remoteProviders.api.uploadDataset),
+
+  async uploadToBackend(file) {
+    const api = remoteProviders.api
+    if (!api.enabled() || !api.uploadDataset) throw new Error('VITE_API_URL no está definida: no hay backend al que subir el zip')
+    const [phase] = await api.uploadDataset(file)
+    if (!phase) throw new Error('El zip no contiene ninguna fase')
+    await get().refreshAvailable()
+    return get().loadFromHttp(phase)
   },
 
   async activate(id) {
@@ -259,6 +276,8 @@ export const useRunStore = create<RunState>()((set, get) => ({
       if (!provider.enabled()) throw new Error(provider.id === 'api' ? 'VITE_API_URL no está definida: no hay backend del que leer la ejecución' : `El proveedor ${provider.id} no está disponible`)
       return addRun(await provider.loadRun(runId, meta))
     }),
+
+  canStartApiRun: () => remoteProviders.api.enabled() && Boolean(remoteProviders.api.startRun),
 
   async startApiRun(datasetId) {
     const api = remoteProviders.api

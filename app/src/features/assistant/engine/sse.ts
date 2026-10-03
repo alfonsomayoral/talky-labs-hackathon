@@ -1,4 +1,4 @@
-// API provider: `POST {VITE_API_URL}/api/chat` answered by SSE (CONTRACT.md §2):
+// API provider: `POST {VITE_CHAT_URL}/api/chat` answered by SSE (CONTRACT.md §2). The backend's /v1 API has no chat:
 // `event: delta` text, `event: card` a card, `event: citation` {item} or {policy_ref}, `event: done`.
 // The browser never holds model keys: the backend calls the models.
 
@@ -149,9 +149,9 @@ export interface StreamOptions {
   onUpdate?: (answer: AssistantAnswer) => void
 }
 
-/** Base URL of the backend, without trailing slash (null when VITE_API_URL is not set). */
+/** Base URL of the chat backend, without trailing slash (null when VITE_CHAT_URL is not set). */
 export function apiBaseUrl(): string | null {
-  const url = import.meta.env.VITE_API_URL as string | undefined
+  const url = import.meta.env.VITE_CHAT_URL as string | undefined
   return url ? url.replace(/\/+$/, '') : null
 }
 
