@@ -527,15 +527,19 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
     customers_by_name: dict[str, list[str]] = defaultdict(list)
     for row in customers:
         if row.get("tax_id"):
-            customers_by_tax[str(row["tax_id"])].append(str(row["id"]))
+            customers_by_tax[_normalize(row["tax_id"])].append(str(row["id"]))
         if _entity_key(row.get("name", "")):
             customers_by_name[_entity_key(row["name"])].append(str(row["id"]))
     vendors_by_customer: dict[str, list[str]] = defaultdict(list)
     for vendor_id, vendor in vendors.items():
-        customer_ids = customers_by_tax.get(str(vendor.get("tax_id")), [])
+        customer_ids = customers_by_tax.get(_normalize(vendor.get("tax_id", "")), [])
         if not customer_ids and _entity_key(vendor.get("name", "")):
             customer_ids = customers_by_name.get(_entity_key(vendor["name"]), [])
         for customer_id in customer_ids:
+            customer_tax = next((row.get("tax_id") for row in customers if str(row["id"]) == customer_id), None)
+            if (customer_tax and vendor.get("tax_id")
+                    and _normalize(customer_tax) != _normalize(vendor["tax_id"])):
+                continue
             vendors_by_customer[customer_id].append(vendor_id)
 
     results_by_id: dict[str, ArCashResult] = {}
@@ -759,6 +763,7 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                                       customer, amount)].append(candidate.invoice.id)
                     # Save the balancing payable debit for the adjustment below.
                     net_vendor = (vendor_id, ap_account, ap_assignment)
+                    ap_balance[(company, ap_account, vendor_id, ap_assignment)] += net_amount
                 else:
                     if net_matches:
                         diagnostics.append("multiple netting matches; left unapplied")
