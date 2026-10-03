@@ -1,5 +1,6 @@
 // Item detail panel. Rendered by the shell's PeekHost when the URL has `?item=<task>:<key>`.
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { ArrowUpRight, Copy, SearchX } from 'lucide-react'
 import type { EvidenceRef } from '@/domain/types'
 import { outcomeEntry } from '@/domain/catalog/policy'
@@ -23,6 +24,7 @@ import {
   toast,
 } from '@/components'
 import { formatDate } from '@/lib/format'
+import { ITEM_TAB_PARAM } from '@/shell/useOpenItem'
 import { itemTaskHref, ReasoningView, TASK_META, useItemContext, type ItemContext } from './kit'
 import { EntryTab } from './tabs/EntryTab'
 import { EvidenceTab, useEvidenceEntries } from './tabs/EvidenceTab'
@@ -81,8 +83,12 @@ export default function ItemPanel({ itemId, onClose }: ItemPanelProps) {
   return <Panel ctx={state.ctx} />
 }
 
+const TAB_BY_PARAM: Record<string, TabId> = { razonamiento: 'reasoning', resumen: 'summary', asiento: 'entry', evidencia: 'evidence', golden: 'golden' }
+
 function Panel({ ctx }: { ctx: ItemContext }) {
-  const [tab, setTab] = useState<TabId>('reasoning')
+  const [params] = useSearchParams()
+  const requested = TAB_BY_PARAM[params.get(ITEM_TAB_PARAM) ?? ''] ?? null
+  const [tab, setTab] = useState<TabId>(requested ?? 'reasoning')
   const [focus, setFocus] = useState<string | null>(null)
   const evidence = useEvidenceEntries(ctx)
   const hasGolden = !!ctx.score || !!ctx.accountScore
@@ -91,6 +97,9 @@ function Panel({ ctx }: { ctx: ItemContext }) {
 
   // A new item starts without a focused evidence entry.
   useEffect(() => setFocus(null), [ctx.item.id])
+  useEffect(() => {
+    if (requested) setTab(requested)
+  }, [ctx.item.id, requested])
 
   const onEvidence = (_ref: EvidenceRef, key: string) => {
     setFocus(key)

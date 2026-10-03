@@ -25,8 +25,10 @@ const remoteId = (dataset: DatasetMeta) => dataset.remoteId ?? dataset.id
 /** Files of a run under `<runId>/` (the manifest from the status endpoint becomes manifest.json). */
 async function runFiles(api: string, runId: string): Promise<PathFile[]> {
   const base = `${api}/api/runs/${encodeURIComponent(runId)}`
-  const status = await fetchJsonOrNull<{ state?: string; manifest?: RunManifest }>(base)
-  const paths = [...TASK_KEYS.map((t) => `deliverables/${DELIVERABLE_FILES[t]}`), 'trace/events.jsonl', 'trace/attention.jsonl']
+  const status = await fetchJsonOrNull<{ state?: string; manifest?: RunManifest; files?: string[] }>(base)
+  const known = [...TASK_KEYS.map((t) => `deliverables/${DELIVERABLE_FILES[t]}`), 'trace/events.jsonl', 'trace/attention.jsonl']
+  // With the run's file list, optional files that do not exist are not requested (no 404 in the console).
+  const paths = Array.isArray(status?.files) ? known.filter((p) => status.files!.includes(p)) : known
   const files = (
     await Promise.all(
       paths.map(async (path) => {

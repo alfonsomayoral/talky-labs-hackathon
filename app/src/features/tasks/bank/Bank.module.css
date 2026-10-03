@@ -1,0 +1,365 @@
+/* ---------------------------------------------------------------- grid of accounts */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accountCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.accountCard:hover {
+  border-color: var(--line-strong);
+}
+
+.accountCard:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.cardBank {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.cardBalance {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--text-16);
+  font-weight: var(--weight-semibold);
+}
+
+.cardLabel {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-regular);
+}
+
+.cardStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.cardStats b {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.cardOpen {
+  color: var(--warn-ink);
+  font-size: var(--text-12);
+}
+
+/* ---------------------------------------------------------------- account page */
+.back {
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.titleRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.muted {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.warnNote {
+  margin: var(--space-2) 0 0;
+  color: var(--warn-ink);
+  font-size: var(--text-12);
+}
+
+.topSplit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+@media (max-width: 1100px) {
+  .topSplit {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* bridge */
+.bridge {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-13);
+}
+
+.bridgeRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-1-5) 0 var(--space-1-5) var(--space-4);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.bridgeTotal {
+  padding-left: 0;
+  color: var(--ink-strong);
+  font-weight: var(--weight-semibold);
+  border-bottom-color: var(--line);
+}
+
+.bridgeGap {
+  color: var(--danger-ink);
+  background: var(--danger-bg);
+}
+
+.bridgeDetail {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--text-11);
+  font-weight: var(--weight-regular);
+}
+
+/* categories */
+.categories,
+.adjustments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category,
+.adjustment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.categoryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.categoryLabel {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.categoryAmount {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: var(--text-12);
+}
+
+.categoryLines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chipLine {
+  padding: 1px var(--space-1-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-11);
+  cursor: pointer;
+}
+
+.chipLine:hover {
+  border-color: var(--line-strong);
+}
+
+.chipSelected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+/* face to face */
+.face {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.faceHead,
+.block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+}
+
+.faceHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-1-5) 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-subtle);
+  color: var(--ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+}
+
+.faceHead > span {
+  padding: 0 var(--space-3);
+}
+
+.faceGutterHead {
+  text-align: center;
+}
+
+.block {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.block:last-child {
+  border-bottom: 0;
+}
+
+.blockLone {
+  background: var(--bg-subtle);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gutter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.loneTag {
+  display: flex;
+  align-items: center;
+  height: 34px;
+}
+
+.blockNote {
+  grid-column: 1 / -1;
+  padding: 0 var(--space-3) var(--space-1-5);
+  color: var(--ink-3);
+  font-size: var(--text-11);
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 80px max-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-12);
+  text-align: left;
+  cursor: pointer;
+}
+
+.line:hover {
+  background: var(--bg-muted);
+}
+
+.line:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.lineSelected,
+.lineSelected:hover {
+  background: var(--brand-soft);
+}
+
+.lineUnknown {
+  color: var(--ink-3);
+}
+
+.lineDate {
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineText {
+  overflow: hidden;
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineAmount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.connectors path {
+  fill: none;
+  stroke: var(--ok);
+  stroke-width: 1.25;
+  opacity: 0.7;
+}
+
+.connectorsDiff path {
+  stroke: var(--warn);
+}
+
+.shape {
+  fill: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-11);
+}
+
+/* raw record and adjustments */
+.raw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

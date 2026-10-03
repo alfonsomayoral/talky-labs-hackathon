@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router'
 import { Command as Cmdk, defaultFilter } from 'cmdk'
 import { Blocks, Download, Keyboard, ListVideo, Plus, Search } from 'lucide-react'
 import { NAV } from '@/app/nav'
-import { Dialog, Kbd } from '@/components'
+import { Dialog, Kbd, toast } from '@/components'
+import { useRunStore } from '@/data/stores'
+import { downloadDelivery } from '@/features/deliverables/downloadDelivery'
 import { MOD_KEY } from '@/lib/keyboard'
 import {
   getCommandProviders,
@@ -38,13 +40,25 @@ function builtinCommands(openHelp: () => void): Command[] {
   const actions: Command[] = [
     { id: 'act:new-run', label: 'Nuevo cierre', group: 'Acciones', icon: <Plus />, keywords: ['subir', 'dataset', 'cargar'], run: ({ navigate }) => navigate('/ejecuciones/nueva') },
     { id: 'act:runs', label: 'Ver ejecuciones', group: 'Acciones', icon: <ListVideo />, keywords: ['run', 'paquete'], run: ({ navigate }) => navigate('/ejecuciones') },
-    { id: 'act:download', label: 'Descargar la entrega…', group: 'Acciones', hint: 'Entregables', icon: <Download />, keywords: ['zip', 'jsonl', 'entregables', 'descargar'], run: ({ navigate }) => navigate('/entregables') },
+    { id: 'act:download', label: 'Descargar la entrega', group: 'Acciones', hint: 'zip', icon: <Download />, keywords: ['zip', 'jsonl', 'entregables', 'descargar'], run: ({ navigate }) => downloadActive(navigate) },
     { id: 'act:help', label: 'Atajos de teclado', group: 'Acciones', icon: <Keyboard />, shortcut: ['?'], keywords: ['ayuda', 'teclado'], run: () => openHelp() },
   ]
   if (import.meta.env.DEV) {
     actions.push({ id: 'act:gallery', label: 'Galería de componentes', group: 'Acciones', icon: <Blocks />, keywords: ['ui', 'dev'], run: ({ navigate }) => navigate('/dev/ui') })
   }
   return [...nav, ...actions]
+}
+
+/** Downloads the active run's delivery zip; without a run, goes to Entregables. */
+function downloadActive(navigate: CommandContext['navigate']) {
+  const { runs, activeId } = useRunStore.getState()
+  const run = runs.find((r) => r.id === activeId)
+  if (!run) return navigate('/entregables')
+  try {
+    toast.success('Entrega descargada', { description: downloadDelivery(run) })
+  } catch (e) {
+    toast.error('No se pudo generar el zip', { description: e instanceof Error ? e.message : String(e) })
+  }
 }
 
 function filterBuiltins(commands: Command[], query: string): Command[] {
