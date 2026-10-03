@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ApRow, Company, EInvoiceSummary, GoodsReceipt, PurchaseOrder, Vendor, WorkItem } from '@/domain/types'
-import { apListRows, apSankey, duplicateTarget, EMPTY_FILTER, facetCounts, filterRows, lineMatches, masterCompare, NO_REASON, overTolerance, prettyXml } from './model'
+import { apListRows, apSankey, duplicateTarget, EMPTY_FILTER, facetCounts, filterRows, lineMatches, masterCompare, NO_REASON, overTolerance } from './model'
 
 const row = (over: Partial<ApRow>): ApRow =>
   ({
@@ -208,13 +208,5 @@ describe('duplicateTarget', () => {
     expect(duplicateTarget('H1', rows, history)?.kind).toBe('history')
     expect(duplicateTarget('ZZ', rows, history)?.kind).toBe('missing')
     expect(duplicateTarget(null, rows, history)).toBeNull()
-  })
-})
-
-describe('prettyXml', () => {
-  it('puts one element per line, indented by depth', () => {
-    expect(prettyXml('<?xml version="1.0"?><a><b>1</b><c x="1"/><d><e>2</e></d></a>')).toBe(
-      ['<?xml version="1.0"?>', '<a>', '  <b>1</b>', '  <c x="1"/>', '  <d>', '    <e>2</e>', '  </d>', '</a>'].join('\n'),
-    )
   })
 })

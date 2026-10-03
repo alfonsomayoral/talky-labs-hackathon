@@ -6,6 +6,8 @@ import clsx from 'clsx'
 import { Amount, Badge, Button, KeyValue, Mono, Pill, Section, Skeleton } from '@/components'
 import type { ApRow, DatasetApi, WorkItem } from '@/domain/types'
 import { AP_ACTION_CATALOG, AP_DECISION_CATALOG, AP_DOCUMENT_TYPE_CATALOG, AP_PAYEE_CATALOG, AP_REASON_CATALOG } from '@/domain/catalog/policy'
+import { useItemEvents } from '@/engine'
+import { apCascade, PolicyCascade } from '@/features/item/kit'
 import { formatDate, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { DocumentPane } from './DocumentPane'
@@ -57,6 +59,8 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
   const corrects = typeof row.credit_note_of === 'string' ? row.credit_note_of : null
   const copies = duplicatesOf(row.doc_id, rows)
   const decision = AP_DECISION_CATALOG[row.decision]
+  const events = useItemEvents(item.id)
+  const cascade = useMemo(() => apCascade(row, events), [row, events])
 
   return (
     <article className={styles.card} aria-label={`Ficha de ${row.doc_id}`}>
@@ -78,7 +82,7 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
       </header>
 
       <div className={styles.cardBody}>
-        <DocumentPane api={api} doc={inbox} />
+        <DocumentPane doc={inbox} />
 
         <div className={styles.cardFacts}>
           <Section title="Cabecera extraída">
@@ -99,6 +103,12 @@ export function ApDocCard({ api, item, row, rows, onSelectDoc }: Props) {
               ]}
             />
           </Section>
+
+          {cascade && (
+            <Section title="Cascada de comprobaciones" description="§2.2 en orden: cada comprobación pasa hasta la que decide; las siguientes no se evalúan.">
+              <PolicyCascade checks={cascade} />
+            </Section>
+          )}
 
           <Section title="Documento frente al maestro" description={ctx.einvoice ? 'Datos leídos de la factura electrónica.' : 'Sin factura electrónica: el documento es lo que extrajo el agente.'}>
             {ctx.status === 'loading' ? (

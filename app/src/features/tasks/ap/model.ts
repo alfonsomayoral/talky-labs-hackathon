@@ -372,19 +372,3 @@ export function duplicateTarget(
 export function duplicatesOf(docId: string, rows: readonly ApRow[]): string[] {
   return rows.filter((r) => r.duplicate_of === docId).map((r) => r.doc_id)
 }
-
-/** Indents an XML document one element per line, for reading Facturae and CFDI next to the ficha. */
-export function prettyXml(xml: string): string {
-  let depth = 0
-  return xml
-    .replace(/>\s*</g, '>\n<')
-    .split('\n')
-    .map((raw) => {
-      const line = raw.trim()
-      if (line.startsWith('</')) depth = Math.max(0, depth - 1)
-      const out = '  '.repeat(depth) + line
-      if (/^<[^/!?][^>]*[^/]>$/.test(line) || /^<[^/!?>]>$/.test(line)) depth++
-      return out
-    })
-    .join('\n')
-}

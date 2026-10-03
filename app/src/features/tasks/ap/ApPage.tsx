@@ -8,12 +8,14 @@ import { AP_DECISION_CATALOG, AP_DOCUMENT_TYPE_CATALOG, AP_REASON_CATALOG } from
 import { useDatasetStore } from '@/data/stores'
 import { useActiveRun, useDerivedRun } from '@/engine'
 import { formatDate, formatNumber } from '@/lib/format'
+import { findFlowFilter, ProcessMap, useProcessFlow } from '@/features/item/kit'
 import { ApDocCard } from './ApDocCard'
 import { ApSankey, type SankeySelection } from './ApSankey'
 import { apListRows, apSankey, DECISION_TONE, EMPTY_FILTER, facetCounts, filterRows, isFiltering, NO_REASON, type ApFilter, type ApListRow } from './model'
 import styles from './Ap.module.css'
 
 const DOC_PARAM = 'doc'
+const NODE_PARAM = 'nodo'
 
 export default function ApPage() {
   const { status, data, error } = useDerivedRun()
@@ -37,22 +39,27 @@ function ApInbox({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
   const [filter, setFilter] = useState<ApFilter>(EMPTY_FILTER)
   const [params, setParams] = useSearchParams()
   const selectedDoc = params.get(DOC_PARAM)
+  const node = params.get(NODE_PARAM)
+  const flow = useProcessFlow('ap')
+  const nodeItems = findFlowFilter(flow, node)?.items ?? null
   const [cursor, setCursor] = useState<string | null>(null)
 
-  const visible = useMemo(() => filterRows(all, filter), [all, filter])
-  const counts = useMemo(() => facetCounts(all, filter), [all, filter])
+  const effective = useMemo(() => ({ ...filter, only: nodeItems }), [filter, nodeItems])
+  const visible = useMemo(() => filterRows(all, effective), [all, effective])
+  const counts = useMemo(() => facetCounts(all, effective), [all, effective])
   const selected = all.find((r) => r.row.doc_id === selectedDoc) ?? null
 
-  const selectDoc = (docId: string | null) =>
+  const setParam = (key: string, value: string | null) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev)
-        if (docId) next.set(DOC_PARAM, docId)
-        else next.delete(DOC_PARAM)
+        if (value) next.set(key, value)
+        else next.delete(key)
         return next
       },
       { replace: true, preventScrollReset: true },
     )
+  const selectDoc = (docId: string | null) => setParam(DOC_PARAM, docId)
 
   const sankeySel: SankeySelection = {
     type: filter.types.length === 1 ? filter.types[0] : null,
@@ -102,13 +109,26 @@ function ApInbox({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
         subtitle={`${formatNumber(all.length)} documentos · ${formatNumber(byDecision.get('POST') ?? 0)} contabilizados · ${formatNumber((byDecision.get('HOLD') ?? 0) + (byDecision.get('REJECT') ?? 0) + (byDecision.get('POST_PAYMENT_BLOCK') ?? 0))} retenidos, rechazados o bloqueados`}
       />
 
+      {flow && (
+        <Section title="Mapa de decisión" description="Cuántos documentos tomaron cada camino de la política. Pulsa una rama para filtrar la lista.">
+          <ProcessMap flow={flow} selectedId={node} onSelect={(f) => setParam(NODE_PARAM, f?.id ?? null)} />
+        </Section>
+      )}
+
       <Section title="Tipo de documento → decisión" description="Cada banda es el número de documentos. Pulsa una banda o un nodo para filtrar la lista.">
         <ApSankey data={sankey} selection={sankeySel} onSelect={onSankey} />
       </Section>
 
       <Section title="Documentos" count={visible.length}>
         <FilterBar
-          onClear={isFiltering(filter) ? () => setFilter(EMPTY_FILTER) : undefined}
+          onClear={
+            isFiltering(effective)
+              ? () => {
+                  setFilter(EMPTY_FILTER)
+                  setParam(NODE_PARAM, null)
+                }
+              : undefined
+          }
           end={
             <label className={styles.search}>
               <Search aria-hidden />

@@ -150,37 +150,6 @@
   padding-top: var(--space-3);
 }
 
-.pdf {
-  flex: 1;
-  width: 100%;
-  min-height: 520px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-}
-
-.xml,
-.messageBody {
-  flex: 1;
-  margin: 0;
-  max-height: 640px;
-  overflow: auto;
-  padding: var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--bg-subtle);
-  color: var(--ink-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-11);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.message {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 /* ---------------------------------------------------------------- tables in the ficha */
 .table {
   width: 100%;
