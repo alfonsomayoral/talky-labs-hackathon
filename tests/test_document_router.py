@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from kalmora.documents.contracts import Candidate, ParsedBlock, ParsedDocument, PageImage, ResolutionRequest
+from kalmora.documents.contracts import Candidate, ParsedBlock, ParsedDocument, PageImage, ResolutionRequest, ResolutionResult
 from kalmora.documents.router import DocumentRouter, ParseError
 
 
@@ -79,3 +79,12 @@ class RouterTests(unittest.TestCase):
         folder = self.router.parse_folder('inbox/ap/doc')
         self.assertEqual(len(folder.documents),0)
         self.assertEqual({e.category for e in folder.errors},{'invalid_json','unsupported_format'})
+
+    def test_explicit_empty_xml_and_resolution_roundtrip(self):
+        (self.folder/'empty.xml').write_text('<Facturae><TaxIdentificationNumber/></Facturae>')
+        document = self.router.parse('inbox/ap/doc/empty.xml')
+        self.assertEqual(document.blocks[0].text,'')
+        self.assertEqual(document.blocks[0].source_field,'/Facturae/TaxIdentificationNumber[1]')
+        result = ResolutionResult('AMBIGUOUS',(),(),'No unique candidate')
+        self.assertEqual(ResolutionResult.from_dict(result.to_dict()),result)
+        with self.assertRaises(ValueError): ResolutionResult('SELECTED',(1,),(),'wrongID')

@@ -176,10 +176,25 @@ class ResolutionResult:
     def __post_init__(self):
         if self.status not in {"SELECTED", "AMBIGUOUS", "NO_MATCH"}:
             raise ValueError("invalid resolution status")
+        if any(not isinstance(i, str) or not i for i in self.selected_ids):
+            raise ValueError("selected IDs must be nonempty strings")
         if (self.status == "SELECTED") != bool(self.selected_ids):
             raise ValueError("selection and abstention must be explicit")
         if len(set(self.selected_ids)) != len(self.selected_ids):
             raise ValueError("duplicate selected IDs")
+        if not isinstance(self.reason, str) or any(not isinstance(e, dict) for e in self.evidence):
+            raise ValueError("resolution requires reason and structured evidence")
+        fingerprint(self.evidence)
+
+    def to_dict(self):
+        return {"schema_version": 1, "status": self.status,
+                "selected_ids": list(self.selected_ids), "evidence": list(self.evidence), "reason": self.reason}
+
+    @classmethod
+    def from_dict(cls, value):
+        if value.get("schema_version") != 1:
+            raise ValueError("unsupported resolution schema")
+        return cls(value["status"], tuple(value["selected_ids"]), tuple(value["evidence"]), value["reason"])
 
 
 class DocumentExtractor(Protocol):

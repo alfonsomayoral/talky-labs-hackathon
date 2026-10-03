@@ -39,6 +39,8 @@ def _xml_blocks(data: bytes):
     def visit(element, path):
         if element.text and element.text.strip():
             blocks.append(ParsedBlock(path, element.text.strip(), source_field=path))
+        elif not len(element) and not element.attrib:
+            blocks.append(ParsedBlock(path, "", source_field=path))
         for name, value in sorted(element.attrib.items()):
             field = path + "/@" + _local(name)
             blocks.append(ParsedBlock(field, value, source_field=field))
