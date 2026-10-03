@@ -20,6 +20,7 @@ from kalmora.documents.extractor import LLMDocumentExtractor, LLMSemanticResolve
 from kalmora.documents.composition import compose_native_invoice
 from kalmora.documents.native_table import extract_native_table
 from kalmora.documents.xml_extractor import XMLDocumentExtractor, XML_EXTRACTOR_VERSION
+from kalmora.documents.staged import HEADER_STATE_FIELDS, capture_stages
 from kalmora.documents.replay import RecordingConfig, RecordingStore, RecordedExtractor, RecordedResolver
 from kalmora.llm.client import AsyncLLMClient, LLMConfig
 from kalmora.runlog import RunRecorder
@@ -71,16 +72,21 @@ def observed(facts, *names):
 def semantic_requests(document, facts, data):
     """Bounded reference queries from observations and ERP identity, never labels."""
     taxes = observed(facts, 'supplier_tax_id')
-    vendors = {row['id'] for row in data.table('vendors') if taxes & {row.get('tax_id'), row.get('vat_id')}}
+    vendor_rows = [row for row in data.table('vendors') if taxes & {row.get('tax_id'), row.get('vat_id')}]
+    vendors = {row['id'] for row in vendor_rows}
+    requests = []
+    if vendor_rows:
+        candidates = tuple(Candidate(str(row['id']), {key: row.get(key) for key in ('tax_id', 'vat_id', 'name')})
+                           for row in vendor_rows)
+        requests.append(ResolutionRequest(document, candidates, {'reference_kind': 'supplier'}))
     if len(vendors) != 1:
-        return []
+        return requests
     vendor = next(iter(vendors))
     recipient = observed(facts, 'recipient_tax_id', 'customer_tax_id', 'buyer_tax_id')
     companies = {str(row['code']) for row in data.companies if recipient & {row.get('tax_id'), row.get('vat_id')}}
     if len(companies) != 1:
-        return []
+        return requests
     company = next(iter(companies))
-    requests = []
     po_refs = observed(facts, *[name for name in facts.fields if name.rsplit('.', 1)[-1] in {'po_reference', 'purchase_order_reference'}])
     if po_refs:
         candidates = [Candidate(str(row['id']), {'reference': str(row['id']), 'vendor': vendor,
@@ -180,6 +186,7 @@ async def capture(args):
                                     'extraction': extraction_config.to_dict(), 'resolution': resolution_config.to_dict(),
                                     'source_tools': {'name': 'xml-source-extractor', 'version': XML_EXTRACTOR_VERSION},
                                     'capture_options': {'native_tables': args.native_tables, 'renderer_only': args.renderer_only,
+                                        'staged': getattr(args, 'staged', False),
                                         'require_page_coverage': args.require_page_coverage,
                                         'require_native_row_coverage': args.require_native_row_coverage}}))
                         store = RecordingStore(directory / 'recordings')
@@ -220,19 +227,38 @@ async def capture(args):
                                     atomic_json(directory / 'artifacts' / (entry['sha256'] + '.json'), exact_json(artifact_dict))
                                     raw_model_facts = raw_facts
                                 else:
-                                    document_extractor = LLMDocumentExtractor(client,
+                                    scoped_options = dict(
                                         include_processing_aids=not args.omit_ocr_aids,
                                         max_validation_attempts=args.validation_attempts,
                                         require_line_descriptions=args.require_line_descriptions,
-                                        require_page_coverage=False,
-                                        extraction_scope=('outside_native_invoice_table' if table_is_complete else 'complete'))
-                                    document_config = RecordingConfig.from_adapter(document_extractor)
-                                    item['extraction_config'] = document_config.to_dict()
-                                    recorded = RecordedExtractor(store, document_config, mode='record',
-                                        callback=document_extractor.extract_with_response,
-                                        budget_usd=args.budget, recorder=mux)
-                                    artifact = await recorded.extract_with_response(document)
-                                    item.update(processing_kind='model', recording_key=recorded.key(document), cache_hit=artifact.provenance['cache_hit'])
+                                        require_page_coverage=False)
+                                    if (getattr(args, 'staged', False) and not table_is_complete
+                                            and (document.images or (table is not None and table.status == 'incomplete'))):
+                                        header = LLMDocumentExtractor(client, **scoped_options,
+                                            extraction_scope='header_footer_only', required_header_fields=HEADER_STATE_FIELDS,
+                                            preserve_partial_on_failure=True)
+                                        rows = LLMDocumentExtractor(client, **scoped_options,
+                                            extraction_scope='tables_only', preserve_partial_on_failure=True)
+                                        boundaries = [RecordedExtractor(store, RecordingConfig.from_adapter(adapter), mode='record',
+                                            callback=adapter.extract_with_response, budget_usd=args.budget, recorder=mux)
+                                            for adapter in (header, rows)]
+                                        item['extraction_stages'] = [{'config': boundary.config.to_dict(), 'key': boundary.key(document)}
+                                                                     for boundary in boundaries]
+                                        artifact = await capture_stages(document, *boundaries)
+                                        item.update(processing_kind='staged_model',
+                                            cache_hit=any(stage.provenance['cache_hit'] for stage in artifact.stages))
+                                    else:
+                                        document_extractor = LLMDocumentExtractor(client, **scoped_options,
+                                            extraction_scope=('outside_native_invoice_table' if table_is_complete else 'complete'),
+                                            required_header_fields=(HEADER_STATE_FIELDS if getattr(args, 'staged', False) else ()),
+                                            preserve_partial_on_failure=getattr(args, 'staged', False))
+                                        document_config = RecordingConfig.from_adapter(document_extractor)
+                                        item['extraction_config'] = document_config.to_dict()
+                                        recorded = RecordedExtractor(store, document_config, mode='record',
+                                            callback=document_extractor.extract_with_response,
+                                            budget_usd=args.budget, recorder=mux)
+                                        artifact = await recorded.extract_with_response(document)
+                                        item.update(processing_kind='model', recording_key=recorded.key(document), cache_hit=artifact.provenance['cache_hit'])
                                     atomic_json(directory / 'artifacts' / (entry['sha256'] + '.json'), exact_json(artifact.to_dict()))
                                     raw_model_facts = artifact.facts
                                 final_facts = raw_model_facts
@@ -326,6 +352,7 @@ def main():
     parser.add_argument('--output-usd-per-million', type=Decimal, default=Decimal('0.50'))
     parser.add_argument('--pricing-provenance', default='https://developers.openai.com/api/docs/pricing 2026-10-03; Luna standard short-context USD/M input 0.10 x cache-write ceiling 1.25, output 0.50; conservative estimate, not invoice')
     parser.add_argument('--semantic', action='store_true')
+    parser.add_argument('--staged', action='store_true', help='Explicit header states and separately recorded header/table extraction')
     args = parser.parse_args()
     if args.require_native_row_coverage and not args.native_tables:
         parser.error('--require-native-row-coverage requires --native-tables')
