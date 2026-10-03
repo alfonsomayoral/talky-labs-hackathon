@@ -455,6 +455,29 @@ def _as_of_balances(data: PhaseData) -> list[JournalEntry]:
     return list(data.iter_journal())
 
 
+def _historical_cash_applications(entries: Iterable[JournalEntry]
+                                  ) -> defaultdict[tuple[str, str, str, int], list[tuple[str, str]]]:
+    """Index exact historical cash-to-AR postings for duplicate evidence."""
+    found: defaultdict[tuple[str, str, str, int], list[tuple[str, str]]] = defaultdict(list)
+    for entry in entries:
+        cash = sum(int(line.get("debit") or 0) - int(line.get("credit") or 0)
+                   for line in entry.get("lines", [])
+                   if str(line.get("account", "")).startswith("572"))
+        if cash <= 0:
+            continue
+        ar_credits = [line for line in entry.get("lines", [])
+                      if str(line.get("account", "")) == "43000000"
+                      and int(line.get("credit") or 0) > 0 and line.get("partner")
+                      and line.get("assignment")]
+        if len(ar_credits) != 1 or int(ar_credits[0]["credit"]) != cash:
+            continue
+        line = ar_credits[0]
+        currency = str(line.get("currency") or entry.get("currency") or "")
+        key = (str(entry["company"]), currency, str(line["partner"]), cash)
+        found[key].append((str(entry.get("posting_date", "")), str(line["assignment"])))
+    return found
+
+
 def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                   normalized_dir: str | Path | None = None) -> ArCashRun:
     """Build one application result per receipt task using ERP/bank evidence.
@@ -478,6 +501,7 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
     factoring_rows = list(data.table("factoring_assignments"))
     entries = _as_of_balances(data)
     timeline = _ReceivableTimeline(cast(Iterable[JournalEntry], entries))
+    historical_cash = _historical_cash_applications(entries)
 
     # Existing AP/open-item balances are calculated at each receipt date from the
     # recorded book, not from the end-of-month open-item snapshot.
@@ -513,7 +537,7 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
             vendors_by_customer[customer_id].append(vendor_id)
 
     results_by_id: dict[str, ArCashResult] = {}
-    applied_receipts: defaultdict[tuple[str, int], list[str]] = defaultdict(list)
+    applied_receipts: defaultdict[tuple[str, str, str, int], list[str]] = defaultdict(list)
     run_diagnostics: list[str] = []
     sort_ids = sorted(task_ids, key=lambda line_id: (bank_index[line_id][0]["value_date"],
                                                      bank_index[line_id][0]["booking_date"], line_id))
@@ -660,7 +684,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     apps.append({"invoice": reference, "amount": value})
                     timeline.apply(candidate, value)
                     if value == candidate.balance:
-                        applied_receipts[(customer, value)].append(reference)
+                        applied_receipts[(company, str(bank_line.get("currency", "")),
+                                          customer, value)].append(reference)
             elif observed:
                 diagnostics.append("remittance applications conflict with available receivable balances")
                 results_by_id[line_id] = ArCashResult(
@@ -681,7 +706,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     apps.append({"invoice": candidate.invoice.id, "amount": applied})
                     timeline.apply(candidate, applied)
                     if applied == candidate.balance:
-                        applied_receipts[(customer, applied)].append(candidate.invoice.id)
+                        applied_receipts[(company, str(bank_line.get("currency", "")),
+                                          customer, applied)].append(candidate.invoice.id)
                     if applied < amount:
                         diagnostics.append("receipt exceeds referenced invoice; unsupported excess remains unapplied")
 
@@ -698,7 +724,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                             residuals.append({"type": "PENALTY", "invoice": candidate.invoice.id,
                                               "amount": penalty})
                         timeline.apply(candidate, candidate.balance)
-                    applied_receipts[(customer, amount)].extend(c.invoice.id for c, _ in penalty_solution)
+                    applied_receipts[(company, str(bank_line.get("currency", "")), customer, amount)
+                                     ].extend(c.invoice.id for c, _ in penalty_solution)
 
             if not apps:
                 # NETTING_AP requires a same-customer vendor with an open AP item;
@@ -726,7 +753,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     residuals.append({"type": "NETTING_AP", "invoice": candidate.invoice.id,
                                       "amount": net_amount})
                     timeline.apply(candidate, candidate.balance)
-                    applied_receipts[(customer, amount)].append(candidate.invoice.id)
+                    applied_receipts[(company, str(bank_line.get("currency", "")),
+                                      customer, amount)].append(candidate.invoice.id)
                     # Save the balancing payable debit for the adjustment below.
                     net_vendor = (vendor_id, ap_account, ap_assignment)
                 else:
@@ -756,7 +784,8 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                     apps.extend({"invoice": c.invoice.id, "amount": c.balance} for c in chosen)
                     for candidate in chosen:
                         timeline.apply(candidate, candidate.balance)
-                    applied_receipts[(customer, amount)].extend(c.invoice.id for c in chosen)
+                        applied_receipts[(company, str(bank_line.get("currency", "")), customer, amount)
+                                         ].extend(c.invoice.id for c in chosen)
                 elif due_candidates and not residuals:
                     if sum(candidate.balance == amount for candidate in due_candidates) > 1:
                         diagnostics.append("multiple exact invoice matches; left unapplied")
@@ -769,10 +798,18 @@ def build_ar_cash(data: PhaseData, *, use_preparsed: bool = False,
                         else:
                             diagnostics.append("no unique exact/grouped invoice match; left unapplied")
 
-            if not apps:
+            if not apps and not any(candidate.balance == amount for candidate in due_candidates):
                 # A repeated transfer matching a prior full application is evidence of
-                # a duplicate only when the customer has no exact open invoice match.
-                prior = applied_receipts.get((customer, amount), [])
+                # a duplicate only when no exact open invoice can receive it. Include prior
+                # journal applications, scoped to company, currency and customer.
+                receipt_key = (company, str(bank_line.get("currency", "")), customer, amount)
+                prior = applied_receipts.get(receipt_key, [])
+                if not prior:
+                    prior = [assignment for posted, assignment in historical_cash.get(receipt_key, [])
+                             if posted < receipt_date and assignment in invoices
+                             and invoices[assignment].company == company
+                             and invoices[assignment].customer == customer
+                             and timeline.balance(company, "43000000", customer, assignment) == 0]
                 if prior:
                     duplicate_invoice = prior[0]
                     residuals.append({"type": "OVERPAYMENT_DUPLICATE", "invoice": duplicate_invoice,
