@@ -14,3 +14,17 @@ outputs/
 participant/
 .DS_Store
 
+# Frontend (app/)
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+.env.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+.claude/
+# Run bundles (backend outputs) never go to this public repo
+/runs/

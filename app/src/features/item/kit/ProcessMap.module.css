@@ -1,0 +1,260 @@
+.scroller {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--space-1);
+}
+
+.canvas {
+  position: relative;
+  min-width: 100%;
+}
+
+.columnTitle {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  height: 20px;
+  color: var(--ink-3);
+  font-size: var(--text-11);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.columnSection {
+  font-family: var(--font-mono);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
+.columnText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bands {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.band {
+  fill: var(--ink-4);
+  fill-opacity: 0.16;
+  transition: fill-opacity var(--duration) var(--ease-out);
+}
+
+.band[data-tone='ok'] {
+  fill: var(--ok);
+}
+.band[data-tone='warn'] {
+  fill: var(--warn);
+}
+.band[data-tone='danger'] {
+  fill: var(--danger);
+}
+.band[data-tone='info'] {
+  fill: var(--info);
+}
+
+.bandActive {
+  fill-opacity: 0.34;
+}
+
+.node {
+  --tone: var(--line-strong);
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  /* The tone tints the whole hairline: it matches the node's bands without a side stripe. */
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, var(--line));
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  overflow: hidden;
+  transition:
+    border-color var(--duration) var(--ease-out),
+    box-shadow var(--duration) var(--ease-out);
+}
+
+.node[data-tone='ok'] {
+  --tone: var(--ok);
+}
+.node[data-tone='warn'] {
+  --tone: var(--warn);
+}
+.node[data-tone='danger'] {
+  --tone: var(--danger);
+}
+.node[data-tone='info'] {
+  --tone: var(--info);
+}
+
+.node.selected {
+  border-color: var(--brand-line);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.empty {
+  border-style: dashed;
+  background: var(--bg-subtle);
+}
+
+.empty .label,
+.empty .count {
+  color: var(--ink-3);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex: none;
+  height: calc(var(--head-h) - 2px);
+  padding: 0 var(--space-2) 0 var(--space-2);
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: var(--bg-muted);
+}
+
+.label {
+  font-size: var(--text-12);
+  font-weight: var(--weight-semibold);
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.section {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-11);
+  color: var(--info-ink);
+}
+
+.sectionQuiet {
+  color: var(--ink-3);
+}
+
+.figures {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.count {
+  font-size: var(--text-16);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.unit {
+  font-size: var(--text-11);
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.amount {
+  font-size: var(--text-11);
+  color: var(--ink-3);
+}
+
+.annotation {
+  height: 20px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  font-size: var(--text-11);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 100%;
+  height: var(--row-h);
+  padding: 0 var(--space-2);
+  font-size: var(--text-11);
+  color: var(--ink-2);
+  text-align: left;
+}
+
+.rowSelected {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neutral);
+}
+
+.dot[data-tone='ok'] {
+  background: var(--ok);
+}
+.dot[data-tone='warn'] {
+  background: var(--warn);
+}
+.dot[data-tone='danger'] {
+  background: var(--danger);
+}
+.dot[data-tone='info'] {
+  background: var(--info);
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowCount {
+  flex: none;
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.head:focus-visible,
+.row:focus-visible {
+  outline: 2px solid var(--brand-line);
+  outline-offset: -2px;
+}

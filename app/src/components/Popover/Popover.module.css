@@ -1,0 +1,56 @@
+.popover {
+  z-index: var(--z-popover);
+  min-width: 180px;
+  max-width: min(360px, calc(100vw - 16px));
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-1);
+  animation: pop-in var(--duration) var(--ease-out);
+  transform-origin: top;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+}
+
+.closing {
+  pointer-events: none;
+  animation: pop-out var(--duration-fast) ease-in forwards;
+}
+
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes pop-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: no scale or travel, only the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation-name: pop-fade;
+  }
+
+  .closing {
+    animation-name: pop-fade-out;
+  }
+}

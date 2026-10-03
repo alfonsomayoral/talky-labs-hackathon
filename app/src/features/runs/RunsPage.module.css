@@ -1,0 +1,53 @@
+.muted {
+  color: var(--ink-3);
+}
+
+.warn {
+  color: var(--warn-ink);
+  font-weight: var(--weight-medium);
+}
+
+.grow {
+  flex: 1;
+}
+
+.labelCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}
+
+.isolate {
+  display: inline-flex;
+}
+
+.remoteList {
+  list-style: none;
+  padding: 0;
+}
+
+.remoteList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--row-height);
+  border-top: 1px solid var(--line-soft);
+}
+
+.remoteList li:first-child {
+  border-top: 0;
+}
+
+.remoteLabel {
+  font-weight: var(--weight-medium);
+  color: var(--ink-strong);
+}

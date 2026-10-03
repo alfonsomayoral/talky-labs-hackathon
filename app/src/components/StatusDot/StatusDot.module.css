@@ -1,0 +1,36 @@
+.dot {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--dot-color);
+}
+
+.pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: var(--dot-color);
+  opacity: 0.35;
+  animation: pulse 1.6s var(--ease-out) infinite;
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(0.6);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after {
+    animation: none;
+  }
+}

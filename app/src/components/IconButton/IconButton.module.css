@@ -1,0 +1,56 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--control-height-md);
+  height: var(--control-height-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--ink-3);
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.sm {
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border-radius: var(--radius-sm);
+}
+
+.sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--ink);
+}
+
+.secondary {
+  background: var(--bg);
+  border-color: var(--line);
+  box-shadow: var(--shadow-xs);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--ink);
+}
+
+.active,
+.active:hover:not(:disabled) {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+.button:disabled {
+  opacity: 0.4;
+}
