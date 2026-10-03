@@ -63,8 +63,8 @@ write_ap_jsonl(output_dir / "ap.jsonl", rows, expected_doc_ids=task_ids,
                context=master_context, tax_catalog=active_tax_catalog)
 ```
 
-Focused checks: `.venv/bin/python -m unittest tests.test_ap_output
-tests.test_ap_output_integration -v`. The integration fixtures exercise the real
+Focused checks: `.venv/bin/python -m unittest discover -s tests -p 'test_ap_output*.py' -v`.
+The integration fixtures exercise the real
 allocation, valuation, fiscal, journal and payment factories through JSONL and M0
 validation: ES/PT/MX treatments, original-imputation credits, foreign requests and
 historical advance applications, explicit MULTI_PO with favorable price

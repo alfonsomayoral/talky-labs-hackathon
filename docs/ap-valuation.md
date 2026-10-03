@@ -43,3 +43,13 @@ M0 validation; the core checks the explicit assignment's company and exclusivity
 Synthetic tests compose a net-only supplier fixture and validate Debe/Haber with
 M0. They cover fragmented receipts, multiple prices, signed differences, direct
 expense/asset coding, FX boundaries and scope isolation, without reading golden.
+
+The optional `test_ap_valuation_history.py` reconstructs the original historical
+invoice API000186 through the real PO, receipt, coding, valuation, fiscal and
+journal APIs. It compares every monetary/fiscal field and journal header against
+ERP source history and validates master ownership. Run with
+`KALMORA_PHASE_ERP=/path/participant/phase_dev/erp` and
+`.venv/bin/python -m unittest discover -s tests -p 'test_ap_valuation*.py' -v`.
+The fixture ID exists only in the regression; valuation has no document/month
+exceptions. This completes #51's deterministic criteria, while #140/#55 retain
+documentary adaptation and full-phase delivery/evaluation.
