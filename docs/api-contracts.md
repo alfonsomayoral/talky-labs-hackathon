@@ -438,3 +438,60 @@ Implemented in `kalmora.app` (use cases and ports), `kalmora.infra` (in-memory r
 | Limits | Upload max 256 MB (`--max-upload-mb`), one ingestion at a time (`409 ingestion.busy`). Measured on `phase_dev`: about 2 s to load, 330 MB resident, most queries under 60 ms. |
 | Restart | `kalmora serve` reloads every package found in `--data-dir` at startup (`--no-restore` to skip). |
 | Decimals | Any decimal number in an ERP master row is rendered as a string (the data layer parses decimals exactly), for example a vendor `rate` of `1.5` is `"1.5"`. |
+
+## 10. Run bundle, trace and run-scoped checks
+
+A **run** is a folder `--run-dir/<run_id>/` left by whatever closes the month (`--close-command`, or an engine using `kalmora.bundle.RunBundle`). The shapes are typed in `kalmora.model.trace` and agree with the web app's `app/CONTRACT.md` section 1.
+
+```
+<run_id>/manifest.json         status, dataset (phase), month, models, cost, task timings, deliverables summary
+<run_id>/deliverables/<task>.jsonl      the six delivery files
+<run_id>/trace/events.jsonl             append-only steps per item
+<run_id>/trace/attention.jsonl          what the engine hands to a person
+<run_id>/overrides.jsonl                human corrections (written through the API)
+<run_id>/run.log                        output of the close command
+```
+
+**Item ids** (`<task>:<key>`): `ap:<doc_id>`, `ar_billing:<billing_item>`, `ar_cash:<bank_line>`, `bank_rec:<account>/<line>`, `ic:<co1>-<co2>/<cause>` (pair order does not matter), `close:<type>/<company>/<vendor|invoice|item|customer|billing_item>`.
+
+| Method and route | Answer |
+|---|---|
+| `GET /v1/runs/{id}` | The manifest or report plus `deliverables: {module: {present, rows}}` when the run has a bundle. |
+| `GET /v1/runs/{id}/submission` | `{run_id, files: {module: {present, rows}}}`. |
+| `GET /v1/runs/{id}/submission/{module}` | `Page<row>` of one delivery file (`submission.not_found` if the run did not write it). |
+| `GET /v1/runs/{id}/submission:check` | `{ok, checked, problems: [{module, ref, problem}]}` with the shared delivery-contract validator; **needs no golden and no evaluator**. |
+| `GET /v1/runs/{id}/evaluation[/{module}]` | Score of the run's deliverables against the golden. Same shape as the phase evaluation plus `run_id`. The golden stays on the server: the web app no longer needs `--serve-golden` to show a score. Needs `--evaluator`; `409 run.phase_unknown` if the manifest names no `dataset`. |
+| `GET /v1/runs/{id}/events` | `Page<TraceEvent>`; filters `item`, `kind`, `result`, `step`. File order. |
+| `GET /v1/runs/{id}/attention` | `Page<AttentionItem>`, most urgent first (P0..P3); filters `item`, `kind`, `priority`. |
+| `GET /v1/runs/{id}/items/{item}` | `{item, task, key, row, events, attention, overrides}`. `row` is `null` when the run delivered no row for it; `404 item.not_found` when the run knows nothing about the item. |
+| `GET/POST /v1/runs/{id}/overrides` | List, or append `{attention_id | item (exactly one), decision, note?, user?}`; the server adds `ts`. `201`. `user` is as declared by the client (there is no login). Unknown attention id: `404 attention.not_found`. |
+| `GET /v1/phases/{phase}/documents/{doc_id}/attachments` | `{doc_id, attachments: [{name, path, size, sha256, listed_in_message}]}` with the hash from the package manifest. |
+| `GET /v1/phases/{phase}/landing` | `{tables, counts}` of the normalized landing database (needs the `landing` extra). The first call builds it (about 2.5 s for `phase_dev`); later calls are cached and verified against the source hashes. |
+| `GET /v1/phases/{phase}/landing/{table}?<column>=<value>` | `Page<row>`; equality filters on the table's own columns (`source_file`, `parse_issue`, `task_item`, `bank_statement`, `bank_line`, `inbound_item`, `document`, `document_line`). Unknown table `404 landing.table_not_found`, unknown column `400 request.invalid`, no extra `501 landing.unavailable`. |
+
+**Closer guarantees.** One run per phase at a time (`409 run.busy`); phase names must match `^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$` (otherwise the package is refused with `400 package.invalid`, because the name reaches the close command's arguments); a command that exits 0 but wrote no deliverables ends `failed`; runs left `running` by a dead server are closed at startup as `failed` with `interrupted: true`, `exit_code: -2` (the web app only understands `completed` and `failed`).
+
+**Error codes added**: `run.busy` (409), `run.phase_unknown` (409), `bundle.invalid` (422, unparseable trace file), `item.not_found`, `attention.not_found`, `landing.table_not_found` (404), `landing.unavailable` (501), `landing.failed` (500).
+
+## 11. MCP (as built)
+
+`kalmora mcp [--transport stdio|streamable-http] [--evaluator DIR]` serves the same use cases as read-only tools (28, all `readOnlyHint`, plus `get_run_evaluation` when `--evaluator` is given), returning the `{data, meta}` envelope in `structuredContent`. Lists default to 25 rows and cap at 100. It cannot upload packages, start runs or record overrides: those stay on HTTP. `phase` may be omitted when exactly one phase is loaded. A `DomainError` becomes a tool error whose text carries `{code, detail, diagnostics}`. `get_run_evaluation` is registered only when `--evaluator` is given. On stdio, stdout is the protocol channel, so the process logs only to stderr.
+
+Tools: `list_phases`, `get_phase`, `list_records`, `get_record`, `get_task`, `list_documents`, `get_document` (message plus attachment files), `landing_rows`, `query_journal`, `get_journal_entry`, `get_balances`, `get_balance_summary`, `get_open_items`, `list_bank_accounts`, `get_bank_lines`, `get_fx_rate`, `validate_entry`, `simulate_entry`, `list_packages`, `get_job`, `list_runs`, `get_run`, `get_run_deliverables`, `check_run_deliverables`, `list_run_events`, `list_run_attention`, `get_run_item`, `list_overrides`, `get_run_evaluation`.
+
+## 12. What is still open
+
+- **No orchestrator.** Nothing in `src/` produces a bundle by itself: `solve-ar-cash`, `solve-bank-rec`, `prepare-ap` and `python -m kalmora.ic` are separate commands with different flags, and no module writes `trace/`. `RunBundle` is the writer M7-01 (#105) can call; until then `--close-command` needs a script.
+- **`--serve-golden`** still exists for the web app. With section 10 the app can ask the server for a run's score instead; remove the flag once it does.
+- **Landing `document_line` is empty** for `phase_dev` (0 rows of 354 documents) and `parse_issue` has 0 rows: line-level extraction is not loaded yet.
+- **Database repository.** `LandingStore` covers documents and bank tables only; balances and open items need the `Ledger`, so the `PhaseRepository` swap would be hybrid. Not done.
+- **Chat** (`POST /api/chat` of the web app) is not implemented here; it could call the MCP tools.
+- **Live progress** is polling only; there is no event stream.
+
+## 13. Added for the assistant
+
+- `GET /v1/phases/{phase}/policies` returns `{path, text, sha256, sections, anchors}`: the policies of the package the phase came with and the index of valid references (`§2.2.3`, `§4:BANK_FEE_NOT_BOOKED`). MCP: `get_policies`.
+- `GET /v1/runs/{run_id}/summary` returns counts and totals over a run's deliverables and trace; totals are per company and in each company's own currency. MCP: `summarize_run`.
+- `POST /v1/calculate` with `{op, values, rounding?}` does exact integer arithmetic (`sum`, `difference`, `percent_bp`, `apply_rate_bp`, `count`). MCP: `calculate`.
+- `kalmora serve --mcp` serves the same read-only tools over Streamable HTTP at `/mcp/` from the API's memory (31 tools; 32 with `--evaluator`).
+- The assistant is a separate process (`kalmora chat`) exposing `POST /api/chat` (SSE: `status`, `delta`, `card`, `citation`, `done`, `error`), `GET /api/chat/status` and `GET /api/chat/health`; see `docs/design/chat-agent-harness.md`.

@@ -100,3 +100,28 @@ class GetDocument:
             if row.get("doc_id") == doc_id:
                 return phase_envelope(self._repo, phase, row, [])
         raise DomainError("document.not_found", f"No inbox document '{doc_id}'.")
+
+
+class ListAttachments:
+    """Files that came with an inbox document, with the hash the package manifest recorded."""
+
+    def __init__(self, repo: PhaseRepository) -> None:
+        self._repo = repo
+
+    def __call__(self, phase: str, doc_id: str) -> Envelope:
+        return phase_envelope(self._repo, phase, {"doc_id": doc_id, "attachments": self._repo.attachments(phase, doc_id)}, [])
+
+
+class GetPolicies:
+    """The accounting policies of the package a phase came with, with a section index for citations."""
+
+    def __init__(self, repo: PhaseRepository) -> None:
+        self._repo = repo
+
+    def __call__(self, phase: str) -> Envelope:
+        data = self._repo.policies(phase)
+        envelope = phase_envelope(self._repo, phase, {k: v for k, v in data.items() if k != "manifest_sha256"}, [])
+        if data.get("manifest_sha256"):
+            envelope["meta"].setdefault("sources", []).append({"path": f"participant/POLITICAS_CONTABLES.md",
+                                                               "sha256": data["manifest_sha256"]})
+        return envelope

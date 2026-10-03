@@ -18,6 +18,7 @@ from ..app.errors import DomainError
 from ..app.ports import Filters, Row
 from ..app.types import Job, LoadIssue, LoadReport, Meta, PhaseSummary, SCHEMA_VERSION
 from ..data import PhaseData, load_json
+from ..knowledge import parse_policy
 from ..ledger import Ledger, is_open_item_account
 from ..model import Manifest, ValidationContext
 from ..money import RateTable
@@ -233,6 +234,29 @@ class InMemoryPhaseRepository:
 
     def documents(self, phase: str, kind: str | None) -> list[Row]:
         return [d for d in self._get(phase).documents if kind is None or d["kind"] == kind]
+
+    def attachments(self, phase: str, doc_id: str) -> list[Row]:
+        ph = self._get(phase)
+        message = next((d for d in ph.documents if d.get("doc_id") == doc_id), None)
+        if message is None:
+            raise DomainError("document.not_found", f"No inbox document '{doc_id}'.")
+        folder = ph.phase_dir / "inbox" / message["kind"] / doc_id
+        rows = []
+        for path in sorted(p for p in folder.iterdir() if p.is_file() and p.name != "message.json"):
+            relative = f"inbox/{message['kind']}/{doc_id}/{path.name}"
+            rows.append({"name": path.name, "path": relative, "size": path.stat().st_size,
+                         "sha256": ph.files.get(f"{ph.prefix}/{relative}"),
+                         "listed_in_message": path.name in (message.get("attachments") or [])})
+        return rows
+
+    def policies(self, phase: str) -> Row:
+        ph = self._get(phase)
+        path = ph.phase_dir.parent / "POLITICAS_CONTABLES.md"
+        if not path.is_file():
+            raise DomainError("policies.not_found", f"The package of '{phase}' has no POLITICAS_CONTABLES.md.")
+        text = path.read_text(encoding="utf-8")
+        relative = f"{ph.phase_dir.parent.name}/POLITICAS_CONTABLES.md"
+        return {"path": relative, "text": text, **parse_policy(text), "manifest_sha256": ph.files.get(relative)}
 
     # accounting ---------------------------------------------------------
     @staticmethod

@@ -1,6 +1,9 @@
 """File-backed stores: extracted packages, run reports and submissions."""
+from __future__ import annotations
+
 import json
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -58,6 +61,7 @@ class FileRunStore:
 
     def __init__(self, directory: Path) -> None:
         self._directory = Path(directory)
+        self._append_lock = threading.Lock()
 
     def _read(self, path: Path) -> dict[str, Any] | None:
         try:
@@ -86,15 +90,49 @@ class FileRunStore:
             raise DomainError("run.not_found", f"No run '{run_id}'.")
         return self._directory / run_id
 
+    def _jsonl(self, run_id: str, relative: str) -> list[dict[str, Any]]:
+        path = self.files_root(run_id) / relative
+        if not path.is_file():
+            return []
+        rows = []
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError as exc:
+                raise DomainError("bundle.invalid", f"{relative}:{number}: {exc}") from None
+            if not isinstance(row, dict):
+                raise DomainError("bundle.invalid", f"{relative}:{number}: expected an object.")
+            rows.append(row)
+        return rows
+
+    def events(self, run_id: str) -> list[dict[str, Any]]:
+        return self._jsonl(run_id, "trace/events.jsonl")
+
+    def attention(self, run_id: str) -> list[dict[str, Any]]:
+        return self._jsonl(run_id, "trace/attention.jsonl")
+
+    def overrides(self, run_id: str) -> list[dict[str, Any]]:
+        return self._jsonl(run_id, "overrides.jsonl")
+
+    def add_override(self, run_id: str, row: dict[str, Any]) -> None:
+        root = self.files_root(run_id)
+        root.mkdir(parents=True, exist_ok=True)
+        with self._append_lock, (root / "overrides.jsonl").open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
 
 class FileSubmissionStore:
     """A submission is the folder ``<root>/<phase>/`` with up to six ``<module>.jsonl`` files."""
 
-    def __init__(self, root: Path) -> None:
-        self._root = Path(root)
+    def __init__(self, root: Path, subdir: str = "") -> None:
+        """``subdir=""`` reads ``<root>/<key>/<module>.jsonl`` (a phase's submission); ``"deliverables"`` reads
+        ``<root>/<key>/deliverables/<module>.jsonl`` (a run bundle, ``key`` = run id)."""
+        self._root, self._subdir = Path(root), subdir
 
     def directory(self, phase: str) -> Path:
-        return self._root / phase
+        return self._root / phase / self._subdir
 
     def rows(self, phase: str, module: str) -> list[dict[str, Any]]:
         if module not in MODULES:

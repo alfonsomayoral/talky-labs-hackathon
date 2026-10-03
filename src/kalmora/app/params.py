@@ -1,4 +1,5 @@
 """Validation of query parameters shared by every adapter."""
+import re
 from datetime import date
 
 from .errors import DomainError
@@ -33,3 +34,12 @@ def one_of(name: str, value: str | None, allowed: tuple[str, ...]) -> str | None
 def compact(**filters: object) -> dict[str, object]:
     """Keep only the filters that were supplied."""
     return {key: value for key, value in filters.items() if value is not None}
+
+
+_PHASE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+
+
+def valid_phase_name(name: str) -> bool:
+    """Phase names come from a folder inside an uploaded ZIP and end up in URLs and in the close
+    command's arguments, so they must be plain: no leading dash, separators or spaces."""
+    return bool(_PHASE_NAME.match(name)) and name not in {".", ".."}
