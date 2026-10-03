@@ -63,6 +63,11 @@ write_ap_jsonl(output_dir / "ap.jsonl", rows, expected_doc_ids=task_ids,
                context=master_context, tax_catalog=active_tax_catalog)
 ```
 
-Focused checks: `.venv/bin/python -m unittest tests.test_ap_output -v`.
-Fixtures cover document/local currency separation, credit reversal, non-posting
-guards, metadata, cost ownership, positions, coverage and atomic file behavior.
+Focused checks: `.venv/bin/python -m unittest tests.test_ap_output
+tests.test_ap_output_integration -v`. The integration fixtures exercise the real
+allocation, valuation, fiscal, journal and payment factories through JSONL and M0
+validation: ES/PT/MX treatments, original-imputation credits, foreign requests and
+historical advance applications, explicit MULTI_PO with favorable price
+differences, all notices and non-posting decisions. Additional regressions cover
+document/local currency separation, per-dimension conservation, malformed scope,
+coverage and atomic file behavior.

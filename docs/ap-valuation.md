@@ -1,4 +1,4 @@
-# Net AP valuation core — partial #51
+# Net AP valuation (#51)
 
 `kalmora.ap_valuation.value_ap_lines` accepts an explicit AP `decision`, invoice
 scope/date, `ValuationLine` amounts in document cents, company-owned cost coding,
