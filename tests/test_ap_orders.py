@@ -95,15 +95,25 @@ class OrderResolutionTests(unittest.TestCase):
         self.orders[0]["items"][0]["unit_price"] = 999
         self.assertEqual(self.resolve(po_reference="PO1").selected.unit_price_cents, 100)
 
-    def test_existing_reference_outside_scope_or_invoice_date_cannot_be_recovered_as_other_po(self):
+    def test_existing_reference_outside_scope_cannot_be_recovered_as_other_po(self):
         for changes in (dict(company="1910"), dict(vendor="OTHER"), dict(currency="USD"),
-                        dict(created_on="2030-01-01")):
+                        dict(currency="USD", created_on="2030-01-01")):
             catalog = POCatalog(orders=[*self.orders, dict(self.orders[0], id="FOREIGN", **changes)],
                                 receipts=self.receipts)
             result = catalog.resolve(replace(self.query, po_reference="FOREIGN", material="M1"),
                                      invoice_date="2026-07-31")
             self.assertEqual((result.status, result.selected, result.candidates), ("CONFLICT", None, ()))
             self.assertIn("PO_REFERENCE_SCOPE_OR_DATE_CONFLICT", result.diagnostics)
+
+    def test_future_reference_is_not_found_without_recovery_at_later_receipt_cutoff(self):
+        catalog = POCatalog(orders=[*self.orders, dict(self.orders[0], id="FUTURE", created_on="2026-08-01")],
+                            receipts=self.receipts)
+        result = catalog.resolve(replace(self.query, po_reference="FUTURE", material="M1"),
+                                 invoice_date="2026-07-31", receipt_as_of="2026-08-31")
+        self.assertEqual((result.status, result.selected, result.candidates), ("NOT_FOUND", None, ()))
+        self.assertEqual(result.diagnostics, ("PO_REFERENCE_AFTER_INVOICE",))
+        self.assertFalse(result.reference_recovered)
+        self.assertIn("PO_AFTER_INVOICE", next(d.reasons for d in result.discarded if d.order.po == "FUTURE"))
 
     def test_rejected_candidates_retain_specific_structural_and_concept_reasons(self):
         catalog = POCatalog(orders=[*self.orders, dict(self.orders[0], id="OTHER", currency="USD")],

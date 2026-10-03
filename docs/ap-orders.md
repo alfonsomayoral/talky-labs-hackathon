@@ -12,9 +12,11 @@ an exact lookup convention, not an LLM or fuzzy semantic inference. Scope alone
 is insufficient to confirm a unique candidate. Contradictory valid references,
 ambiguous matches and missing evidence do not become invented correspondences.
 An explicit existing order cannot be replaced to conceal a conflicting project,
-unit or position. An existing PO belonging to another company/vendor/currency,
-or created after the invoice date, is also a conflict; it cannot be treated as
-an obsolete number and replaced. An explicit position constrains recovery even without a PO
+unit or position. An existing PO belonging to another company/vendor/currency
+returns `CONFLICT`. A PO within the requested scope but created after the invoice
+date returns `NOT_FOUND`, with `PO_REFERENCE_AFTER_INVOICE` and a discarded
+`PO_AFTER_INVOICE` reason. Neither status permits replacement by another order
+or semantic ranking, even with a later receipt cutoff. An explicit position constrains recovery even without a PO
 number. Every asserted receipt reference must resolve: conflicting associations
 return `CONFLICT`; missing or not-yet-visible references return `UNKNOWN` with
 diagnostics and no selected candidate or usable receipt supply.

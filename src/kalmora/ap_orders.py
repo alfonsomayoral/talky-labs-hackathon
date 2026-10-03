@@ -169,6 +169,7 @@ class POCatalog:
                   and (query.po_item is None or k.item == query.po_item)]
         explicit_order = [k for k in scope if k.po == query.po_reference]
         existing_reference = any(k.po == query.po_reference for k in self._items)
+        future_reference = False
         reference_orders = None
         diagnostics = []
         for reference in query.receipt_references:
@@ -200,10 +201,14 @@ class POCatalog:
             conflict = not keys
             confirmed = True
         elif existing_reference:
-            # A real PO outside the supplied identity/currency/date is a
-            # contradiction, never an obsolete reference to silently replace.
-            keys, confirmed, conflict = [], False, True
-            diagnostics.append("PO_REFERENCE_SCOPE_OR_DATE_CONFLICT")
+            # An in-scope PO not yet created was absent on the invoice date.
+            # Neither that absence nor a scope contradiction permits fallback.
+            future_reference = any(k.po == query.po_reference
+                and (k.company, k.vendor, k.currency) == (query.company, query.vendor, query.currency)
+                for k in self._items)
+            keys, confirmed, conflict = [], False, not future_reference
+            diagnostics.append("PO_REFERENCE_AFTER_INVOICE" if future_reference
+                               else "PO_REFERENCE_SCOPE_OR_DATE_CONFLICT")
         else:
             keys = (anchored(scoped) if query.material or reference_orders is not None
                     else [k for k in scoped if matches(k)])
@@ -227,7 +232,8 @@ class POCatalog:
             candidates.append(POCandidate(key, query.uom, self._items[key][3],
                 sum(r.quantity_milli - used.get(r.key, 0) for r in visible), visible, evidence))
         selected = candidates[0] if confirmed and len(candidates) == 1 and not diagnostics and not conflict else None
-        status = ("CONFLICT" if conflict else "UNKNOWN" if diagnostics else "NOT_FOUND" if not candidates else
+        status = ("CONFLICT" if conflict else "NOT_FOUND" if future_reference else
+                  "UNKNOWN" if diagnostics else "NOT_FOUND" if not candidates else
                   "UNCONFIRMED" if not confirmed else "RESOLVED" if selected else "AMBIGUOUS")
         discarded = []
         for key, (created, project, item, _) in sorted(self._items.items()):
