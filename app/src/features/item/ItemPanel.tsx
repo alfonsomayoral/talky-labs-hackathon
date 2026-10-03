@@ -1,5 +1,5 @@
 // Item detail panel. Rendered by the shell's PeekHost when the URL has `?item=<task>:<key>`.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { ArrowUpRight, Copy, SearchX } from 'lucide-react'
 import type { EvidenceRef } from '@/domain/types'
@@ -115,8 +115,16 @@ function Panel({ ctx }: { ctx: ItemContext }) {
     ...(hasGolden ? [{ id: 'golden', label: goldenDiffs ? 'Golden' : 'Golden ✓', count: goldenDiffs || undefined }] : []),
   ]
 
+  // Switching items (j/k) keeps the open tab: a short fade says the content belongs to another item.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const firstItem = useRef(ctx.item.id)
+  useEffect(() => {
+    if (ctx.item.id === firstItem.current) return
+    panelRef.current?.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { duration: 160, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' })
+  }, [ctx.item.id])
+
   return (
-    <div className={styles.panel}>
+    <div ref={panelRef} className={styles.panel}>
       <ItemHeader ctx={ctx} />
       <div className={styles.tabs}>
         <Tabs tabs={tabs} value={active} onChange={(id) => setTab(id as TabId)} idPrefix={TAB_PREFIX} aria-label="Detalle de la partida" />

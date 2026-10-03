@@ -85,6 +85,7 @@
   height: var(--dt-row);
   border-bottom: 1px solid var(--line-soft);
   color: var(--ink);
+  transition: background-color var(--duration-fast) ease;
 }
 
 .clickable {
