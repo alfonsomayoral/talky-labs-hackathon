@@ -10,7 +10,7 @@ import { useDerivedRun } from '@/engine'
 import { formatDateTime, formatDuration, formatMonth, formatNumber } from '@/lib/format'
 import { useOpenItem } from '@/shell/useOpenItem'
 import { EventFeed } from './EventFeed'
-import { createLiveTracker, taskTotals, type LiveSnapshot, type StreamState, type TaskProgress } from './live'
+import { createLiveTracker, createPacer, PACE_TICK_MS, taskTotals, type LiveSnapshot, type StreamState, type TaskProgress } from './live'
 import { ManifestCard } from './ManifestCard'
 import { NODE_STATE, PipelineDag, type DagNode } from './PipelineDag'
 import { SourceBadge } from './SourceBadge'
@@ -201,23 +201,23 @@ function LiveRun({ runId }: { runId: string }) {
 
   useEffect(() => {
     const tracker = createLiveTracker(taskTotals(tasks))
-    // Batch renders; a timer (not rAF) so a background tab keeps up too.
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const flush = () => {
-      timer = undefined
+    const pacer = createPacer()
+    // Paced, batched renders; an interval (not rAF) so a background tab keeps up too.
+    const tick = () => {
+      const messages = pacer.take(Date.now())
+      if (!messages.length) return
+      for (const m of messages) tracker.push(m)
       setSnap(tracker.snapshot())
+      if (messages.some((m) => m.type === 'done')) loadResultRef.current()
     }
+    const timer = setInterval(tick, PACE_TICK_MS)
     const unsubscribe = subscribeRun(runId, (e) => {
-      tracker.push({ type: e.type, data: e.data })
-      if (e.type === 'done') {
-        clearTimeout(timer)
-        flush()
-        loadResultRef.current()
-      } else timer ??= setTimeout(flush, 100)
+      pacer.push({ type: e.type, data: e.data })
+      tick()
     })
     return () => {
       unsubscribe()
-      clearTimeout(timer)
+      clearInterval(timer)
     }
   }, [runId, subscribeRun, tasks, attempt])
 
