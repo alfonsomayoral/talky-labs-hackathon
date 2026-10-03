@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from kalmora.ap_erp import load_ap_erp_baseline
-from kalmora.ap_invoice_context import resolve_ap_invoice_context
+from kalmora.ap_invoice_context import _prepare_invoice_context_batch, resolve_ap_invoice_context
 from kalmora.ap_transaction import APTransactionState
 from kalmora.data import PhaseData
 from kalmora.documents.ap_sources import APAttachment, APMessage, APTaskSources
@@ -101,6 +102,36 @@ class APInvoiceContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(context.request.header)
         self.assertIsNone(context.request.duplicate_inventory_complete)
         self.assertEqual(load_ap_erp_baseline(self.phase, grir_account="40090000").history.consumption.usages, ())
+
+    async def test_printed_work_name_binds_active_project_id_without_rewriting_source(self):
+        self.write("projects", [dict(id="PROJECT-UNRELATED-ID", company="CO-ALPHA", name="Planta Ribera Norte")])
+        self.order["project"] = "PROJECT-UNRELATED-ID"
+        self.write("purchase_orders", [self.order])
+        printed = "  PLANTA  ribera norte "
+        fields = {**self.fields, "line.1.project_reference": printed}
+        context = await self.resolve(self.task((self.attachment(fields),)))
+        self.assertEqual(context.lines[0].query.project, "PROJECT-UNRELATED-ID")
+        self.assertEqual(context.lines[0].source.field("project_reference").value, printed.strip())
+        self.assertEqual(context.primary_source.raw.field("line.1.project_reference").value, printed)
+        self.assertTrue(any(e.field == "id=PROJECT-UNRELATED-ID.name" for e in context.evidence))
+        (self.phase / "erp/projects.jsonl").unlink()
+        context = await self.resolve(self.task((self.attachment(fields),)))
+        self.assertIsNone(context.lines[0].query)
+        self.assertEqual(context.status, "UNKNOWN")
+        self.assertIn("PROJECT_MASTER_UNAVAILABLE", context.lines[0].diagnostics)
+
+    async def test_batch_pins_available_projects_without_parsing_an_omitted_reference(self):
+        self.write("projects", [dict(id="PROJECT-X", company="CO-ALPHA", name="Unreferenced work")])
+        baseline = load_ap_erp_baseline(self.phase, grir_account="40090000")
+        batch = _prepare_invoice_context_batch(PhaseData(self.phase), baseline)
+        self.assertTrue(any(path.name == "projects.jsonl" for path, _ in batch.source_hashes))
+        with patch.object(batch.data, "table", wraps=batch.data.table) as lookup:
+            await resolve_ap_invoice_context(self.task(), data=batch.data, baseline=baseline,
+                state=APTransactionState(consumption=baseline.history.consumption), receipt_as_of=self.cutoff, _batch=batch)
+            self.assertFalse(any(call.args == ("projects",) for call in lookup.call_args_list))
+        self.write("projects", [dict(id="PROJECT-X", company="CO-ALPHA", name="Changed work")])
+        with self.assertRaisesRegex(ValueError, "sources changed"):
+            batch.verify()
 
     async def test_missing_unit_and_cutoff_never_use_order_unit_or_month_end(self):
         fields = dict(self.fields)

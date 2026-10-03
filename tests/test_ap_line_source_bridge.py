@@ -92,6 +92,44 @@ class APLineSourceBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valued amount contradicts"):
             validate_ap_line_sources(**args, amounts_required=False)
 
+    def test_quantity_only_coverage_requires_complete_bindings_without_inventing_valuation(self):
+        args = self.inputs()
+        args["valuation_lines"], args["price_lines"] = (), ()
+        args["amount_sources"] = (self.source([dict(quantity_milli=1000, uom="hours")]),)
+        early = validate_ap_line_sources(**args, amounts_required=False)
+        self.assertEqual(early.status, "CLEAR")
+        self.assertEqual(early.views[0].net_cents.status, "UNKNOWN")
+        self.assertEqual(args["valuation_lines"], ())
+        with self.assertRaisesRegex(ValueError, "valued posting line"):
+            validate_ap_line_sources(**args)
+        self.assertEqual(validate_ap_line_sources(**dict(args, bindings=()),
+            amounts_required=False).status, "UNKNOWN")
+        two_rows = self.source([dict(quantity_milli=1000, uom="hours"),
+                                dict(quantity_milli=1000, uom="hours")])
+        missing = validate_ap_line_sources(**dict(args, amount_sources=(two_rows,)), amounts_required=False)
+        self.assertEqual(missing.status, "UNKNOWN")
+        self.assertIn("SOURCE_ROW_UNBOUND:" + self.path + ":2", missing.diagnostics)
+
+    def test_quantity_only_views_preserve_quantity_uom_price_and_reference_guards(self):
+        args = self.inputs()
+        args["valuation_lines"] = ()
+        self.assertEqual(validate_ap_line_sources(**args, amounts_required=False).status, "CLEAR")
+        wrong = replace(args["quantity_lines"][0], quantity_milli=999)
+        with self.assertRaisesRegex(ValueError, "quantity contradicts"):
+            validate_ap_line_sources(**dict(args, quantity_lines=(wrong,)), amounts_required=False)
+        wrong = replace(args["quantity_lines"][0], uom="days")
+        with self.assertRaisesRegex(ValueError, "unit contradicts"):
+            validate_ap_line_sources(**dict(args, quantity_lines=(wrong,)), amounts_required=False)
+        wrong_price = replace(args["price_lines"][0], invoice_unit_price_cents=(
+            Fact(10000, Evidence(self.path, "unrelated number")),))
+        with self.assertRaisesRegex(ValueError, "price check contradicts"):
+            validate_ap_line_sources(**dict(args, price_lines=(wrong_price,)), amounts_required=False)
+        source = self.source([dict(quantity_milli=1000, uom="hours", unit_price_e4=1200000,
+                                  po_reference="DIFFERENT-PO")])
+        result = validate_ap_line_sources(**dict(args, amount_sources=(source,)), amounts_required=False)
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertTrue(any(note.startswith("SOURCE_ORDER_REFERENCE_BINDING_REQUIRED") for note in result.diagnostics))
+
     def test_printed_po_cannot_be_ignored_before_quantity_allocation(self):
         args = self.inputs()
         args["price_lines"] = ()

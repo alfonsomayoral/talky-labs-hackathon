@@ -14,7 +14,7 @@ from .ap_invoice_context import (
     CONTEXT_VERSION, _prepare_invoice_context_batch, resolve_ap_invoice_context,
 )
 from .ap_order_bridge import BRIDGE_VERSION
-from .ap_sources import load_prepared_ap_sources
+from .ap_sources import _read_prepared_source_bytes, load_prepared_ap_sources
 from .ap_transaction import APTransactionState
 from .data import PhaseData
 from .documents.contracts import digest, fingerprint
@@ -113,7 +113,7 @@ async def plan_ap_sources(phase_path, manifest_path, *, receipt_as_of: Fact | No
     data = PhaseData(Path(phase_path))
     path = Path(manifest_path).resolve()
     prepared = load_prepared_ap_sources(data.phase_dir, path)
-    manifest_bytes = path.read_bytes()
+    manifest_bytes = _read_prepared_source_bytes(path, data.phase_dir)
     manifest_sha256 = digest(manifest_bytes)
     manifest = json.loads(manifest_bytes)
     if manifest["stable_source_sha256"] != prepared.stable_source_sha256:
@@ -133,7 +133,7 @@ async def plan_ap_sources(phase_path, manifest_path, *, receipt_as_of: Fact | No
         sources = []
         for attachment in task.attachments:
             stage = stages[attachment.path]
-            artifact_bytes = (path.parent / stage["artifact"]).read_bytes()
+            artifact_bytes = _read_prepared_source_bytes(path.parent / stage["artifact"], data.phase_dir)
             if digest(artifact_bytes) != stage["artifact_sha256"]:
                 raise ValueError("prepared source artifact changed during source planning")
             artifact = json.loads(artifact_bytes)
@@ -151,7 +151,7 @@ async def plan_ap_sources(phase_path, manifest_path, *, receipt_as_of: Fact | No
     # Only publish a plan for a single, unchanged set of masters and originals.
     batch.verify()
     checked = load_prepared_ap_sources(data.phase_dir, path)
-    if (digest(path.read_bytes()) != manifest_sha256
+    if (digest(_read_prepared_source_bytes(path, data.phase_dir)) != manifest_sha256
             or checked.stable_source_sha256 != prepared.stable_source_sha256
             or checked.source_mode != prepared.source_mode or tuple(checked) != tuple(prepared)):
         raise ValueError("prepared sources changed during source planning")
