@@ -75,13 +75,16 @@ export interface TrialBalanceComparison {
   score: number | null
   /** Σ|delta| per task — how much each task moves the ledger. */
   movementByTask: Record<TaskKey, Cents>
+  /** Same figures converted to EUR at the month-end SYN-BCE rate (the scorer mixes local currencies). */
+  eur?: { gapRecorded: Cents | null; gapAfter: Cents | null; movementByTask: Record<TaskKey, Cents> }
 }
 
 export interface RunStats {
   items: number
   byStatus: Record<string, number>
   byTask: Record<TaskKey, { items: number; auto: number; needsHuman: number; blocked: number; open: number }>
-  attention: { count: number; impact: Cents; byPriority: Record<string, number> }
+  /** `impact` sums local-currency cents (as the scorer would); `impactEur` converts each item to EUR. */
+  attention: { count: number; impact: Cents; impactEur?: Cents; byPriority: Record<string, number> }
   unbalancedEntries: number
 }
 

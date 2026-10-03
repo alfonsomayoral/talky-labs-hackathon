@@ -5,6 +5,7 @@ import { TASK_KEYS } from '@/domain/types'
 import { jeLines } from '../score/primitives'
 import { tbKey } from '../score/tasks'
 import { rowEntries } from './entries'
+import type { ToEur } from '../fx'
 
 /**
  * Same arithmetic as score.py's score_tb: lines without a company (no line, row or
@@ -14,6 +15,7 @@ export function compareTrialBalance(
   recorded: readonly TrialBalanceRow[],
   deliverables: Deliverables,
   truth: readonly TrialBalanceRow[] | null,
+  toEur?: ToEur,
 ): TrialBalanceComparison {
   const rows = new Map<string, TbRow>()
   const row = (company: unknown, account: string): TbRow => {
@@ -46,14 +48,28 @@ export function compareTrialBalance(
   if (truth) for (const r of truth) row(r.company, r.account).truth = r.balance
 
   const list = [...rows.values()].sort((a, b) => (a.company === b.company ? cmp(a.account, b.account) : cmp(a.company, b.company)))
-  if (!truth) return { rows: list, gapRecorded: null, gapAfter: null, score: null, movementByTask }
+  const eurOf = (company: string, cents: Cents) => (toEur ? toEur(company, cents) : cents)
+  const movementEur = Object.fromEntries(TASK_KEYS.map((k) => [k, 0])) as Record<TaskKey, Cents>
+  for (const x of list) for (const task of TASK_KEYS) movementEur[task] += Math.abs(eurOf(x.company, x.delta[task] ?? 0))
+  if (!truth) return { rows: list, gapRecorded: null, gapAfter: null, score: null, movementByTask, eur: { gapRecorded: null, gapAfter: null, movementByTask: movementEur } }
   let gapRecorded = 0
   let gapAfter = 0
+  let gapRecordedEur = 0
+  let gapAfterEur = 0
   for (const x of list) {
     gapRecorded += Math.abs((x.truth ?? 0) - x.recorded)
     gapAfter += Math.abs((x.truth ?? 0) - x.after)
+    gapRecordedEur += Math.abs(eurOf(x.company, (x.truth ?? 0) - x.recorded))
+    gapAfterEur += Math.abs(eurOf(x.company, (x.truth ?? 0) - x.after))
   }
-  return { rows: list, gapRecorded, gapAfter, score: Math.max(0, 1 - gapAfter / (gapRecorded || 1)), movementByTask }
+  return {
+    rows: list,
+    gapRecorded,
+    gapAfter,
+    score: Math.max(0, 1 - gapAfter / (gapRecorded || 1)),
+    movementByTask,
+    eur: { gapRecorded: gapRecordedEur, gapAfter: gapAfterEur, movementByTask: movementEur },
+  }
 }
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
