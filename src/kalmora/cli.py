@@ -17,6 +17,8 @@ def main(argv: list[str] | None = None) -> int:
     ingest = commands.add_parser("import-package", help="Preserve and inventory a participant ZIP")
     ingest.add_argument("archive", type=Path)
     ingest.add_argument("--destination", type=Path, required=True, help="New package directory")
+    inspect = commands.add_parser("inspect", help="Inspect a phase's solver inputs")
+    inspect.add_argument("phase", type=Path)
     args = parser.parse_args(argv)
     if args.command == "doctor":
         supported = sys.version_info >= (3, 12)
@@ -33,5 +35,19 @@ def main(argv: list[str] | None = None) -> int:
                           "archive_sha256": manifest["archive_sha256"],
                           "file_count": len(manifest["files"]),
                           "phases": manifest["phases"]}))
+        return 0
+    if args.command == "inspect":
+        from .data import PhaseData
+        try:
+            data = PhaseData(args.phase)
+            summary = {"phase": data.phase_dir.name, "month": data.month,
+                       "companies": len(data.companies), "tasks": sorted(data.tasks),
+                       "journal_entries": sum(1 for _ in data.iter_journal()),
+                       "document_messages": len(data.table("document_messages")),
+                       "bank_lines": len(data.table("bank_lines"))}
+        except (OSError, ValueError, KeyError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps(summary))
         return 0
     return 2

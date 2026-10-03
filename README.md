@@ -31,6 +31,14 @@ Registrar una copia de julio con hashes por archivo y mes obtenido de las entrad
 El destino debe ser nuevo: cada importación conserva los originales y escribe
 `manifest.json`; se omiten los metadatos `__MACOSX`.
 
+```bash
+.venv/bin/kalmora inspect data/julio/participant/phase_dev
+```
+
+`PhaseData` ofrece tablas e índices ERP, tareas, mensajes y extractos. El diario
+se puede recorrer sin cargarlo completo; los decimales se leen con `Decimal`.
+Las búsquedas por clave compuesta conservan sociedad, cuenta, socio y asignación.
+
 ## Roadmap
 
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
