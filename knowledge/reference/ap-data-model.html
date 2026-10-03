@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo AP Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+
+/* Layout: una columna de lectura (max 1080px) con diagramas a ancho completo y tablas con scroll propio */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0 0 6px;font-weight:600}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.POST{color:var(--ok)} .HOLD{color:var(--warn)} .REJECT{color:var(--bad)} .DUPLICATE{color:var(--info)} .NOT_INVOICE{color:var(--neutral)} .PPB{color:var(--warn)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.card pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg)}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:72ch}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · phase_dev · golden/ap.jsonl · julio 2026</div>
+  <h1>Modelo de datos de un documento AP</h1>
+  <p>Cada línea de <code>ap.jsonl</code> es la resolución de un documento del buzón de proveedores (<code>doc_id</code>). El registro guarda tres cosas: qué es el documento, qué decisión se toma y, solo si se contabiliza, el asiento resultante. Importes siempre en céntimos enteros.</p>
+  <div class="kpis">
+    <div class="kpi"><b>305</b><span>documentos</span></div>
+    <div class="kpi"><b>242</b><span>con asiento</span></div>
+    <div class="kpi"><b>1.775</b><span>líneas de factura</span></div>
+    <div class="kpi"><b>1.989</b><span>líneas de asiento</span></div>
+    <div class="kpi"><b>7</b><span>sociedades</span></div>
+    <div class="kpi"><b>EUR · MXN · USD</b><span>285 · 15 · 5</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">1 · Entidades</div>
+  <h2>Diagrama entidad-relación</h2>
+  <p>El documento AP es la raíz. Las líneas de imputación y el asiento son hijos embebidos. <code>duplicate_of</code> y <code>credit_note_of</code> apuntan a otros <code>doc_id</code>; <code>vendor_id</code>, <code>po</code> y <code>goods_receipts</code> apuntan a datos maestros y transaccionales de la fase.</p>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  AP_DOCUMENT ||--o{ INVOICE_LINE : "lines[]"
+  AP_DOCUMENT ||--o| JOURNAL_ENTRY : "journal_entry (solo POST*)"
+  JOURNAL_ENTRY ||--|{ JE_LINE : "lines[]"
+  AP_DOCUMENT |o--o| PAYEE : "payee"
+  AP_DOCUMENT |o--o| ACTION_DATA : "action_data (solo NOT_INVOICE)"
+  AP_DOCUMENT }o--o| VENDOR : "vendor_id"
+  AP_DOCUMENT }o--o| AP_DOCUMENT : "duplicate_of / credit_note_of"
+  INVOICE_LINE }o--o| PO_ITEM : "po + po_item"
+  INVOICE_LINE }o--o{ GOODS_RECEIPT : "goods_receipts[]"
+  AP_DOCUMENT {
+    string doc_id PK
+    enum document_type
+    enum decision
+    list reasons "codigos politica 2.2"
+    list cases "etiqueta golden"
+    string company
+    string vendor_id FK "null si no esta en maestro"
+    string invoice_number
+    date invoice_date
+    string currency
+    int net
+    int tax
+    int gross "net + tax"
+    int withholding "IRPF / retencion MX"
+    int retention "garantia 5%"
+    int payable "gross - withholding - retention"
+    date due_date
+    string duplicate_of FK
+    string credit_note_of FK
+    enum payment_block "null o CONTRACTOR_CERTIFICATE_EXPIRED"
+    enum action "solo NOT_INVOICE"
+  }
+  INVOICE_LINE {
+    int amount
+    string account
+    string cost_center "o wbs"
+    string wbs
+    string tax_code "S21 S10 SISP M16 SEX..."
+    string po
+    int po_item
+    list goods_receipts
+  }
+  JOURNAL_ENTRY {
+    string id PK "company-year-number"
+    string company
+    enum doc_type "KR factura / KG abono"
+    date posting_date
+    date document_date
+    string reference "= invoice_number"
+    string header_text
+    string source "AP"
+    string currency "moneda local"
+  }
+  JE_LINE {
+    int line
+    string account
+    int debit
+    int credit
+    string currency "moneda documento"
+    int amount_doc
+    string partner "solo cuentas de socio"
+    string cost_center
+    string wbs
+    string tax_code
+    string assignment "PO/pos o num factura"
+    string text
+  }
+  PAYEE {
+    enum type "FACTOR o AEAT_EMBARGO"
+    string name
+    string iban
+  }
+  ACTION_DATA {
+    json payload "depende de action"
+  }
+  </pre></div>
+</section>
+
+<section>
+  <div class="eyebrow">2 · Forma del registro</div>
+  <h2>Tres variantes de esquema</h2>
+  <p>El conjunto de claves cambia según la decisión. Este es el contrato que observé en el golden:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Variante</th><th class="n">Docs</th><th>Decisiones</th><th>Claves presentes</th></tr></thead>
+    <tbody>
+      <tr><td>Factura contabilizada</td><td class="n">242</td><td><span class="pill POST">POST</span></td><td>cabecera + importes + <code>lines</code> + <code>journal_entry</code></td></tr>
+      <tr><td>Factura no contabilizada</td><td class="n">51</td><td><span class="pill HOLD">HOLD</span> <span class="pill REJECT">REJECT</span> <span class="pill DUPLICATE">DUPLICATE</span></td><td>cabecera + importes + <code>lines</code>, sin <code>journal_entry</code></td></tr>
+      <tr><td>No es factura</td><td class="n">12</td><td><span class="pill NOT_INVOICE">NOT_INVOICE</span></td><td>solo cabecera + <code>action</code> + <code>action_data</code>; sin importes ni líneas</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">3 · Alternativas</div>
+  <h2>Árbol de decisión de un documento AP</h2>
+  <p>El orden refleja cómo se descartan los casos en el golden: primero se clasifica el tipo, luego duplicados, luego defectos de la factura (rechazo), luego problemas de cotejo o de proveedor (retención) y por último la contabilización. Los conteos son del golden de julio.</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  IN["Documento del buzón<br/>doc_id"] --> T{"document_type"}
+  T -->|"PROFORMA · VENDOR_STATEMENT"| NI0["NOT_INVOICE<br/>action = NONE · 6"]
+  T -->|"CONTRACTOR_TAX_CERTIFICATE"| NI1["NOT_INVOICE<br/>UPDATE_CONTRACTOR_CERTIFICATE · 4"]
+  T -->|"FACTORING_NOTICE"| NI2["NOT_INVOICE<br/>REGISTER_ALTERNATIVE_PAYEE · 1"]
+  T -->|"BANK_DETAILS_CHANGE"| NI3["NOT_INVOICE<br/>UPDATE_BANK_DETAILS · 1"]
+  T -->|"TAX_GARNISHMENT_ORDER"| NI4["NOT_INVOICE<br/>REGISTER_EMBARGO · 0 en dev"]
+  T -->|"INVOICE · CREDIT_NOTE · DOWN_PAYMENT_REQUEST"| D{"¿Ya registrada?"}
+  D -->|"sí: reenvío, escaneo, portal+email, nº variante"| DUP["DUPLICATE · 14<br/>duplicate_of = doc original"]
+  D -->|no| V{"¿Defecto formal o fiscal?"}
+  V -->|"sí"| REJ["REJECT · 18<br/>destinatario, IVA, ISP, retención,<br/>aritmética, NIF, certificación, CFDI"]
+  V -->|no| H{"¿Cotejo, proveedor o banco<br/>bloquean el pago?"}
+  H -->|"sí"| HOLD["HOLD · 19<br/>sin EM, precio fuera de tolerancia,<br/>proveedor nuevo, IBAN cambiado"]
+  H -->|no| C{"¿Certificado de contratista vencido?"}
+  C -->|sí| PPB["POST_PAYMENT_BLOCK · 0 en dev<br/>asiento + payment_block"]
+  C -->|no| POST["POST · 242<br/>asiento KR / KG"]
+  classDef ok fill:#2f6b4f,stroke:#2f6b4f,color:#fff
+  classDef warn fill:#9a6a12,stroke:#9a6a12,color:#fff
+  classDef bad fill:#a3392f,stroke:#a3392f,color:#fff
+  classDef info fill:#3c5a8a,stroke:#3c5a8a,color:#fff
+  classDef ni fill:#6b6f7a,stroke:#6b6f7a,color:#fff
+  class POST ok
+  class PPB,HOLD warn
+  class REJ bad
+  class DUP info
+  class NI0,NI1,NI2,NI3,NI4 ni
+  </pre></div>
+</section>
+
+<section>
+  <div class="eyebrow">4 · Catálogo</div>
+  <h2>Motivos y casos por decisión</h2>
+  <p><code>reasons</code> es el código de política que se entrega y se puntúa. <code>cases</code> es una etiqueta del golden que describe el escenario de prueba; no aparece en el formato de entrega.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Decisión</th><th>reasons</th><th>cases (golden)</th><th class="n">Docs</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>sin caso</td><td class="n">145</td></tr>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>PO_REF_MISSING · PO_REF_STALE · PO_REF_TYPO · MULTI_PO</td><td class="n">67</td></tr>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>CORRECTED_REISSUE (sustituye a una rechazada)</td><td class="n">13</td></tr>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>PRICE_SMALL (diferencia dentro de tolerancia → 62900000)</td><td class="n">8</td></tr>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>CREDIT_NOTE (credit_note_of, asiento KG)</td><td class="n">9</td></tr>
+      <tr><td><span class="pill POST">POST</span></td><td class="muted">[]</td><td>FACTORING_CESSION (payee FACTOR)</td><td class="n">1</td></tr>
+      <tr><td><span class="pill HOLD">HOLD</span></td><td>QTY_NOT_RECEIVED</td><td>QTY_NO_GR</td><td class="n">9</td></tr>
+      <tr><td><span class="pill HOLD">HOLD</span></td><td>PRICE_VARIANCE</td><td>PRICE_OVER</td><td class="n">6</td></tr>
+      <tr><td><span class="pill HOLD">HOLD</span></td><td>VENDOR_NOT_IN_MASTER</td><td>NEW_VENDOR</td><td class="n">2</td></tr>
+      <tr><td><span class="pill HOLD">HOLD</span></td><td>BANK_DETAILS_CHANGED</td><td>BANK_FRAUD</td><td class="n">2</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>WRONG_ADDRESSEE</td><td>WRONG_ADDRESSEE</td><td class="n">3</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>ISP_NOT_APPLIED</td><td>ISP_NOT_APPLIED</td><td class="n">3</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>VAT_RATE_INCORRECT</td><td>VAT_RATE</td><td class="n">3</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>MANDATORY_FIELD_MISSING</td><td>MISSING_TAX_ID</td><td class="n">2</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>CERTIFICATION_CUMULATIVE_BILLED</td><td>CERT_CUMULATIVE</td><td class="n">2</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>WITHHOLDING_MISSING</td><td>WITHHOLDING_MISSING</td><td class="n">2</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>ARITHMETIC_ERROR</td><td>ARITHMETIC</td><td class="n">2</td></tr>
+      <tr><td><span class="pill REJECT">REJECT</span></td><td>CFDI_MISMATCH</td><td>CFDI_MISMATCH</td><td class="n">1</td></tr>
+      <tr><td><span class="pill DUPLICATE">DUPLICATE</span></td><td>DUPLICATE</td><td>NUMBER_VARIANT 5 · RESEND 4 · SCAN 3 · PORTAL_AND_EMAIL 2</td><td class="n">14</td></tr>
+      <tr><td><span class="pill NOT_INVOICE">NOT_INVOICE</span></td><td class="muted">[]</td><td class="muted">sin caso; el tipo lo explica</td><td class="n">12</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">5 · Contabilización</div>
+  <h2>Patrones de asiento</h2>
+  <p>Todos los asientos cuadran (Σ debe = Σ haber). El haber al proveedor siempre es <code>payable</code>; las retenciones van a cuentas propias. Cuenta de socio: 40000000 proveedores, 41000000 acreedores, 40300000 intragrupo.</p>
+  <div class="grid2">
+    <div class="card"><h3>Factura con pedido (KR)</h3>
+<pre>D 40090000  GR/IR      por PO/pos
+D 47200000  IVA soportado
+H 40000000  Proveedor  payable</pre></div>
+    <div class="card"><h3>Factura sin pedido (KR)</h3>
+<pre>D 6xxxxxxx  Gasto      CeCo o WBS
+D 47200000  IVA soportado
+H 41000000  Acreedor   payable</pre></div>
+    <div class="card"><h3>Inversión del sujeto pasivo (SISP)</h3>
+<pre>D 40090000  GR/IR
+D 47210000  IVA autorrepercutido
+H 47710000  IVA autorrepercutido
+H 40000000  Proveedor  payable
+H 40000900  Retención garantía 5 %</pre></div>
+    <div class="card"><h3>Retención fiscal</h3>
+<pre>D 62400000  Gasto
+D 47200000  IVA soportado
+H 40000000  Proveedor  payable
+H 47510000  Retención IRPF / MX</pre></div>
+    <div class="card"><h3>Diferencia de precio tolerada</h3>
+<pre>D 40090000  GR/IR      valor EM
+D 62900000  Diferencia de precio
+D 47200000  IVA soportado
+H 41000000  Acreedor   payable</pre></div>
+    <div class="card"><h3>Abono (KG)</h3>
+<pre>D 41000000  Acreedor   gross
+H 62910000  Gasto      (inverso)
+credit_note_of → factura original</pre></div>
+    <div class="card"><h3>Anticipo en divisa</h3>
+<pre>D 40700000  Anticipo   USD → EUR
+H 40000000  Proveedor  USD → EUR
+amount_doc en USD, debe/haber en EUR</pre></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">6 · Reglas</div>
+  <h2>Invariantes comprobados</h2>
+  <ul>
+    <li><code>gross = net + tax</code> en los 293 documentos con importes.</li>
+    <li><code>payable = gross − withholding − retention</code> en todos.</li>
+    <li><code>Σ lines.amount = net</code> en todos.</li>
+    <li><code>journal_entry</code> existe si y solo si <code>decision = POST</code>.</li>
+    <li><code>duplicate_of</code> solo con <code>DUPLICATE</code>; <code>credit_note_of</code> solo en <code>CREDIT_NOTE</code>.</li>
+    <li><code>reasons</code> tiene exactamente un código en HOLD, REJECT y DUPLICATE, y está vacío en POST y NOT_INVOICE.</li>
+    <li>En las líneas, <code>wbs</code> o <code>cost_center</code> lleva el objeto de coste; <code>po</code> aparece en 1.327 de 1.775.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">7 · Huecos</div>
+  <h2>Lo que el golden no cubre</h2>
+  <div class="note"><ul>
+    <li><code>POST_PAYMENT_BLOCK</code>, <code>TAX_GARNISHMENT_ORDER</code>, <code>REGISTER_EMBARGO</code> y <code>payee.type = AEAT_EMBARGO</code> están en <code>FORMATO_ENTREGA.md</code> pero no tienen ningún ejemplo en dev. Pueden aparecer en septiembre.</li>
+    <li><code>payment_block</code> es <code>null</code> en los 293 registros con importes.</li>
+    <li>El golden incluye <code>cases</code>, <code>due_date</code> y <code>credit_note_of</code>, que el ejemplo de formato no muestra. En facturas omite <code>action</code>, mientras el ejemplo pone <code>"action": null</code>.</li>
+  </ul></div>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'loose', er: { useMaxWidth: false }, flowchart: { useMaxWidth: true } });
+</script>
+</body>
+</html>

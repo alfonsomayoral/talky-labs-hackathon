@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Base de llegada Kalmora</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+/* Mismo sistema visual que data-sources.html */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d9dfdb;
+  --accent:#2f6b4f; --accent-soft:#e3efe8;
+  --ok:#2f6b4f; --warn:#9a6a12; --bad:#a3392f; --info:#3c5a8a; --neutral:#6b6f7a;
+  --display:"Fraunces",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --fg:#e4ebe7; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#7cc4a0; --accent-soft:#22332b; --ok:#7cc4a0; --warn:#e0b25a; --bad:#ec8a7f; --info:#93b3e6; --neutral:#a7abb5; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:40px 64px;display:grid;gap:44px}
+h1,h2{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.15}
+h2{font-size:1.4rem}
+h3{font-size:1rem;margin:0;font-weight:600}
+p{margin:0;max-width:72ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:14px;min-width:0}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.head{display:grid;gap:10px}
+.kpis{display:flex;flex-wrap:wrap;gap:10px}
+.kpi{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 12px;display:grid;font-variant-numeric:tabular-nums;min-width:110px}
+.kpi b{font-size:1.25rem;font-weight:600}
+.kpi span{font-size:.78rem;color:var(--muted)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto}
+.diagram pre.mermaid{margin:0;background:transparent;border:0;padding:0}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right;white-space:nowrap}
+tr.group td{background:var(--accent-soft);font-family:var(--mono);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.pill{display:inline-block;font-family:var(--mono);font-size:.74rem;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .info{color:var(--info)} .neutral{color:var(--neutral)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0;align-content:start}
+pre{margin:0;font-family:var(--mono);font-size:.78rem;line-height:1.5;overflow-x:auto;white-space:pre;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:0 6px 6px 0;display:grid;gap:6px}
+ul{margin:0;padding-left:20px;display:grid;gap:4px;max-width:76ch}
+.muted{color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px}
+nav.toc a{font-family:var(--mono);font-size:.78rem;color:var(--accent);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px}
+nav.toc a:hover{border-color:var(--accent)}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:4px;align-content:start}
+.lane.here{border:2px solid var(--accent);background:var(--accent-soft)}
+.lane b{font-family:var(--mono);font-size:.74rem;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.lane span{font-size:.86rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <div class="eyebrow">Grupo Kalmora · propuesta · capa de llegada · fuente: <a href="data-sources.html">data-sources.html</a></div>
+  <h1>Base de datos de llegada: datos crudos-normalizados</h1>
+  <p>Una base SQLite por fase donde aterriza todo lo que hay en <code>phase_x/</code>, ya tipado y con su procedencia, pero <b>sin ninguna interpretación contable</b>. Es el único punto de entrada para las capas de análisis: nadie vuelve a leer un N43 ni un PDF después de aquí. El DDL completo está en <a href="landing-db.sql"><code>landing-db.sql</code></a>.</p>
+  <div class="kpis">
+    <div class="kpi"><b>64</b><span>tablas</span></div>
+    <div class="kpi"><b>6</b><span>dominios</span></div>
+    <div class="kpi"><b>1</b><span>fichero SQLite por fase</span></div>
+    <div class="kpi"><b>826</b><span>ficheros de entrada en dev</span></div>
+    <div class="kpi"><b>≈110 k</b><span>líneas de diario</span></div>
+    <div class="kpi"><b>0</b><span>decisiones contables</span></div>
+  </div>
+  <nav class="toc" aria-label="Secciones">
+    <a href="#frontera">1 · Frontera</a><a href="#convenciones">2 · Convenciones</a><a href="#modelo">3 · Modelo</a><a href="#catalogo">4 · Catálogo</a><a href="#normalizacion">5 · Normalización</a><a href="#carga">6 · Carga y control</a><a href="#decisiones">7 · Decisiones abiertas</a>
+  </nav>
+</header>
+
+<!-- ============================ 1 ============================ -->
+<section id="frontera">
+  <div class="eyebrow">1 · Dónde está y qué no hace</div>
+  <h2>La frontera: lo que dice la fuente, no lo que significa</h2>
+  <div class="lanes">
+    <div class="lane"><b>Fuentes</b><span><code>erp/</code>, <code>inbox/</code>, <code>bank/</code>, <code>tasks/</code>. Solo lectura.</span></div>
+    <div class="lane here"><b>Llegada (esta base)</b><span>Parseo, tipado, normalización de formato, procedencia y control de calidad de la extracción.</span></div>
+    <div class="lane"><b>Análisis</b><span>Clasificación de documentos, resolución de entidades, casaciones, reglas de política.</span></div>
+    <div class="lane"><b>Entrega</b><span>Asientos y JSONL según <code>FORMATO_ENTREGA.md</code>.</span></div>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Sí se hace al llegar</th><th>No se hace al llegar (es análisis)</th></tr></thead>
+    <tbody>
+      <tr><td>Convertir «1.234,56» → <code>123456</code> céntimos y «30 de junio de 2026» → <code>2026-06-30</code></td><td>Decidir si una diferencia de precio está dentro de la tolerancia</td></tr>
+      <tr><td>Guardar el título impreso («NOTA DE CRÉDITO», «PROFORMA INVOICE»)</td><td>Clasificar el documento como <code>CREDIT_NOTE</code> o <code>PROFORMA</code></td></tr>
+      <tr><td>Normalizar el NIF impreso (<code>ESA12359962</code> → <code>A12359962</code>)</td><td>Resolver ese NIF a la sociedad 1100 o a un proveedor <code>V1000xx</code></td></tr>
+      <tr><td>Normalizar el número de factura a <code>[A-Z0-9]</code></td><td>Quitar prefijos y declarar un duplicado</td></tr>
+      <tr><td>Extraer albaranes y pedidos citados en cada línea</td><td>Casar con <code>goods_receipts</code> y <code>purchase_orders</code></td></tr>
+      <tr><td>Cargar cada línea de extracto con su <code>bank_line</code></td><td>Casarla con <code>&lt;asiento&gt;#&lt;línea&gt;</code> o clasificarla</td></tr>
+      <tr><td>Marcar <code>qc_totals_ok = 0</code> si base + cuotas ≠ total impreso</td><td>Concluir <code>ARITHMETIC_ERROR</code> (puede ser un fallo de OCR)</td></tr>
+      <tr><td>Guardar el sello leído («CONFORME»)</td><td>Decidir que la certificación está aprobada</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Excepción deliberada: columnas derivadas de forma <em>literal y local</em> a una fila (dominio de un email, <code>line_ref = je_id#line</code>, tipo escalado ×10⁶) se calculan al llegar porque no requieren otra fuente ni regla de negocio.</p>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section id="convenciones">
+  <div class="eyebrow">2 · Convenciones</div>
+  <h2>Tipos y nombres</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Sufijo / patrón</th><th>Tipo SQLite</th><th>Significado</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td><code>*_cents</code></td><td>INTEGER</td><td>Importe en céntimos de la moneda de la fila, con signo</td><td>13.984,45 EUR → <code>1398445</code></td></tr>
+      <tr><td><code>*_milli</code></td><td>INTEGER</td><td>Cantidad en milésimas (como <code>quantity_milli</code> del ERP)</td><td>7,5 m3 → <code>7500</code></td></tr>
+      <tr><td><code>*_bp</code></td><td>INTEGER</td><td>Porcentaje en puntos básicos</td><td>IVA 21 % → <code>2100</code></td></tr>
+      <tr><td><code>*_e4</code> · <code>*_e6</code></td><td>INTEGER</td><td>Valor escalado ×10⁴ (precios unitarios, €/MWh) o ×10⁶ (tipos de cambio)</td><td>142,65 → <code>1426500</code>; 1.0667 → <code>1066700</code></td></tr>
+      <tr><td><code>*_raw</code></td><td>TEXT</td><td>Valor literal de la fuente, para evidencia y reproceso</td><td><code>"NIF: 412359962"</code> (OCR)</td></tr>
+      <tr><td><code>*_norm</code></td><td>TEXT</td><td>Forma canónica de un identificador</td><td>IBAN sin espacios, en mayúsculas</td></tr>
+      <tr><td>fechas</td><td>TEXT</td><td>ISO-8601</td><td><code>2026-07-31</code>, <code>2026-07-09T10:29:00</code></td></tr>
+      <tr><td>ids</td><td>TEXT</td><td>Siempre texto: hay ceros a la izquierda</td><td><code>0007350</code>, <code>04888</code></td></tr>
+      <tr><td><code>file_id</code> + <code>locator</code></td><td>INTEGER + TEXT</td><td>Procedencia en toda tabla raíz; las hijas la heredan del padre</td><td><code>L1834</code>, <code>rec22#17</code>, <code>/Document/.../Ntry[3]</code>, <code>p1:l14</code></td></tr>
+      <tr><td><code>qc_*</code></td><td>INTEGER 0/1</td><td>Control de coherencia interna de la extracción. No es un motivo contable</td><td><code>qc_line_math_ok</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Tablas <code>STRICT</code> (SQLite ≥ 3.37; la máquina tiene 3.51) para que un <code>REAL</code> no se cuele en una columna de céntimos.</p>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section id="modelo">
+  <div class="eyebrow">3 · Modelo</div>
+  <h2>Seis dominios</h2>
+
+  <h3>3.1 Procedencia, tareas y bandejas</h3>
+  <p>Todo cuelga de <code>source_file</code>. Un documento físico se extrae una sola vez a <code>doc_extract</code>, venga de la bandeja AP o de un aviso de pago; el texto bruto queda en <code>doc_page_text</code>.</p>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  load_run ||--o{ source_file : carga
+  source_file ||--o{ parse_issue : avisa
+  source_file ||--o{ task_item : define
+  source_file ||--o{ doc_page_text : texto
+  ap_message ||--|{ ap_attachment : adjunta
+  ap_attachment }o--|| source_file : fichero
+  source_file ||--o| doc_extract : extrae
+  ap_message ||--o{ doc_extract : "doc_id"
+  doc_extract ||--o{ doc_extract_line : lineas
+  doc_extract ||--o{ doc_extract_tax : impuestos
+  doc_extract ||--o{ doc_extract_ref : cita
+  doc_extract ||--o{ doc_field_evidence : evidencia
+  ar_billing_item ||--|{ ar_billing_item_document : documentos
+  ar_billing_item ||--o| ar_billing_extract : extrae
+  ar_billing_extract ||--o{ ar_billing_extract_line : lineas
+  remittance_advice }o--o| doc_extract : pdf
+  source_file ||--o{ face_invoice_status : filas
+  source_file {
+    int file_id PK
+    text rel_path
+    text family
+    text format
+    text sha256
+    text status
+  }
+  doc_extract {
+    int extract_id PK
+    text doc_id FK
+    text method
+    text title_raw
+    text issuer_tax_id_norm
+    text recipient_tax_id_norm
+    text doc_number_norm
+    int gross_cents
+    text iban_norm
+  }
+  doc_extract_line {
+    int line_no PK
+    text delivery_ref
+    int quantity_milli
+    int unit_price_e4
+    int amount_cents
+    text po_ref
+  }
+  </pre></div>
+
+  <h3>3.2 ERP · maestros</h3>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  erp_company ||--o{ erp_company_partner : "UTE"
+  erp_company ||--o{ erp_cost_center : tiene
+  erp_company ||--o{ erp_project : tiene
+  erp_project ||--|{ erp_project_wbs : PEP
+  erp_company ||--o{ erp_bank_account : tiene
+  erp_bank_account ||--o{ erp_bank_account_role : roles
+  erp_vendor ||--o{ erp_vendor_company : opera
+  erp_vendor ||--o{ erp_vendor_bank_history : IBAN
+  erp_vendor ||--o{ erp_vendor_garnishment : embargos
+  erp_vendor ||--o{ erp_contractor_certificate : art43
+  erp_customer ||--o{ erp_sales_contract : contrata
+  erp_sales_contract ||--o{ erp_sales_contract_plant : plantas
+  erp_vendor {
+    text vendor PK
+    text tax_id_norm
+    text email_domain
+    text reconciliation_account
+    text default_tax_code
+    text bank_iban_norm
+    text alt_payee_iban_norm
+  }
+  erp_customer {
+    text customer PK
+    text kind
+    text dir3_oficina_contable
+    text insolvency_declared_on
+  }
+  </pre></div>
+  <p class="muted">Además, sin relaciones dibujadas: <code>erp_account</code>, <code>erp_tax_param</code> (códigos de IVA, retenciones y deducciones de cliente), <code>erp_fx_rate</code>, <code>erp_ic_management_fee</code>, <code>erp_ic_loan</code>, <code>erp_ic_cash_pool</code>.</p>
+
+  <h3>3.3 ERP · registrado</h3>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  erp_journal_entry ||--|{ erp_journal_line : lineas
+  erp_purchase_order ||--|{ erp_po_item : posiciones
+  erp_po_item ||--o{ erp_goods_receipt : entradas
+  erp_goods_receipt }o--o| erp_journal_entry : WE
+  erp_ap_invoice ||--o{ erp_ap_invoice_po_ref : pedidos
+  erp_ap_invoice ||--o{ erp_ap_invoice_case : casos
+  erp_ap_document_log ||--o{ erp_ap_document_log_reason : motivos
+  erp_ar_invoice ||--o{ erp_ar_invoice_deduction : deducciones
+  erp_billing_history ||--|{ erp_billing_history_line : lineas
+  erp_promissory_note ||--|{ erp_promissory_note_application : aplica
+  erp_sepa_remittance ||--|{ erp_sepa_remittance_invoice : recibos
+  erp_journal_line {
+    text je_id PK
+    int line PK
+    text line_ref UK
+    text account
+    int debit_cents
+    int credit_cents
+    text partner
+    text assignment
+  }
+  erp_open_item {
+    int open_item_id PK
+    text company
+    text account
+    text partner
+    text assignment
+    int balance_cents
+  }
+  </pre></div>
+  <p class="muted">También: <code>erp_factoring_assignment</code>, <code>erp_penalty_notice</code>. Las relaciones por <code>je_id</code>, <code>vendor</code> o <code>invoice</code> existen como columnas pero sin <code>FOREIGN KEY</code>: el ERP trae errores humanos sembrados y una FK rechazaría justo la evidencia que hay que encontrar.</p>
+
+  <h3>3.4 Banco</h3>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  source_file ||--o| bank_statement : original
+  source_file ||--o| bank_statement : "gemelo lines.jsonl"
+  bank_statement ||--|{ bank_line : movimientos
+  bank_line ||--o{ bank_line_text : "N43 reg. 23"
+  bank_statement {
+    int statement_id PK
+    text bank_account
+    text period
+    text format
+    int opening_cents
+    int closing_cents
+    int chain_ok
+    int twin_ok
+  }
+  bank_line {
+    text bank_line PK
+    int seq
+    text booking_date
+    int amount_cents
+    text text_twin
+    text text_full
+    text counterparty_name
+    text orig_currency
+    int orig_amount_cents
+  }
+  </pre></div>
+  <p>Una sola tabla <code>bank_line</code> para los tres formatos: columnas comunes arriba y columnas propias de cada formato (<code>n43_*</code>, <code>camt_*</code>, <code>csv_*</code>) vacías cuando no aplican. El identificador sale del gemelo <code>.lines.jsonl</code> emparejado por orden, y se verifica importe a importe.</p>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section id="catalogo">
+  <div class="eyebrow">4 · Catálogo</div>
+  <h2>Tabla por tabla: fuente, grano y volumen en dev</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Tabla</th><th>Fuente</th><th>Grano (una fila por…)</th><th class="n">Filas dev</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="4">Procedencia y tareas</td></tr>
+      <tr><td><code>load_run</code></td><td>—</td><td>ejecución del cargador</td><td class="n">1</td></tr>
+      <tr><td><code>source_file</code></td><td>todo el árbol</td><td>fichero (sin <code>golden/</code>)</td><td class="n">817</td></tr>
+      <tr><td><code>parse_issue</code></td><td>cargadores</td><td>aviso de extracción</td><td class="n">variable</td></tr>
+      <tr><td><code>task_item</code> · <code>task_close</code></td><td><code>tasks/*.json</code></td><td>clave a resolver · mes de cierre</td><td class="n">396 · 1</td></tr>
+      <tr class="group"><td colspan="4">ERP · maestros</td></tr>
+      <tr><td><code>erp_company</code> · <code>erp_company_partner</code></td><td><code>companies.json</code>, <code>intercompany_agreements.ute</code></td><td>sociedad · socio de UTE</td><td class="n">7 · 2</td></tr>
+      <tr><td><code>erp_account</code></td><td><code>chart_of_accounts.jsonl</code></td><td>cuenta</td><td class="n">97</td></tr>
+      <tr><td><code>erp_tax_param</code></td><td><code>tax_codes.json</code></td><td>código de IVA, retención o deducción</td><td class="n">34</td></tr>
+      <tr><td><code>erp_cost_center</code> · <code>erp_project</code> · <code>erp_project_wbs</code></td><td><code>cost_centers</code>, <code>projects</code></td><td>CeCo · obra · PEP</td><td class="n">25 · 20 · 100</td></tr>
+      <tr><td><code>erp_vendor</code> (+3 hijas)</td><td><code>vendors.jsonl</code></td><td>proveedor; sociedades, IBAN históricos, embargos</td><td class="n">225</td></tr>
+      <tr><td><code>erp_contractor_certificate</code></td><td><code>contractor_certificates.jsonl</code></td><td>certificado art. 43</td><td class="n">97</td></tr>
+      <tr><td><code>erp_customer</code></td><td><code>customers.jsonl</code></td><td>cliente (DIR3 y concurso en columnas)</td><td class="n">87</td></tr>
+      <tr><td><code>erp_sales_contract</code> (+plantas)</td><td><code>sales_contracts.jsonl</code></td><td>contrato de venta</td><td class="n">83</td></tr>
+      <tr><td><code>erp_bank_account</code> (+roles)</td><td><code>bank_accounts.jsonl</code></td><td>cuenta bancaria</td><td class="n">12</td></tr>
+      <tr><td><code>erp_fx_rate</code></td><td><code>fx_rates.jsonl</code></td><td>día × divisa</td><td class="n">2.365</td></tr>
+      <tr><td><code>erp_ic_*</code> (3)</td><td><code>intercompany_agreements.json</code></td><td>fee por receptor y año · préstamo · participante de pooling</td><td class="n">10 · 1 · 2</td></tr>
+      <tr class="group"><td colspan="4">ERP · registrado</td></tr>
+      <tr><td><code>erp_journal_entry</code> · <code>erp_journal_line</code></td><td><code>journal_entries.jsonl</code></td><td>asiento · línea de asiento</td><td class="n">36.743 · 109.537</td></tr>
+      <tr><td><code>erp_open_item</code></td><td><code>open_items.jsonl</code></td><td>sociedad × cuenta × socio × asignación</td><td class="n">1.626</td></tr>
+      <tr><td><code>erp_purchase_order</code> · <code>erp_po_item</code></td><td><code>purchase_orders.jsonl</code></td><td>pedido · posición</td><td class="n">655 · 1.520</td></tr>
+      <tr><td><code>erp_goods_receipt</code></td><td><code>goods_receipts.jsonl</code></td><td>entrada / hoja de servicio</td><td class="n">21.699</td></tr>
+      <tr><td><code>erp_ap_invoice</code> (+pedidos, casos)</td><td><code>ap_invoices.jsonl</code></td><td>factura AP ya tratada</td><td class="n">4.207</td></tr>
+      <tr><td><code>erp_ap_document_log</code> (+motivos)</td><td><code>ap_document_log.jsonl</code></td><td>documento recibido antes</td><td class="n">4.459</td></tr>
+      <tr><td><code>erp_ar_invoice</code> (+deducciones)</td><td><code>ar_invoices.jsonl</code></td><td>factura emitida</td><td class="n">1.410</td></tr>
+      <tr><td><code>erp_billing_history</code> (+líneas)</td><td><code>billing_history.jsonl</code></td><td>partida facturada antes</td><td class="n">487</td></tr>
+      <tr><td><code>erp_promissory_note</code> · <code>erp_factoring_assignment</code> · <code>erp_sepa_remittance</code> · <code>erp_penalty_notice</code></td><td>sus JSONL</td><td>pagaré · cesión · remesa · penalidad</td><td class="n">8 · 42 · 22 · 10</td></tr>
+      <tr class="group"><td colspan="4">Banco</td></tr>
+      <tr><td><code>bank_statement</code></td><td>N43 / camt / CSV + gemelo</td><td>cuenta × mes</td><td class="n">48</td></tr>
+      <tr><td><code>bank_line</code></td><td>registro 22 · <code>Ntry</code> · fila CSV</td><td>movimiento</td><td class="n">1.062 (286 de julio)</td></tr>
+      <tr><td><code>bank_line_text</code></td><td>N43 registro 23</td><td>concepto complementario</td><td class="n">251</td></tr>
+      <tr class="group"><td colspan="4">Bandejas y documentos</td></tr>
+      <tr><td><code>ap_message</code> · <code>ap_attachment</code></td><td><code>inbox/ap/*/message.json</code></td><td>documento recibido · adjunto declarado</td><td class="n">305 · 320</td></tr>
+      <tr><td><code>doc_page_text</code></td><td>PDF / OCR / XML</td><td>fichero × página</td><td class="n">≈370</td></tr>
+      <tr><td><code>doc_extract</code></td><td>adjuntos AP + PDF de avisos</td><td>fichero extraído</td><td class="n">326</td></tr>
+      <tr><td><code>doc_extract_line</code> · <code>_tax</code> · <code>_ref</code> · <code>doc_field_evidence</code></td><td>idem</td><td>línea · cuota/retención · referencia citada · campo</td><td class="n">variable</td></tr>
+      <tr><td><code>ar_billing_item</code> (+documentos)</td><td><code>inbox/ar/billing/*/item.json</code></td><td>partida a facturar</td><td class="n">26</td></tr>
+      <tr><td><code>ar_billing_extract</code> (+líneas)</td><td><code>documento.pdf</code></td><td>documento de soporte</td><td class="n">26</td></tr>
+      <tr><td><code>remittance_advice</code></td><td><code>aviso_pago_*.json</code> + PDF</td><td>aviso de pago</td><td class="n">6</td></tr>
+      <tr><td><code>face_invoice_status</code></td><td><code>FACe_estado_facturas_*.csv</code></td><td>fila del portal</td><td class="n">variable</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Recuentos de dev medidos sobre los ficheros; los marcados «≈» o «variable» dependen del extractor. <code>source_file</code> = 826 − 9 de <code>golden/</code>.</p>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section id="normalizacion">
+  <div class="eyebrow">5 · Normalización</div>
+  <h2>Reglas de normalización que se aplican al llegar</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Dato</th><th>Entrada observada</th><th>Regla</th><th>Columna</th></tr></thead>
+    <tbody>
+      <tr><td>Importe textual</td><td><code>1.234,56</code> · <code>1,234.56</code> · <code>469994,66</code> · <code>14500.00</code></td><td>Locale decidido por documento (o por columna si el documento mezcla); <code>Decimal</code> → redondeo a céntimo; signo explícito (<code>-825,96</code>)</td><td><code>*_cents</code>, <code>number_locale</code></td></tr>
+      <tr><td>Importe N43</td><td>14 dígitos + clave D/H</td><td>Entero directo; D/H 1 → negativo</td><td><code>amount_cents</code></td></tr>
+      <tr><td>Importe JSON ERP</td><td>entero</td><td>Sin cambios</td><td><code>*_cents</code></td></tr>
+      <tr><td>Float del ERP</td><td><code>rate: 1.0667</code>, <code>price_eur_mwh: 41.5</code></td><td><code>repr</code> → <code>Decimal</code> → escalar; conservar el literal</td><td><code>rate_raw</code>, <code>rate_e6</code>, <code>*_e4</code></td></tr>
+      <tr><td>Fecha</td><td><code>31/07/2026</code> · <code>2026-06-30</code> · <code>12 de julio de 2026</code> · <code>Jul 31, 2026</code> · N43 <code>260703</code> · <code>(09/06)</code></td><td>ISO; el año de <code>(dd/mm)</code> se toma del periodo o fecha del documento</td><td>fechas TEXT</td></tr>
+      <tr><td>NIF / VAT / RFC</td><td><code>ESA12359962</code>, <code>PT195174036</code>, <code>KMI91110719K</code></td><td>Mayúsculas, sin espacios ni guiones, sin prefijo país UE. Sin validar dígito de control: los NIF son inválidos a propósito</td><td><code>*_tax_id_norm</code></td></tr>
+      <tr><td>IBAN</td><td><code>ES13 3460 …</code>, «– ES1334…»</td><td>Mayúsculas, sin separadores ni guiones previos</td><td><code>*iban_norm</code></td></tr>
+      <tr><td>Nº de factura</td><td><code>NC-2026/817</code>, <code>TR26/37377</code></td><td>Mayúsculas, solo <code>[A-Z0-9]</code>. Quitar prefijos de serie <b>no</b> (es análisis de duplicados)</td><td><code>doc_number_norm</code>, <code>number_norm</code></td></tr>
+      <tr><td>Cantidad</td><td><code>7,5 m3</code>, <code>1790.000</code></td><td>Milésimas; unidad separada</td><td><code>quantity_milli</code>, <code>uom</code></td></tr>
+      <tr><td>Porcentaje</td><td><code>IVA 21%</code>, <code>TaxRate 0.00</code>, <code>70 %</code></td><td>Puntos básicos</td><td><code>*_bp</code></td></tr>
+      <tr><td>Texto</td><td>latin-1 en N43; sellos superpuestos</td><td>Decodificar a UTF-8; Unicode NFC; espacios colapsados. El texto original queda en <code>doc_page_text</code> / <code>raw_line</code></td><td><code>text_full</code>, <code>description</code></td></tr>
+      <tr><td>Email</td><td><code>facturacion@prefabricadosmolin.es</code></td><td>Minúsculas; dominio separado</td><td><code>from_domain</code>, <code>email_domain</code></td></tr>
+      <tr><td>Nombre de adjunto</td><td><code>letter_bank_change_API005195.pdf</code></td><td>Prefijo antes del primer identificador; es pista, no tipo</td><td><code>filename_prefix</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section id="carga">
+  <div class="eyebrow">6 · Carga y control</div>
+  <h2>Orden de carga, idempotencia y controles</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Orden</h3>
+      <ul>
+        <li><code>load_run</code> → <code>source_file</code> (inventario + sha256) de todo el árbol.</li>
+        <li>ERP maestros, luego ERP registrado (streaming del diario).</li>
+        <li>Banco: original + gemelo por cuenta y mes.</li>
+        <li>Bandejas: mensajes e ítems, luego extracción de documentos (XML → PDF → OCR).</li>
+        <li>Tareas al final, para comprobar que cada clave tiene su fila.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Idempotencia</h3>
+      <ul>
+        <li>La base se reconstruye entera por fase: borrar y cargar. Nunca <code>UPDATE</code> sobre datos de llegada.</li>
+        <li>Mismo <code>sha256</code> + mismo <code>parser</code> ⇒ mismas filas.</li>
+        <li><code>phase_dev</code> y <code>phase_test</code> en ficheros separados; nada de <code>golden/</code>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Controles al llegar</h3>
+      <ul>
+        <li><code>bank_statement.chain_ok</code>: saldo inicial + Σ = saldo final (hoy 48/48).</li>
+        <li><code>bank_statement.twin_ok</code>: orden e importes = <code>.lines.jsonl</code> (hoy 48/48).</li>
+        <li><code>doc_extract.qc_*</code>: Σ líneas = base, base + cuotas − retenciones = total, cantidad × precio = importe.</li>
+        <li>Cada clave de <code>task_item</code> existe en su tabla (<code>ap_message</code>, <code>ar_billing_item</code>, <code>bank_line</code>, <code>erp_bank_account</code>).</li>
+        <li>Cada adjunto declarado en <code>message.json</code> existe en disco (<code>ap_attachment.file_id</code> no nulo).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Errores</h3>
+      <ul>
+        <li>Un fichero que no se puede parsear queda en <code>source_file.status = 'FAILED'</code> con <code>error</code>; la carga continúa.</li>
+        <li>Valores dudosos se cargan igualmente, con aviso en <code>parse_issue</code> y confianza baja en <code>doc_field_evidence</code>.</li>
+        <li>Un campo ausente es <code>NULL</code>, nunca un valor inventado ni un 0.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section id="decisiones">
+  <div class="eyebrow">7 · Decisiones de diseño y abiertas</div>
+  <h2>Por qué así, y qué queda por decidir</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Decisión</th><th>Motivo</th></tr></thead>
+    <tbody>
+      <tr><td>SQLite y no DuckDB/Postgres</td><td>Viene con Python, un fichero por fase, sin servidor. DuckDB también está instalado y podría leer este esquema si se necesitan agregaciones pesadas.</td></tr>
+      <tr><td>Sin FK hacia maestros desde transacciones</td><td>Los errores humanos sembrados (proveedor inexistente, socio equivocado) deben llegar para poder detectarse.</td></tr>
+      <tr><td>Una tabla <code>doc_extract</code> para todos los formatos de documento</td><td>Facturae, CFDI y PDF dicen lo mismo; el análisis compara PDF↔CFDI y detecta duplicados entre canales sin unir tablas distintas.</td></tr>
+      <tr><td>Columnas por tipo en <code>billing_history</code> / <code>ar_billing_extract</code></td><td>Cinco tipos de partida con pocos campos cada uno; misma forma en histórico y mes para comparar «anterior» y «a origen».</td></tr>
+      <tr><td><code>doc_field_evidence</code> separada</td><td>Las columnas tipadas quedan limpias para consultar y la trazabilidad (valor bruto, página, confianza) se conserva para justificar cada decisión.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note">
+    <p><b>Abiertas.</b></p>
+    <ul>
+      <li>Precisión de precios unitarios: ×10⁴ cubre lo visto en dev; en test podría aparecer un precio con más decimales (se detectaría como <code>LINE_QTY_PRICE_MISMATCH</code>).</li>
+      <li><code>inbox/ar/notices/</code> y el DUA no existen en dev: si aparecen en test, los avisos de penalidad caben en <code>doc_extract</code> + <code>doc_extract_ref</code> y el DUA en <code>doc_extract_tax</code>, pero conviene revisarlo con un ejemplo real.</li>
+      <li>Los avisos de pago tienen hoy 6 casos: <code>remittance_advice</code> se apoya en <code>doc_extract</code> en vez de tener líneas propias.</li>
+      <li>El DDL no tiene cargador todavía: es la propuesta del contrato de datos.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'loose', er: { useMaxWidth: false }, flowchart: { useMaxWidth: true } });
+</script>
+</body>
+</html>
