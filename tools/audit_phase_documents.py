@@ -254,6 +254,8 @@ async def capture(args, manifest, run_directory):
                     if sha256(args.phase_root / source['path']) != source['sha256']:
                         raise ValueError('Original source changed since inventory')
                     document = await asyncio.to_thread(router.parse, source['path'])
+                    if document.source_sha256 != source['sha256']:
+                        raise ValueError('Original source changed while parsing')
                     if document.media_type == 'application/pdf' and (getattr(args, 'render_all_pages', False)
                             or any(warning.endswith(':vision_required') for warning in document.warnings)):
                         document = await asyncio.to_thread(processor.process, document,

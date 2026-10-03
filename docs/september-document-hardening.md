@@ -48,6 +48,14 @@ recount supersedes that heuristic. Separate dated-hour parsing preserves the
 parts of work instead of treating them as extra invoice charges. Unrecognized
 or wrapped tables remain abstentions, not successful native parses.
 
+Final offline assembly selected genuine captures for 347/347 original PDF/XML
+attachments, with no uncited source pages. Native composition includes 193 dated
+hour entries across 15 PDFs. Six wrapped native invoices were visually captured
+and reviewed against their original renders. The assembly exposes unresolved
+normalization/classification diagnostics rather than declaring them successful
+accounting inputs. In particular ambiguous numeric date formats remain unresolved
+unless the consuming layer supplies a justified date-order context.
+
 One three-page, 96-row invoice now uses Luna for headers/footers and source code
 for every row. Its measured fresh capture cost was USD 0.004427375; a 26-row
 invoice cost USD 0.006220625. Original responses and every exploratory cost remain
