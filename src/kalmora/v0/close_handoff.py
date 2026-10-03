@@ -37,6 +37,14 @@ def _enricher(phase: Path, data: PhaseData):
                 entry.setdefault("reference", row.get("invoice_number"))
                 entry.setdefault("doc_type", "KG" if row.get("document_type") == "CREDIT_NOTE" else "KR")
                 entry.setdefault("source", "AP")
+                if row.get("currency") and row["currency"] != entry["currency"]:
+                    # FX revaluation needs the document-currency principal on each line.
+                    local = sum(l["credit"] - l["debit"] for l in entry["lines"] if l.get("partner") == row.get("vendor_id"))
+                    if local:
+                        ratio = Decimal(row["payable"]) / abs(local)
+                        for line in entry["lines"]:
+                            line.setdefault("currency", row["currency"])
+                            line.setdefault("amount_doc", int((abs(line["debit"] - line["credit"]) * ratio).to_integral_value()))
             elif producer == "bank_rec":
                 for index, adjustment in enumerate(row.get("adjustments", [])):
                     adjustment.setdefault("ref", f"{row['account']}:{adjustment['category']}:{index}")
