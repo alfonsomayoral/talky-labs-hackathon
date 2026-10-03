@@ -51,6 +51,11 @@ def month_record(task: APTaskSources, data: PhaseData) -> tuple[str | None, str 
             gross, amount_proof = net + tax, (*net_proof, *tax_proof)
     start, _ = _agreed(sources, "period_start")
     end, _ = _agreed(sources, "period_end")
+    vendor = _vendor(data, identity.vendor_id)
+    if currency is None and vendor is not None and vendor.get("currency"):
+        # Policy §1: the master record governs a fact the document omits.
+        currency = vendor["currency"]
+        amount_proof = (*amount_proof, Evidence("erp/vendors.jsonl", f"id={vendor['id']}.currency"))
     received = task.message.received_at
     if identity.vendor_id is None or identity.company is None or not isinstance(number, str) or not received:
         return kind, identity.vendor_id, None
@@ -60,6 +65,31 @@ def month_record(task: APTaskSources, data: PhaseData) -> tuple[str | None, str 
         task.doc_id, identity.company, identity.vendor_id, currency, number, received, gross,
         tuple(dict.fromkeys(evidence)), status="RECEIVED",
         service_period=f"{start}/{end}" if start and end else None, document_type=kind)
+
+
+def _vendor(data: PhaseData, vendor_id: str | None):
+    return next((row for row in data.table("vendors") if row["id"] == vendor_id), None)
+
+
+def _ibans(task: APTaskSources) -> set[str]:
+    return {fact.value for a in task.attachments if a.error is None and a.normalized is not None
+            for name, facts in a.normalized.facts.fields.items() if name == "iban" or name.endswith(".iban")
+            for fact in facts if isinstance(fact.value, str)}
+
+
+def _domain(address: object) -> str | None:
+    return address.rsplit("@", 1)[1].strip().casefold() if isinstance(address, str) and "@" in address else None
+
+
+def _supplier_signal(task: APTaskSources, original: APTaskSources | None, vendor) -> str | None:
+    """Same supplier is not established by a look-alike sender or an unbacked new IBAN (§2.2.1)."""
+    sender, master = _domain(task.message.raw.get("from")), _domain(vendor.get("email"))
+    if sender and master and sender != master:
+        return "SENDER_DOMAIN"
+    known = {(vendor.get("bank") or {}).get("iban")} | (_ibans(original) if original else set())
+    if _ibans(task) - known:
+        return "IBAN"
+    return None
 
 
 def month_duplicate_results(tasks: Iterable[APTaskSources], data: PhaseData,
@@ -74,7 +104,8 @@ def month_duplicate_results(tasks: Iterable[APTaskSources], data: PhaseData,
     """
     history = registered_duplicate_records(data)
     bound, unbound = [], {}
-    for task in tasks:
+    tasks = {task.doc_id: task for task in tasks}
+    for task in tasks.values():
         kind, vendor, record = month_record(task, data)
         if record is not None:
             bound.append(replace(record, status=(statuses or {}).get(task.doc_id, "RECEIVED")))
@@ -87,7 +118,12 @@ def month_duplicate_results(tasks: Iterable[APTaskSources], data: PhaseData,
             vendor in (None, record.vendor) and (not received or receipt_key(received) <= receipt_key(record.received_at))
             for vendor, received in unbound.values())
         try:
-            results[record.doc_id] = duplicate_result(record, inventory, inventory_complete=complete)
+            result = duplicate_result(record, inventory, inventory_complete=complete)
         except ValueError as error:
             results[record.doc_id] = DuplicateResult("UNKNOWN", diagnostics=(f"DUPLICATE_INPUT_INVALID:{error}",))
+            continue
+        signal = result.status == "DUPLICATE" and _supplier_signal(
+            tasks[record.doc_id], tasks.get(result.duplicate_of), _vendor(data, record.vendor))
+        results[record.doc_id] = (DuplicateResult("UNKNOWN", evidence=result.evidence, diagnostics=(
+            f"DUPLICATE_FRAUD_SIGNAL:{signal}:{result.duplicate_of}",)) if signal else result)
     return results
