@@ -1,6 +1,7 @@
 # ADR 0002: document understanding and deterministic accounting
 
-Status: accepted implementation boundary; model quality pending issue #139.
+Status: implementation accepted; Luna release provisionally approved by the user.
+Full model-quality acceptance is deferred to hotfix #222; measured failures remain visible.
 Date: 2026-10-03. Scope: #134, #135–#140 and document adapters #39–#41.
 
 ## Problem and decision
@@ -143,9 +144,11 @@ excluded by the user. Documentation supports text/image and structured output;
 quality on this package has not yet been established. A capability/schema match
 does not close the quality issue.
 
-Initial configuration: timeout 60 seconds, two attempts, concurrency two,
+Current configuration: no request deadline (user instruction, 2026-10-03), two attempts, concurrency two,
 maximum 200,000 conservatively estimated input tokens, no application output-token limit (per subsequent user instruction), run budget
-USD 1. Reserve an upper estimate before each real request; unknown usage retains
+USD 5 (user-approved increase for model comparisons on 2026-10-03, with necessary
+further extensions authorized and recorded explicitly).
+Reserve an upper estimate before each real request; unknown usage retains
 the conservative reservation. Auth/quota/refusal/schema/incomplete/network and
 timeout failures remain distinct. SDK/agent automatic retries are disabled.
 Request sizes, images and schema overhead must fit the input bound; no tools,
@@ -170,7 +173,7 @@ These numeric criteria are fixed before any reserved-case model evaluation:
 | Semantic selection precision | 100% of selections against reviewed candidates. |
 | Selection coverage on uniquely resolvable cases | >= 80%. |
 | Correct abstention on ambiguous cases | 100%; distinguish synthetic variants from original cases. |
-| Document latency | p95 <= 60 seconds, end-to-end parsing plus extraction. |
+| Document latency | Report actual durations/p95; temporal gate removed by the user before holdout on 2026-10-03. |
 | Estimated capture cost | <= USD 0.10/document; unknown cost fails this criterion. |
 
 Evaluate per field, source, format and case; report numerator/denominator rather

@@ -47,11 +47,37 @@ supplier lines. Document amounts remain unsigned as in the AP contract.
 
 Original-reference extraction/resolution belongs upstream. The builder does not
 guess an original invoice from a similar amount/vendor or change to current
-vendor defaults. Credit-note advance restoration is not automatic: such a
+vendor defaults. [`CreditOriginalCatalog`](ap-credit-sources.md) binds an explicit
+literal original number to a unique scoped recorded invoice and its exact
+journal; the caller still evidences original-line mappings and prior consumption.
+Credit-note advance restoration is not automatic: such a
 refund/reinstatement needs separate resolved evidence, not ordinary application
-instructions. Cumulative original-invoice credit tracking is not this advance
-state's responsibility; upstream duplicate/original-reference controls remain
-required for complete document processing.
+instructions. Upstream duplicate/original-reference controls remain required
+for complete document processing.
+
+`AdvanceState.credits` retains immutable `CreditBalance` records in document
+cents. Each original is scoped by company/vendor/currency and pinned to the
+SHA-256 of the complete original journal snapshot. Limits cover every referenced
+base line, each VAT account/treatment (including reverse-charge output VAT),
+non-deductible cost dimension, withholding treatment, guarantee and supplier
+payable. Repeated partial credits consume those limits cumulatively; rounding
+cannot refund more VAT, deductions or supplier payable than the observed
+original. Negative original price-variance costs preserve their direction and
+are limited by magnitude. Multiple original withholding lines are grouped by
+treatment before verifying the evidenced eligible base. Ambiguous guarantee
+allocation across originals still blocks instead of inventing a split.
+
+The returned state is tentative: neither a failed limit check nor a later
+journal validation consumes the incoming balance. Persist all credit records
+and replay events together only after ledger insertion succeeds. Reconstruct
+records with `CreditBalance(**saved_record)` and keep their immutable tuple;
+duplicate buckets, changed snapshots/capacities, invalid cents or overconsumption
+are rejected. Reset state at the phase boundary, not between documents. A caller
+must initialize consumption from evidenced historical credits, or establish that
+none apply to the resolved original. An empty default is not proof of an unused
+historical balance; this module does not infer links for unreferenced historical
+credit notes. Foreign originals require explicit document-currency amounts on
+every line; booked local cents cannot stand in for missing foreign cents.
 
 ## Foreign down-payment requests
 
@@ -137,12 +163,12 @@ cost-object and amount totals exactly, without golden.
 after successful projected-ledger insertion. Replaying the same
 `(company, vendor, currency, doc_id)` fails; a failed calculation or master
 validation leaves the incoming state unchanged. Reconstruction from saved state
-retains consumed balances and events. M0 `Ledger.add_entry` supplies the final
+retains consumed advance/credit balances and events. M0 `Ledger.add_entry` supplies the final
 event/stage duplicate protection when persisting journals.
 
 This module does not serialize `ap.jsonl`, read extraction facts or run decision
 precedence. #55 owns that orchestration, while #32/#35 keep contracts/scoring.
-PO approval, credit originals, historical advance balances/classification and
+PO approval, credit originals/previous credit consumption, historical advance balances/classification and
 cost assignments must be resolved inputs until their adapters exist. No complete
 305-document M1 result or golden accuracy is claimed by these component tests.
 

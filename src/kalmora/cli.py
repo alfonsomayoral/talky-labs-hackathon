@@ -26,6 +26,9 @@ def main(argv: list[str] | None = None) -> int:
     ar_cash = commands.add_parser("solve-ar-cash", help="Apply AR cash receipts from JSON/JSONL phase data")
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
+    bank_rec = commands.add_parser("solve-bank-rec", help="Reconcile bank statements and journal entries")
+    bank_rec.add_argument("phase", type=Path)
+    bank_rec.add_argument("--output", type=Path, required=True, help="Destination bank_rec.jsonl")
     evaluate = commands.add_parser("evaluate", help="Compare a submission with the golden (evaluator side)")
     evaluate.add_argument("phase", type=Path, help="Phase directory with the solver inputs")
     evaluate.add_argument("submission", type=Path, help="Directory with the delivery .jsonl files")
@@ -124,6 +127,36 @@ def _execute(args: argparse.Namespace) -> int:
                           "with_decision": resolved,
                           "unresolved": len(run.results) - resolved,
                           "diagnostics": sum(bool(result.diagnostics) for result in run.results)}))
+        return 0
+    if args.command == "solve-bank-rec":
+        from .bankrec import build_bank_rec
+        from .bankrec.io import write_bank_rec
+        from .data import PhaseData
+        try:
+            phase = args.phase.resolve()
+            output = args.output.expanduser().resolve()
+            if output.is_relative_to(phase):
+                raise ValueError("bank reconciliation output must be outside the read-only phase directory")
+            data = PhaseData(phase)
+            run = build_bank_rec(data)
+            if run.unresolved:
+                details = "; ".join(f"{item.account}: {', '.join(item.reasons)}"
+                                     for item in run.unresolved)
+                raise ValueError(f"bank reconciliation has unresolved accounts: {details}")
+            expected_accounts = list(data.table("tasks/bank_accounts"))
+            actual_accounts = [result.account.id for result in run.results]
+            if actual_accounts != expected_accounts:
+                raise ValueError("bank reconciliation did not resolve every task account")
+            written = write_bank_rec(run, output)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        print(json.dumps({"output": str(written), "accounts": len(run.results),
+                          "matches": sum(len(result.matches) for result in run.results),
+                          "unmatched_bank": sum(len(result.unmatched_bank) for result in run.results),
+                          "unmatched_book": sum(len(result.unmatched_book) for result in run.results),
+                          "adjustments": sum(len(result.adjustments) for result in run.results),
+                          "diagnostics": sum(len(result.diagnostics) for result in run.results)}))
         return 0
     if args.command == "serve":
         try:

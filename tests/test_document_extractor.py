@@ -369,6 +369,32 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
                               ensure_ascii=False, sort_keys=True, default=str, allow_nan=False)
         self.assertEqual(prompt_text(source, old_extras), expected)
 
+    async def test_optional_ocr_exclusion_preserves_original_and_recording_identity(self):
+        from kalmora.documents.contracts import ProcessingAid
+        from kalmora.documents.prompts import recording_prompt
+        image = PageImage(1, 'image/png', b'original-image')
+        source = replace(document(''), images=(image,), processing_aids=(
+            ProcessingAid(1, 'Wrong OCR Gross 999,00', {'authoritative': False}),))
+        payload = {'observations': [{**observation('gross', '121,00', 'Gross 121,00'),
+                                    'image_id': 'image.1'}], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client(payload, directory)
+            extractor = LLMDocumentExtractor(client, include_processing_aids=False)
+            default = LLMDocumentExtractor(client)
+            original_archive = source.to_dict()
+            artifact = await extractor.extract_with_response(source)
+            self.assertNotEqual(extractor.version, default.version)
+            prompt = provider.requests[0].prompt
+            self.assertNotIn('Wrong OCR', prompt)
+            self.assertNotIn('unverified_processing_aids', json.loads(prompt)['untrusted_document'])
+            self.assertEqual(prompt, recording_prompt('extract', source, extractor.recording_identity()['parameters']))
+            self.assertEqual(source.to_dict(), original_archive)
+            self.assertEqual(artifact.request_metadata['transformation_sha256'], source.transformation_sha256)
+            self.assertEqual(artifact.facts.fields['gross'][0].evidence.field, 'image:' + image.sha256)
+            self.assertIn('Wrong OCR', recording_prompt('extract', source, default.recording_identity()['parameters']))
+            with self.assertRaises(ValueError):
+                LLMDocumentExtractor(client, include_processing_aids='false')
+
     async def test_same_field_conflicts_keep_source_and_unknown_state(self):
         doc = document("Gross 121,00\nGross 122,00")
         payload = {"observations":[observation("gross", "121,00", "Gross 121,00"), observation("gross", "122,00", "Gross 122,00")],
