@@ -2,7 +2,9 @@
 import io
 import json
 from pathlib import Path
+import sys
 import tempfile
+import time
 import unittest
 import zipfile
 
@@ -379,6 +381,29 @@ class ApiTests(unittest.TestCase):
         paths = [f["path"] for f in client.get(f"{self.phase}/files/__index.json").json()]
         self.assertIn("golden/ap.jsonl", paths)
         self.assertEqual(client.get(f"{self.phase}/files/golden/ap.jsonl").text, "{}\n")
+
+    def test_start_run_launches_the_close_command(self):
+        writer = ("import pathlib, sys; out = pathlib.Path(sys.argv[1]) / 'deliverables'; out.mkdir(parents=True, exist_ok=True); "
+                  "(out / 'ap.jsonl').write_text(sys.argv[2] + chr(10))")
+        settings = Settings(data_dir=self.root / "data", run_dir=self.root / "launched",
+                            close_command=(sys.executable, "-c", writer, "{out}", "{phase}"))
+        services = Services(settings)
+        services.ingest.restore()
+        client = TestClient(create_app(services), raise_server_exceptions=False)
+        response = client.post(f"{self.phase}/runs")
+        self.assertEqual(response.status_code, 202, response.text)
+        run_id = response.json()["data"]["run_id"]
+        for _ in range(100):
+            run = client.get(f"/v1/runs/{run_id}").json()["data"]
+            if run["status"] != "running":
+                break
+            time.sleep(0.05)
+        self.assertEqual((run["status"], run["dataset"], run["month"]), ("completed", "phase_dev", "2026-07"))
+        self.assertIsInstance(run["runtime_s"], float)
+        self.assertEqual(client.get(f"/v1/runs/{run_id}/files/deliverables/ap.jsonl").text, "phase_dev\n")
+
+    def test_start_run_needs_a_close_command(self):
+        self.assertProblem(self.client.post(f"{self.phase}/runs"), 409, "run.unavailable")
 
     def test_submission_structure_check(self):
         folder = self.settings.submissions_dir / "phase_dev"

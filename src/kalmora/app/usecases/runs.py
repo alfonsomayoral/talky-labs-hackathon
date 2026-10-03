@@ -27,6 +27,20 @@ class GetRun:
         return plain_envelope(self._runs.get(run_id))
 
 
+class StartRun:
+    """Launches the configured close command on a loaded phase; the run is followed with ``GetRun``."""
+
+    def __init__(self, repo: PhaseRepository, closer: Any) -> None:
+        self._repo, self._closer = repo, closer
+
+    def __call__(self, phase: str) -> Envelope:
+        if self._closer is None:
+            raise DomainError("run.unavailable", "No close command is configured (kalmora serve --close-command).")
+        location = self._repo.location(phase)
+        month = self._repo.meta(phase, [])["month"]
+        return plain_envelope({"run_id": self._closer.start(phase, location, month)})
+
+
 class GetSubmission:
     def __init__(self, repo: PhaseRepository, submissions: SubmissionStore) -> None:
         self._repo, self._submissions = repo, submissions

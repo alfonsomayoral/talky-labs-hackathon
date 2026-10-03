@@ -24,7 +24,7 @@ STATUS = {
     "task.not_found": 404, "entry.not_found": 404, "document.not_found": 404, "run.not_found": 404,
     "bank_account.not_found": 404, "fx_rate.not_found": 404, "submission.not_found": 404, "route.not_found": 404,
     "file.not_found": 404,
-    "phase.not_loaded": 409, "ingestion.busy": 409, "phase.conflict": 409,
+    "phase.not_loaded": 409, "ingestion.busy": 409, "phase.conflict": 409, "run.unavailable": 409,
     "golden.forbidden": 403, "evaluation.unavailable": 404, "evaluation.failed": 500,
     "upload.too_large": 413, "entry.invalid": 422, "submission.invalid": 422, "method.not_allowed": 405,
     "internal": 500,
@@ -263,6 +263,10 @@ def create_app(services: Services) -> FastAPI:
     @api.get("/v1/runs/{run_id}")
     def run(run_id: str) -> Any:
         return services.get_run(run_id)
+
+    @api.post("/v1/phases/{phase}/runs")
+    def start_run(phase: str) -> Any:
+        return ApiResponse(services.start_run(phase), status_code=202)
 
     @api.get("/v1/runs/{run_id}/files/{path:path}")
     def run_file(run_id: str, path: str) -> Any:

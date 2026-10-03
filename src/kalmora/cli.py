@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import shlex
 from pathlib import Path
 import sys
 from zipfile import BadZipFile
@@ -41,6 +42,8 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--max-upload-mb", type=int, default=256)
     serve.add_argument("--cors-origin", action="append", help="Allowed browser origin (default: localhost only)")
     serve.add_argument("--no-restore", action="store_true", help="Do not reload packages already in --data-dir")
+    serve.add_argument("--close-command", help="Command POST /v1/phases/{phase}/runs launches, with {phase}, {phase_dir}, "
+                       "{month} and {out}; it writes the six JSONL under {out}/deliverables/")
     serve.add_argument("--serve-golden", action="store_true",
                        help="Also serve each phase's golden/ under /files, so the web app can score runs (evaluator side)")
     arguments = sys.argv[1:] if argv is None else list(argv)
@@ -114,7 +117,8 @@ def _execute(args: argparse.Namespace) -> int:
         from .evaluation.gateway import EvaluatorGateway
         settings = Settings(data_dir=args.data_dir, run_dir=args.run_dir, submissions_dir=args.submissions_dir,
                             max_upload_bytes=args.max_upload_mb * 1024 * 1024,
-                            cors_origins=tuple(args.cors_origin or ()), serve_golden=args.serve_golden)
+                            cors_origins=tuple(args.cors_origin or ()), serve_golden=args.serve_golden,
+                            close_command=tuple(shlex.split(args.close_command or "")))
         services = Services(settings, EvaluatorGateway(args.evaluator, args.reports_dir))
         if not args.no_restore:
             print(json.dumps({"restored_packages": services.ingest.restore()}), file=sys.stderr)
