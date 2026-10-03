@@ -63,6 +63,9 @@ the opposite leg. Tests cover both cash directions, both company orientations
 and a local-MXN/document-EUR case without any July-specific sign rule.
 
 A duplicate reverses the whole posting, including taxes, assignments and CC/WBS.
+An exact AP/bank-owned reversal or partner reclassification already projected
+is consumed once, without an additional M5 journal. Partial or excess external
+corrections block resolution; ownership alone does not prove a correction.
 Pooling is observed in the original ERP, tied to its statement and consumed bank
 correction, but always has `adjustment: []` in IC. Its owner remains banks.
 
@@ -136,6 +139,8 @@ the repaired sign and the net transit accrual. It also reports 3 additional
 source-supported nonreceived invoices. Therefore it contains 8 rows / 7 IC
 entries and scores 0.8615; **exact acceptance is not proven**. The extra rows
 are not suppressed using the reference answer. See `m5-review.md`.
+The reproduced checks and external-correction regression fix are recorded in
+`m5-independent-review.md`.
 
 M5, both epics and #159 stay open. Real AP receipt coverage, real bank correction
 ownership and the real end-to-end run remain separate gates. Publication and

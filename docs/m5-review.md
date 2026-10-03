@@ -1,5 +1,9 @@
 # M5 v2 review and evidence
 
+This preserves the producer's pre-handoff evidence. See
+[the subsequent implementation review](m5-independent-review.md) for reproduced
+checks, the external-correction fix and the current acceptance limits.
+
 Refs #18, #19, #88–#94, #159. Local self-review, not an independent PR approval.
 
 ## Preservation and current source
@@ -96,10 +100,10 @@ repairing it or weakening the shared validator. All 56 bank corrections are used
 
 ## Delivery and open gates
 
-Fork publication works after installation 167510256 was authorized. Creating a
-PR in upstream returned 403 on POST /repos/alfonsomayoral/talky-labs-hackathon/pulls;
-the effective connector installation is limited to the fork. No upstream PR,
-independent approval or squash integration is claimed without further evidence.
+Fork publication works after installation 167510256 was authorized. The initial
+upstream PR request returned 403 because the effective connector installation
+is limited to the fork. Upstream draft PR #196 was subsequently opened through
+the local GitHub credentials. No approval or backend integration is claimed.
 
 M5 and epics #18/#19 remain open. #159 requires actual AP #55 receipt/export
 outputs, bank #73/#75 corrections, unchanged source/ownership, repeatability and
