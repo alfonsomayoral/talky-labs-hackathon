@@ -1,6 +1,7 @@
 # ADR 0002: document understanding and deterministic accounting
 
-Status: accepted implementation boundary; model quality pending issue #139.
+Status: implementation accepted; Luna release provisionally approved by the user.
+Full model-quality acceptance is deferred to hotfix #222; measured failures remain visible.
 Date: 2026-10-03. Scope: #134, #135–#140 and document adapters #39–#41.
 
 ## Problem and decision
@@ -145,7 +146,8 @@ does not close the quality issue.
 
 Current configuration: no request deadline (user instruction, 2026-10-03), two attempts, concurrency two,
 maximum 200,000 conservatively estimated input tokens, no application output-token limit (per subsequent user instruction), run budget
-USD 3 (user-approved increase from USD 1 for model comparison on 2026-10-03).
+USD 5 (user-approved increase for model comparisons on 2026-10-03, with necessary
+further extensions authorized and recorded explicitly).
 Reserve an upper estimate before each real request; unknown usage retains
 the conservative reservation. Auth/quota/refusal/schema/incomplete/network and
 timeout failures remain distinct. SDK/agent automatic retries are disabled.
