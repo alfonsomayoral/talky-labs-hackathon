@@ -3,15 +3,14 @@ import type { AttentionItem } from '@/domain/types'
 import { overrideFor, resolutionOf } from '@/features/attention/attentionModel'
 import type { Override } from '@/features/attention/overridesStore'
 
-export function pendingAttention(attention: readonly AttentionItem[], overrides: readonly Override[]): { count: number; urgent: boolean } {
+/** Entries no person has resolved or snoozed yet (a note keeps them pending). */
+export function pendingAttentionItems(attention: readonly AttentionItem[], overrides: readonly Override[]): AttentionItem[] {
   const byItem = new Map<string, Override[]>()
   for (const o of overrides) byItem.set(o.item, [...(byItem.get(o.item) ?? []), o])
-  let count = 0
-  let urgent = false
-  for (const a of attention) {
-    if (resolutionOf(overrideFor(byItem.get(a.item) ?? [], a)) !== 'pending') continue
-    count++
-    if (a.priority === 'P0') urgent = true
-  }
-  return { count, urgent }
+  return attention.filter((a) => resolutionOf(overrideFor(byItem.get(a.item) ?? [], a)) === 'pending')
+}
+
+export function pendingAttention(attention: readonly AttentionItem[], overrides: readonly Override[]): { count: number; urgent: boolean } {
+  const pending = pendingAttentionItems(attention, overrides)
+  return { count: pending.length, urgent: pending.some((a) => a.priority === 'P0') }
 }
