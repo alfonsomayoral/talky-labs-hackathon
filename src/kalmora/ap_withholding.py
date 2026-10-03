@@ -6,6 +6,7 @@ it is not calculated as two thirds of the rounded VAT quota. No AR deductions.
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
+from enum import Enum
 from typing import Any, Literal
 
 from .ap_tax import PostingDecision, fiscal_line, local_amount, nonnegative, require_posting
@@ -14,6 +15,10 @@ from .money import RateTable, integer, round_cents
 
 _COUNTRIES = {"IRPF15": "ES", "IRPF7": "ES", "IRPF19": "ES",
               "MXISR10": "MX", "MXIVAR": "MX", "MXFLETE": "MX", "PTIRS25": "PT"}
+
+
+class _Missing(Enum):
+    VALUE = 0
 
 
 @dataclass(frozen=True)
@@ -63,7 +68,7 @@ def _codes(codes: tuple[str, ...]) -> None:
 
 def select_withholdings(*, document: tuple[str, ...] | None = None,
                         order: tuple[str, ...] | None = None,
-                        vendor: str | None = None) -> WithholdingSelection:
+                        vendor: str | None | _Missing = _Missing.VALUE) -> WithholdingSelection:
     """Resolve confirmed document/PO treatment ahead of the vendor default.
 
     Vendor strings use the package's '+' notation. An empty document tuple means
@@ -74,6 +79,8 @@ def select_withholdings(*, document: tuple[str, ...] | None = None,
         if codes is not None:
             _codes(codes)
             return WithholdingSelection(codes, source)
+    if vendor is _Missing.VALUE:
+        raise ValueError("missing resolved withholding treatment")
     if vendor is not None and (not isinstance(vendor, str) or not vendor):
         raise ValueError("vendor withholding must be nonempty text or null")
     codes = tuple(vendor.split("+")) if vendor is not None else ()

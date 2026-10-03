@@ -56,7 +56,9 @@ class APWithholdingTests(unittest.TestCase):
         self.assertEqual(select_withholdings(document=("IRPF7",), vendor="IRPF15").source, "document")
         self.assertEqual(select_withholdings(order=("IRPF19",), vendor="IRPF15").codes, ("IRPF19",))
         self.assertEqual(select_withholdings(document=(), vendor="IRPF15").codes, ())
-        self.assertEqual(select_withholdings().codes, ())
+        self.assertEqual(select_withholdings(vendor=None).codes, ())
+        with self.assertRaises(ValueError):
+            select_withholdings()
         for vendor in ("", "IRPF15+", "IRPF15+IRPF15", "IRPF15+IRPF7"):
             with self.assertRaises(ValueError):
                 select_withholdings(vendor=vendor)

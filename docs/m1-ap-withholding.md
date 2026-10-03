@@ -11,6 +11,8 @@ default, whose `+` syntax supports `MXISR10+MXIVAR`. An explicit empty tuple mea
 confirmed no withholding. Missing document withholding and mandatory professional
 or rental withholding checks remain the eligibility validator's responsibility;
 an extractor must not turn missing evidence into a confirmed empty tuple.
+Omitting every source raises an error; `vendor=None` explicitly represents an
+observed null withholding field in the master and permits no withholding.
 Different withholding treatments on distinct lines require separate bases.
 
 `ContractGuarantee(base_doc, contract_reference, rate=500)` explicitly identifies
