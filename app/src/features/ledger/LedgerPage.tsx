@@ -222,22 +222,24 @@ function Accounts({ rows, core, toEur, cell, golden, sortByDiff, onClearCell }: 
   }, [core.companies])
   const visible = useMemo(() => (cell ? rows.filter((r) => heatKey(r.company, accountGroup(r.account)) === cell) : rows), [rows, cell])
   const columns = useMemo<Column<TbRow>[]>(() => {
-    const money = (cents: number | null, r: TbRow, opts: { colorize?: boolean } = {}) => <Amount cents={cents} currency={currency(r.company)} signed={opts.colorize} colorize={opts.colorize} />
+    const money = (cents: number | null, r: TbRow, opts: { colorize?: boolean } = {}) => <Amount cents={cents} currency={currency(r.company)} signed={opts.colorize} colorize={opts.colorize} hideCurrency />
+    const eur = (r: TbRow, cents: number | null) => (cents === null ? null : toEur(r.company, cents))
     const cols: Column<TbRow>[] = [
-      { id: 'company', header: 'Sociedad', width: 84, cell: (r) => <Mono>{r.company}</Mono>, sortValue: (r) => r.company },
-      { id: 'account', header: 'Cuenta', width: 100, cell: (r) => <Mono>{r.account}</Mono>, sortValue: (r) => r.account },
-      { id: 'name', header: 'Descripción', width: 'minmax(160px, 1fr)', cell: (r) => names.get(r.account) ?? '—' },
-      { id: 'recorded', header: 'Registrado', width: 130, align: 'right', cell: (r) => money(r.recorded, r), sortValue: (r) => r.recorded },
-      { id: 'movement', header: 'Entrega', width: 130, align: 'right', cell: (r) => (r.after !== r.recorded ? money(r.after - r.recorded, r, { colorize: true }) : null), sortValue: (r) => Math.abs(toEur(r.company, r.after - r.recorded)) },
-      { id: 'after', header: 'Después', width: 130, align: 'right', cell: (r) => money(r.after, r), sortValue: (r) => r.after },
+      { id: 'company', header: 'Soc.', width: 72, cell: (r) => <Mono>{r.company}</Mono>, sortValue: (r) => r.company },
+      { id: 'account', header: 'Cuenta', width: 96, cell: (r) => <Mono>{r.account}</Mono>, sortValue: (r) => r.account },
+      { id: 'name', header: 'Descripción', width: 'minmax(140px, 1fr)', cell: (r) => names.get(r.account) ?? '—' },
+      { id: 'currency', header: 'Moneda', width: 76, cell: (r) => <Mono muted>{currency(r.company)}</Mono> },
+      { id: 'recorded', header: 'Registrado', width: 140, align: 'right', cell: (r) => money(r.recorded, r), sortValue: (r) => eur(r, r.recorded) },
+      { id: 'movement', header: 'Entrega', width: 140, align: 'right', cell: (r) => (r.after !== r.recorded ? money(r.after - r.recorded, r, { colorize: true }) : null), sortValue: (r) => Math.abs(toEur(r.company, r.after - r.recorded)) },
+      { id: 'after', header: 'Después', width: 140, align: 'right', cell: (r) => money(r.after, r), sortValue: (r) => eur(r, r.after) },
     ]
     if (golden)
       cols.push(
-        { id: 'truth', header: 'Correcto', width: 130, align: 'right', cell: (r) => money(r.truth, r), sortValue: (r) => r.truth },
+        { id: 'truth', header: 'Correcto', width: 140, align: 'right', cell: (r) => money(r.truth, r), sortValue: (r) => eur(r, r.truth) },
         {
           id: 'diff',
           header: 'Diferencia',
-          width: 150,
+          width: 140,
           align: 'right',
           cell: (r) => {
             const d = remainingDiff(r)

@@ -117,7 +117,7 @@ function Billing({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
       {
         id: 'net',
         header: 'Base',
-        width: 124,
+        width: 156,
         align: 'right',
         cell: (r) => <Amount cents={r.row?.invoice?.net ?? null} currency={r.item.currency ?? 'EUR'} />,
         sortValue: (r) => r.row?.invoice?.net ?? null,
@@ -125,7 +125,7 @@ function Billing({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
       {
         id: 'payable',
         header: 'A cobrar',
-        width: 124,
+        width: 156,
         align: 'right',
         cell: (r) => <Amount cents={r.row?.invoice?.payable ?? null} currency={r.item.currency ?? 'EUR'} />,
         sortValue: (r) => r.row?.invoice?.payable ?? null,

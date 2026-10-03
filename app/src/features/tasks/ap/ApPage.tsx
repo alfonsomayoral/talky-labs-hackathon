@@ -78,7 +78,7 @@ function ApInbox({ data, api, run }: { data: DerivedRun; api: DatasetApi; run: R
       { id: 'number', header: 'Factura', width: 120, cell: (r) => <Mono muted>{r.row.invoice_number ?? '—'}</Mono> },
       { id: 'company', header: 'Soc.', width: 60, cell: (r) => <Mono muted>{r.row.company ?? '—'}</Mono>, sortValue: (r) => r.row.company },
       { id: 'date', header: 'Fecha', width: 90, cell: (r) => formatDate(r.row.invoice_date), sortValue: (r) => r.row.invoice_date },
-      { id: 'gross', header: 'Total', width: 120, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => r.item.amount },
+      { id: 'gross', header: 'Total', width: 156, align: 'right', cell: (r) => <Amount cents={r.item.amount} currency={r.item.currency ?? 'EUR'} />, sortValue: (r) => r.item.amount },
       {
         id: 'decision',
         header: 'Decisión',

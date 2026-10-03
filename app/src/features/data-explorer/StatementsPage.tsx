@@ -25,8 +25,8 @@ export function StatementsPage() {
       { id: 'format', header: 'Formato', width: 100, cell: (s) => FORMAT_LABEL[s.format], sortValue: (s) => s.format },
       { id: 'month', header: 'Mes', width: 120, cell: (s) => formatMonth(s.month), sortValue: (s) => s.month },
       { id: 'lines', header: 'Líneas', width: 80, align: 'right', cell: (s) => formatNumber(s.lines.length), sortValue: (s) => s.lines.length },
-      { id: 'opening', header: 'Saldo inicial', width: 150, align: 'right', cell: (s) => <Amount cents={s.opening} currency={currency(s)} />, sortValue: (s) => s.opening },
-      { id: 'closing', header: 'Saldo final', width: 150, align: 'right', cell: (s) => <Amount cents={s.closing} currency={currency(s)} />, sortValue: (s) => s.closing },
+      { id: 'opening', header: 'Saldo inicial', width: 172, align: 'right', cell: (s) => <Amount cents={s.opening} currency={currency(s)} />, sortValue: (s) => s.opening },
+      { id: 'closing', header: 'Saldo final', width: 172, align: 'right', cell: (s) => <Amount cents={s.closing} currency={currency(s)} />, sortValue: (s) => s.closing },
     ]
   }, [accounts])
   return (
