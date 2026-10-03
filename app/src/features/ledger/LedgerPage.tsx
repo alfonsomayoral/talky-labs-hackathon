@@ -2,8 +2,8 @@
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Amount, Button, DataTable, Metric, Mono, Page, PageHeader, QueryState, Section, SegmentedControl, Skeleton, type Column } from '@/components'
-import type { DatasetCore, TbRow, TrialBalanceComparison } from '@/domain/types'
-import { TASK_LABEL } from '@/domain/catalog/labels'
+import type { Cents, DatasetCore, TaskKey, TbRow, TrialBalanceComparison } from '@/domain/types'
+import { PIPELINE, TASK_LABEL } from '@/domain/catalog/labels'
 import { useDatasetStore } from '@/data/stores'
 import { makeToEur, useDerivedRun, type ToEur } from '@/engine'
 import { formatNumber, formatPercent } from '@/lib/format'
@@ -15,7 +15,14 @@ export default function LedgerPage() {
   const core = useDatasetStore((s) => s.api?.core ?? null)
   return (
     <Page>
-      <PageHeader title="Balance de sumas y saldos" subtitle="Diario registrado más todos los asientos de la entrega, comparado cuenta a cuenta con el balance correcto." />
+      <PageHeader
+        title="Balance de sumas y saldos"
+        subtitle={
+          data?.trialBalance && data.trialBalance.gapRecorded === null
+            ? 'Diario registrado más todos los asientos de la entrega. Sin balance correcto en este dataset: se ve cuánto mueve cada tarea.'
+            : 'Diario registrado más todos los asientos de la entrega, comparado cuenta a cuenta con el balance correcto.'
+        }
+      />
       <QueryState status={status} error={error}>
         {() =>
           data && core ? (
@@ -82,12 +89,18 @@ function Ledger({ tb, core }: { tb: TrialBalanceComparison; core: DatasetCore })
         )}
       </div>
 
-      <Section
-        title="Hueco cerrado por tarea"
-        description="Se suman las tareas en el orden del cierre. El hueco no es aditivo: un cobro solo cuadra la 43 si antes se ha facturado, así que cada tramo depende del orden."
-      >
-        {waterfall ? <Waterfall w={waterfall} /> : <p className={styles.muted}>Sin balance correcto (golden) no se puede medir el hueco.</p>}
-      </Section>
+      {waterfall ? (
+        <Section
+          title="Hueco cerrado por tarea"
+          description="Se suman las tareas en el orden del cierre. El hueco no es aditivo: un cobro solo cuadra la 43 si antes se ha facturado, así que cada tramo depende del orden."
+        >
+          <Waterfall w={waterfall} />
+        </Section>
+      ) : (
+        <Section title="Movimiento por tarea" description="Σ|asientos| de cada tarea en EUR, al tipo de cierre. Sin balance correcto (golden) no se puede medir el hueco.">
+          {tb.eur ? <MovementBars byTask={tb.eur.movementByTask} /> : <p className={styles.muted}>Sin importes en EUR.</p>}
+        </Section>
+      )}
 
       <Section
         title="Dónde queda"
@@ -134,6 +147,26 @@ function Waterfall({ w }: { w: GapWaterfall }) {
         )
       })}
       <WaterfallRow label="Después" style={bar(0, w.after)} tone="total" value={<Amount cents={w.after} compact />} />
+    </div>
+  )
+}
+
+function MovementBars({ byTask }: { byTask: Record<TaskKey, Cents> }) {
+  const scale = Math.max(...PIPELINE.map((t) => byTask[t] ?? 0)) || 1
+  return (
+    <div className={styles.waterfall} role="table" aria-label="Movimiento por tarea">
+      {PIPELINE.map((t) => {
+        const cents = byTask[t] ?? 0
+        return (
+          <WaterfallRow
+            key={t}
+            label={TASK_LABEL[t]}
+            style={{ left: 0, width: `${(cents / scale) * 100}%` }}
+            tone={cents ? 'total' : 'none'}
+            value={cents ? <Amount cents={cents} compact /> : <span className={styles.muted}>Sin efecto</span>}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -254,7 +287,13 @@ function Accounts({ rows, core, toEur, cell, golden, sortByDiff, onClearCell }: 
     <Section
       title="Cuentas"
       count={visible.length}
-      description={cell ? `Grupo ${cell.split('/')[1]} de ${cell.split('/')[0]}.` : 'Cuentas que toca la entrega o que no cuadran con el balance correcto, en la moneda de cada sociedad.'}
+      description={
+        cell
+          ? `Grupo ${cell.split('/')[1]} de ${cell.split('/')[0]}.`
+          : golden
+            ? 'Cuentas que toca la entrega o que no cuadran con el balance correcto, en la moneda de cada sociedad.'
+            : 'Cuentas que toca la entrega, en la moneda de cada sociedad.'
+      }
       actions={
         cell ? (
           <Button size="sm" variant="ghost" onClick={onClearCell}>
