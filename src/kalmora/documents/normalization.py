@@ -250,4 +250,6 @@ def normalize_document_facts(document: DocumentFacts) -> NormalizedDocument:
         if len(values) > 1:
             conflicts[key] = tuple(candidates)
             diagnostics.append(NormalizationDiagnostic("CONFLICT", key, "Source candidates disagree; no candidate selected", tuple(candidates)))
+    # Field order changes when facts are saved and reloaded; the diagnostics must not.
+    diagnostics.sort(key=lambda d: (d.field, d.code, d.message))
     return NormalizedDocument(raw, output, tuple(diagnostics), conflicts)
