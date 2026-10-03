@@ -1,6 +1,6 @@
 import unittest
 
-from kalmora.documents.contracts import ParsedBlock, ParsedDocument, digest
+from kalmora.documents.contracts import PageImage, ParsedBlock, ParsedDocument, digest
 from kalmora.documents.native_table import extract_native_table
 
 
@@ -66,6 +66,9 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(result.rows[41].page, 2)
         self.assertEqual(result.rows[-1].index, 96)
         self.assertEqual(result.to_facts(document)["line.96.amount"][0].evidence.page, 2)
+        self.assertEqual(result.rows[0].delivery_reference, "AL-063000")
+        self.assertEqual(result.to_facts(document)["line.1.delivery_reference"][0].value,
+                         "AL-063000")
 
     def test_identical_rows_on_separate_physical_lines_are_not_deduplicated(self):
         repeated = row("Servicio de transporte", "1", "ud", "20,00", "20,00")
@@ -93,6 +96,20 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(result.reason, "unsupported_or_wrapped_table_text_on_pages:1")
         self.assertEqual(result.to_facts(document), {})
 
+    def test_numeric_description_continuation_after_final_row_abstains(self):
+        document = source([(1, "\n".join([
+            HEADER,
+            row("Certificación de trabajos realizados durante el ejercicio", "1", "ud",
+                "1.200,00", "1.200,00"),
+            "2026",
+        ]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "ambiguous")
+        self.assertEqual(result.reason, "unsupported_or_wrapped_table_text_on_pages:1")
+        self.assertEqual(result.to_facts(document), {})
+
     def test_total_lines_do_not_become_rows_and_image_only_page_is_not_applicable(self):
         document = source([(1, "\n".join([
             HEADER,
@@ -109,6 +126,20 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(result.status, "complete")
         self.assertEqual(result.expected_count, 1)
         self.assertEqual(extract_native_table(image_only).status, "not_applicable")
+
+    def test_native_table_with_any_image_or_vision_required_page_abstains(self):
+        native = source([(1, "\n".join([HEADER, row("Arena lavada", "1", "t", "10,00", "10,00")]))])
+        image = PageImage(2, "image/png", b"image bytes")
+        with_image = ParsedDocument(
+            native.path, native.source_sha256, native.media_type, native.parser_version,
+            native.blocks, (image,), native.warnings)
+        with_warning = ParsedDocument(
+            native.path, native.source_sha256, native.media_type, native.parser_version,
+            native.blocks, (), ("page.2:vision_required",))
+
+        self.assertEqual(extract_native_table(with_image).status, "ambiguous")
+        self.assertEqual(extract_native_table(with_image).reason, "document_requires_vision")
+        self.assertEqual(extract_native_table(with_warning).status, "ambiguous")
 
     def test_unrecognized_header_and_unsupported_unit_abstain(self):
         no_header = source([(1, "Cant. Ud. Precio Importe\n1 kg 1,00 2,00")])

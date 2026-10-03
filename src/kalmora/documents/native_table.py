@@ -38,6 +38,7 @@ _SUMMARY = re.compile(
     re.IGNORECASE,
 )
 _ROW_FIELD = re.compile(r"^(?:line|lines|detail_lines)\.(\d+)\.")
+_DELIVERY_REFERENCE = re.compile(r"(?<![A-Za-z0-9])AL-\d+(?!\d)")
 
 
 def _plain(text: str) -> str:
@@ -81,16 +82,21 @@ class NativeTableRow:
     unit_price: str
     amount: str
     quote: str
+    delivery_reference: str | None = None
 
     def facts(self, document: ParsedDocument) -> dict[str, Fact]:
         evidence = lambda: Evidence(document.path, f"page.{self.page}", self.page, self.quote)
-        return {
+        fields = {
             f"line.{self.index}.description": Fact(self.description, evidence()),
             f"line.{self.index}.quantity": Fact(self.quantity, evidence()),
             f"line.{self.index}.uom": Fact(self.unit, evidence()),
             f"line.{self.index}.unit_price": Fact(self.unit_price, evidence()),
             f"line.{self.index}.amount": Fact(self.amount, evidence()),
         }
+        if self.delivery_reference is not None:
+            fields[f"line.{self.index}.delivery_reference"] = Fact(
+                self.delivery_reference, evidence())
+        return fields
 
 
 @dataclass(frozen=True)
@@ -136,6 +142,10 @@ def _parse_row(line: str, *, index: int, page: int) -> NativeTableRow | None:
         unit_price=match.group("unit_price"),
         amount=match.group("amount"),
         quote=line,
+        delivery_reference=(
+            references[0] if len(references := _DELIVERY_REFERENCE.findall(description)) == 1
+            else None
+        ),
     )
 
 
@@ -165,11 +175,14 @@ def _parse_page_rows(text: str, *, page: int, start_index: int,
             # A quantity/unit tail with an unsupported numeric shape is a row
             # candidate, but the parser cannot safely emit its fields.
             ambiguous = True
-        elif line.strip() and re.search(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]", line):
-            # Delay this decision until another row appears: trailing company
-            # footers and legal text commonly follow the last table row, while
-            # text between two rows may be a wrapped description.
+        elif line.strip():
+            # Any unparsed content after a row may be a wrapped description,
+            # including a numeric-only continuation at end of page. Keep it
+            # pending so it can never be silently discarded as a complete row.
+            # Summary totals above are the only recognized boundary here.
             pending_text = pending_text or seen_row or has_local_header
+    if pending_text:
+        ambiguous = True
     return rows, ambiguous
 
 
@@ -183,6 +196,10 @@ def extract_native_table(document: ParsedDocument) -> NativeTableResult:
     partial table. Pages without native text and files without a recognized
     table header are ``not_applicable``.
     """
+    if document.images or any(warning.endswith(":vision_required")
+                              for warning in document.warnings):
+        return NativeTableResult("ambiguous", reason="document_requires_vision")
+
     pages = _native_pages(document)
     text_pages = {page: text for page, text in sorted(pages.items()) if text.strip()}
     if not text_pages:
