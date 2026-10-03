@@ -7,8 +7,11 @@ here reads files.
 """
 from dataclasses import dataclass, field
 from enum import StrEnum
+import hashlib
+import json
 
 from ..model import Cents, CompanyCode, Diagnostic, IsoDate, Month
+from ..money import integer
 
 
 class Side(StrEnum):
@@ -137,6 +140,8 @@ class AdjustmentLine:
     cost_center: str | None = None
 
     def __post_init__(self) -> None:
+        integer(self.debit)
+        integer(self.credit)
         if self.debit < 0 or self.credit < 0 or (self.debit and self.credit):
             raise ValueError("an adjustment line is a non-negative debit or credit")
 
@@ -149,8 +154,22 @@ class Adjustment:
     """Ids of the statement or book lines that justify the entry."""
 
     def __post_init__(self) -> None:
+        if not self.causes or len(set(self.causes)) != len(self.causes):
+            raise ValueError("adjustment requires unique source causes")
+        if len({line.company for line in self.lines}) != 1:
+            raise ValueError("adjustment requires exactly one company")
+        if self.category in NO_ADJUSTMENT:
+            raise ValueError("this category must not generate an adjustment")
         if sum(line.debit for line in self.lines) != sum(line.credit for line in self.lines):
             raise ValueError("adjustment must balance")
+
+    @property
+    def owner(self) -> tuple[str, str]:
+        """Stable ledger owner; cash application is a later, distinct stage."""
+        event = self.causes[0] if len(self.causes) == 1 else "bankrec:" + hashlib.sha256(
+            json.dumps(sorted(self.causes), separators=(",", ":")).encode()).hexdigest()
+        stage = "bank_import" if self.category is Category.UNRECORDED_RECEIPT else "bank_rec"
+        return event, stage
 
 
 @dataclass(frozen=True, slots=True)
