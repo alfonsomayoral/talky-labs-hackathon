@@ -41,6 +41,7 @@ const KIND: Record<DiffKind, { label: string; tone: Tone }> = {
   extra: { label: 'No está en golden', tone: 'warn' },
   different: { label: 'Difiere', tone: 'warn' },
   exact: { label: 'Exacta', tone: 'ok' },
+  inherited: { label: 'Pierde por sus partidas', tone: 'neutral' },
 }
 
 export default function ComparePage() {
