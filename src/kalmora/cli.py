@@ -121,7 +121,20 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("phase", "archive", "destination", "submission", "evaluator", "output"):
         if getattr(args, name, None) is not None:
             metadata[name] = str(getattr(args, name).resolve())
-    with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata) as run:
+    identity: dict[str, object] = {}
+    if args.command == "close":
+        out = args.out.resolve()
+        if out.is_relative_to(args.phase.resolve()) or "golden" in out.parts:
+            print(json.dumps({"error": "close output must be outside the read-only phase directory"}), file=sys.stderr)
+            return 1
+        # The report goes inside the bundle, under the run id the bundle already has (kalmora serve), so one
+        # run has one id: its manifest, events and report all live in --out.
+        try:
+            started = json.loads((args.out / "manifest.json").read_text(encoding="utf-8")).get("run_id")
+        except (OSError, ValueError, AttributeError):
+            started = None
+        identity = {"run_id": started if isinstance(started, str) and started else None, "path": args.out / "run.json"}
+    with RunRecorder(args.run_dir, ["kalmora", *arguments], metadata, **identity) as run:
         status = _execute(args, recorder=run)
         run.report["exit_code"] = status
     return status
@@ -367,7 +380,7 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
     if args.command == "close":
         from .closing import run_close
         try:
-            result = run_close(args.phase, args.out, args.module, args.from_submissions)
+            result = run_close(args.phase, args.out, args.module, args.from_submissions, recorder=recorder)
         except (OSError, ValueError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 1
