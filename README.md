@@ -39,6 +39,12 @@ El destino debe ser nuevo: cada importación conserva los originales y escribe
 se puede recorrer sin cargarlo completo; los decimales se leen con `Decimal`.
 Las búsquedas por clave compuesta conservan sociedad, cuenta, socio y asignación.
 
+Cada comando escribe un informe UUID en `outputs/runs/` con duración, entrada,
+estado y código de salida. Se puede elegir otro destino con `--run-dir` antes
+del subcomando. Las llamadas LLM futuras registrarán proveedor, modelo, tokens,
+caché y tarifas explícitas; si faltan datos, el coste queda desconocido. Las
+ejecuciones actuales sin llamadas LLM registran coste cero del programa.
+
 ## Roadmap
 
 [Milestone M0](https://github.com/alfonsomayoral/talky-labs-hackathon/milestone/1):
