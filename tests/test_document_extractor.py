@@ -63,6 +63,89 @@ class OptionalImportTests(unittest.TestCase):
 
 @unittest.skipIf(pydantic is None, "install llm extra for typed document extraction tests")
 class ExtractionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_source_bound_validation_retry_preserves_rejections_cost_and_replay(self):
+        from kalmora.documents.replay import RecordingStore, RecordedExtractor, RecordingConfig
+        from kalmora.documents.prompts import repair_prompt, prompt_text
+        invalid = {'observations': [observation('gross', '999,00', 'Gross 121,00')], 'unknowns': []}
+        valid = {'observations': [observation('gross', '121,00', 'Gross 121,00')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, recorder = self.setup_client(invalid, directory)
+            original_invoke = provider.invoke
+            async def sequence(request):
+                provider.payload = invalid if not provider.requests else valid
+                return await original_invoke(request)
+            provider.invoke = sequence
+            extractor = LLMDocumentExtractor(client, max_validation_attempts=2)
+            config = RecordingConfig.from_adapter(extractor)
+            recorded = RecordedExtractor(RecordingStore(directory + '/recordings'), config,
+                mode='record', callback=extractor.extract_with_response, budget_usd=Decimal('1'), recorder=recorder)
+            source = document()
+            artifact = await recorded.extract_with_response(source)
+            self.assertEqual(artifact.facts.fields['gross'][0].value, '121,00')
+            self.assertEqual(len(provider.requests), 2)
+            self.assertEqual(artifact.provenance['new_provider_calls'], 2)
+            self.assertEqual(artifact.provenance['new_provider_cost_usd'], '0.000040')
+            history = artifact.request_metadata['validation_history']
+            self.assertEqual(len(history), 1)
+            self.assertIn('999,00', json.dumps(history[0]['raw_response']))
+            self.assertEqual(provider.requests[1].prompt, repair_prompt(provider.requests[0].prompt, history))
+            replay = RecordedExtractor(recorded.store, config, mode='replay')
+            self.assertEqual((await replay.extract_with_response(source)).facts, artifact.facts)
+            self.assertEqual(len(provider.requests), 2)
+
+    async def test_missing_page_coverage_retries_original_then_fails_explicitly(self):
+        source = replace(document(), blocks=(ParsedBlock('page.1', 'Gross 121,00', 1),
+                                            ParsedBlock('page.2', 'More actual rows', 2)))
+        payload = {'observations': [observation('gross', '121,00', 'Gross 121,00')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client(payload, directory)
+            extractor = LLMDocumentExtractor(client, max_validation_attempts=2, require_page_coverage=True)
+            with self.assertRaises(DocumentInterpretationError) as caught:
+                await extractor.extract_with_response(source)
+            self.assertEqual(caught.exception.category, 'coverage')
+            self.assertEqual(len(provider.requests), 2)
+            self.assertEqual(len(caught.exception.request_metadata['validation_history']), 1)
+            self.assertEqual(caught.exception.request_metadata['capture_cost_usd'], '0.000040')
+
+    async def test_schema_retry_is_audited_without_hidden_provider_retry(self):
+        valid = {'observations': [observation('gross', '121,00', 'Gross 121,00')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, recorder = self.setup_client(valid, directory)
+            original = provider.invoke
+            async def sequence(request):
+                provider.payload = {'unexpected': 'rejected structure'} if not provider.requests else valid
+                return await original(request)
+            provider.invoke = sequence
+            artifact = await LLMDocumentExtractor(client, max_validation_attempts=2).extract_with_response(document())
+            self.assertEqual(len(provider.requests), 2)
+            self.assertEqual(artifact.request_metadata['validation_history'][0]['category'], 'schema')
+            self.assertEqual(len(recorder.report['calls']), 2)
+            self.assertEqual(artifact.request_metadata['capture_cost_usd'], '0.000040')
+
+    async def test_image_without_page_block_cannot_silently_pass_coverage(self):
+        source = replace(document(), images=(PageImage(2, 'image/png', b'original page two'),))
+        payload = {'observations': [observation('gross', '121,00', 'Gross 121,00')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, _, _ = self.setup_client(payload, directory)
+            with self.assertRaises(DocumentInterpretationError) as caught:
+                await LLMDocumentExtractor(client, require_page_coverage=True).extract(source)
+            self.assertEqual(caught.exception.category, 'coverage')
+
+    async def test_description_omission_requires_an_explicit_unknown_state(self):
+        source = document('Bolt M12 2 unit')
+        payload = {'observations': [observation('line.1.quantity', '2', '2 unit')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client(payload, directory)
+            extractor = LLMDocumentExtractor(client, require_line_descriptions=True)
+            with self.assertRaises(DocumentInterpretationError) as caught:
+                await extractor.extract(source)
+            self.assertEqual(caught.exception.category, 'coverage')
+            payload['unknowns'] = [{'field': 'line.1.description', 'status': 'AMBIGUOUS', 'reason': 'Unreadable source glyphs'}]
+            provider.payload = payload
+            artifact = await extractor.extract_with_response(source)
+            self.assertNotIn('line.1.description', artifact.facts.fields)
+            self.assertEqual(artifact.unknowns[0]['field'], 'line.1.description')
+
     def setup_client(self, payload, directory):
         provider = FixtureProvider(payload)
         recorder = RunRecorder(directory, ["synthetic-document-test"])
@@ -71,6 +154,33 @@ class ExtractionTests(unittest.IsolatedAsyncioTestCase):
         config = LLMConfig("gpt-6-luna", Decimal("1"), Decimal("0.000001"),
                            Decimal("0.000002"), "fixture tariff", max_attempts=1)
         return AsyncLLMClient(config, recorder, provider=provider), provider, recorder
+
+    async def test_flagged_pdf_without_original_page_image_never_calls_provider(self):
+        source = replace(document(''), warnings=('page.1:vision_required',))
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client({'observations': [], 'unknowns': []}, directory)
+            with self.assertRaises(DocumentInterpretationError) as caught:
+                await LLMDocumentExtractor(client).extract(source)
+            self.assertEqual(caught.exception.category, 'vision_image_missing')
+            self.assertEqual(provider.requests, [])
+
+    async def test_native_table_omission_and_header_only_scope_have_distinct_identity(self):
+        source = document('Invoice F-1\nDescripción Cantidad Unidad Precio Importe\nBolt 2 unit 50,00 100,00\nBase imponible 100,00')
+        payload = {'observations': [observation('invoice_number', 'F-1', 'Invoice F-1')], 'unknowns': []}
+        with tempfile.TemporaryDirectory() as directory:
+            client, provider, _ = self.setup_client(payload, directory)
+            full = LLMDocumentExtractor(client, require_native_row_coverage=True)
+            with self.assertRaises(DocumentInterpretationError) as caught:
+                await full.extract(source)
+            self.assertEqual(caught.exception.category, 'coverage')
+            header = LLMDocumentExtractor(client, extraction_scope='header_footer_only')
+            artifact = await header.extract_with_response(source)
+            self.assertNotIn('line_count', artifact.facts.fields)
+            self.assertNotEqual(full.version, header.version)
+            self.assertEqual(json.loads(provider.requests[-1].prompt)['extraction_scope'], 'header_footer_only')
+            provider.payload = {'observations': [observation('line.1.quantity', '2', 'Bolt 2 unit')], 'unknowns': []}
+            with self.assertRaises(DocumentInterpretationError):
+                await header.extract(source)
 
     async def test_grouped_values_match_flat_evidence_and_preserve_conflicts(self):
         quote = 'Bolt M12 2 unit 50,00 100,00'

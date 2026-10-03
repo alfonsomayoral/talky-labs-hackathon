@@ -340,6 +340,23 @@ class ArCashTests(unittest.TestCase):
                                                                  self.line("55500000", 0, amount)]))
         self._jsonl("erp/journal_entries.jsonl", postings)
 
+    def test_invoice_issued_by_this_months_billing_can_be_applied(self):
+        self._jsonl("erp/ar_invoices.jsonl", [])
+        self._jsonl("erp/journal_entries.jsonl", [self.entry("CASHPOST", "2026-07-20", [
+            self.line("57200001", 8000, 0), self.line("55500000", 0, 8000)])])
+        self._jsonl("bank/BIN-1100/2026-07.lines.jsonl", [{
+            "bank_line": "BL1", "booking_date": "2026-07-20", "value_date": "2026-07-20",
+            "amount": 8000, "currency": "EUR", "text": "TRANSFERENCIA DE CLIENTE ALFA EN26-00013",
+        }])
+        billed = {"billing_item": "BILL-X", "expected": "INVOICE",
+                  "invoice": {"number": "EN26-00013", "date": "2026-07-03", "due_date": "2026-07-18",
+                              "payable": 8000, "currency": "EUR"},
+                  "journal_entry": {"company": "1100", "posting_date": "2026-07-03", "currency": "EUR",
+                                    "lines": [self.line("43000000", 8000, 0, "C1", "EN26-00013"),
+                                              self.line("70530000", 0, 8000)]}}
+        result = build_ar_cash(PhaseData(self.phase), billing=[billed]).results[0]
+        self.assertEqual(result.row["applications"], [{"invoice": "EN26-00013", "amount": 8000}])
+
     def test_smallest_exact_group_wins_over_larger_combinations(self):
         self._open_invoices([("INV-001", 26749500, "2026-06-01"), ("INV-002", 26749500, "2026-06-02"),
                              ("INV-003", 13374750, "2026-06-03"), ("INV-004", 13374750, "2026-06-04")],

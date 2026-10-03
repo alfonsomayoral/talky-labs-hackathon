@@ -7,6 +7,7 @@ from kalmora.ap_allocation import (
     ConsumptionState, InvoiceQuantityLine, OrderKey, OrderLine, OrderPortion,
     Receipt, ReceiptUsage,
 )
+from kalmora.ap_credit_state import CreditBalance
 from kalmora.ap_journal import (
     AdvanceApplication, AdvanceBalance, AdvanceState, ApprovedAdvanceOrder, CreditReference, InvoiceLineOrder,
 )
@@ -20,6 +21,7 @@ from kalmora.ap_valuation import CostAssignment, OrderPrice, ValuationLine
 from kalmora.ap_withholding import ContractGuarantee, WithholdingBase, WithholdingCatalog
 from kalmora.facts import Evidence
 from kalmora.model.ap_component_scope import APComponentScope
+from kalmora.model.ap_duplicate_record import DuplicateRecord
 from kalmora.money import RateTable
 
 
@@ -76,6 +78,131 @@ class APTransactionIntegrationTests(unittest.TestCase):
                        context=self.context)
         options.update(overrides)
         return commit_ap_transaction(request, self.baseline if state is None else state, **options)
+
+    def source_observation(self, request, *, received_at="2026-09-11T10:00:00"):
+        scope, header = request.scope, request.posting.header
+        return DuplicateRecord(scope.invoice_id, scope.company, scope.vendor, scope.currency,
+            header.invoice_number, received_at, header.gross,
+            (Evidence(f"synthetic/{scope.invoice_id}.pdf", "invoice_header"),
+             Evidence(f"synthetic/{scope.invoice_id}/message.json", "received_at", quote=received_at)),
+            status=scope.decision, document_type=request.document_type)
+
+    def test_publication_observation_cannot_change_posted_identity_or_decision(self):
+        request = self.request("OBSERVED-OTHER")
+        observed = self.source_observation(request)
+        for changed in (dict(company="1910"), dict(vendor="OTHER-SUPPLIER"), dict(currency="USD"),
+                        dict(doc_id="OTHER-TASK"), dict(document_type="CREDIT_NOTE"),
+                        dict(status="RECEIVED"), dict(status="HOLD"), dict(status="POST_PAYMENT_BLOCK")):
+            with self.subTest(changed=changed), patch("kalmora.ap_transaction.allocate_receipts") as allocate:
+                with self.assertRaisesRegex(ValueError, "observation differs from posting scope/decision"):
+                    self.commit(replace(request, observation=replace(observed, **changed)))
+                allocate.assert_not_called()
+            self.assertEqual(self.baseline.observations, ())
+            self.assertEqual(self.baseline.rows, ())
+            self.assertEqual(self.baseline.consumption.usages[0].quantity_milli, 1000)
+
+    def test_publication_observation_cannot_replace_invoice_number_or_gross(self):
+        request = self.request("SOURCE-AMOUNTS-OTHER")
+        observed = self.source_observation(request)
+        for changed in (dict(number="OTHER-INVOICE"), dict(amount_cents=9999), dict(amount_cents=None)):
+            with self.subTest(changed=changed), patch("kalmora.ap_transaction.allocate_receipts") as allocate:
+                with self.assertRaisesRegex(ValueError, "observation differs from posting source amounts"):
+                    self.commit(replace(request, observation=replace(observed, **changed)))
+                allocate.assert_not_called()
+            self.assertEqual(self.baseline.observations, ())
+            self.assertEqual(self.baseline.rows, ())
+            self.assertEqual(self.baseline.advances.events, ())
+
+    def test_late_output_failure_does_not_publish_observation_or_replace_prior_publication(self):
+        prior_request = self.request("PRIOR-OBSERVATION")
+        prior_inputs = replace(prior_request.posting, quantity_lines=(),
+            valuation_lines=(replace(prior_request.posting.valuation_lines[0], quantity_milli=None),),
+            coded_lines=(replace(prior_request.posting.coded_lines[0], line=dict(
+                prior_request.posting.coded_lines[0].line, po=None, po_item=None)),))
+        prior_request = replace(prior_request, posting=prior_inputs,
+                                observation=self.source_observation(prior_request))
+        prior = self.commit(prior_request)
+        request = self.request("FAILED-OBSERVATION")
+        request = replace(request, observation=self.source_observation(request),
+                          posting=replace(request.posting, payment_block="CONTRACTOR_CERTIFICATE_EXPIRED"))
+        # All monetary factories can build their tentative results; the real
+        # delivery validator rejects a POST carrying a payment block at the end.
+        with self.assertRaisesRegex(ValueError, "payment block"):
+            self.commit(request, prior.state)
+        self.assertEqual(prior.state.observations, (prior_request.observation,))
+        self.assertEqual([row["doc_id"] for row in prior.state.rows], ["PRIOR-OBSERVATION"])
+        self.assertEqual(prior.state.consumption.usages[0].quantity_milli, 1000)
+        self.assertEqual(prior.state.advances.events, (("1100", "SUP-OTHER", "EUR", "PRIOR-OBSERVATION"),))
+        next_request = self.request("NEXT-OBSERVATION")
+        next_request = replace(next_request, observation=self.source_observation(next_request))
+        committed = self.commit(next_request, prior.state)
+        self.assertEqual(committed.status, "COMMITTED")
+        self.assertEqual([record.doc_id for record in committed.state.observations],
+                         ["PRIOR-OBSERVATION", "NEXT-OBSERVATION"])
+        self.assertEqual(committed.state.consumption.usages[0].quantity_milli, 2000)
+        self.assertEqual(prior.state.observations, (prior_request.observation,))
+
+    def test_published_source_observations_are_immutable_and_independent_of_later_snapshots(self):
+        request = self.request("IMMUTABLE-OBSERVATION")
+        request = replace(request, observation=self.source_observation(request))
+        committed = self.commit(request)
+        observations = committed.state.observations
+        self.assertIsInstance(observations, tuple)
+        self.assertEqual(observations, (request.observation,))
+        with self.assertRaises(FrozenInstanceError):
+            observations[0].number = "CHANGED-NUMBER"
+        with self.assertRaises(FrozenInstanceError):
+            observations[0].evidence[0].document = "changed-source.pdf"
+        with self.assertRaises(TypeError):
+            observations[0] = replace(observations[0], amount_cents=1)
+        changed_request = replace(request, observation=replace(request.observation, amount_cents=1))
+        self.assertEqual(changed_request.observation.amount_cents, 1)
+        committed.row["gross"] = 1
+        self.assertEqual(committed.state.observations[0].amount_cents, 10000)
+        self.assertEqual(committed.row["gross"], 10000)
+        next_request = self.request("DIRECT-LATER-OBSERVATION")
+        inputs = replace(next_request.posting, quantity_lines=(),
+            valuation_lines=(replace(next_request.posting.valuation_lines[0], quantity_milli=None),),
+            coded_lines=(replace(next_request.posting.coded_lines[0], line=dict(
+                next_request.posting.coded_lines[0].line, po=None, po_item=None)),))
+        next_request = replace(next_request, posting=inputs, observation=self.source_observation(next_request))
+        later = self.commit(next_request, committed.state)
+        self.assertEqual(observations, committed.state.observations)
+        self.assertEqual(len(committed.state.observations), 1)
+        self.assertEqual(len(later.state.observations), 2)
+        self.assertEqual(later.state.observations[0], observations[0])
+        self.assertEqual(self.baseline.observations, ())
+
+    def test_standalone_post_without_observation_cannot_claim_complete_pipeline_history(self):
+        from kalmora.ap_erp import APERPBaseline
+        from kalmora.ap_history import HistoricalReceipt, reconcile_receipt_history
+        from kalmora.ap_pipeline import APInvoiceRequest, evaluate_ap_invoice
+        from kalmora.facts import Fact
+
+        request = self.request("STANDALONE-WITHOUT-OBSERVATION")
+        standalone = self.commit(request, APTransactionState())
+        self.assertEqual(standalone.status, "COMMITTED")
+        self.assertEqual(standalone.state.observations, ())
+        self.assertEqual([row["doc_id"] for row in standalone.state.rows], [request.scope.invoice_id])
+        history = reconcile_receipt_history((HistoricalReceipt(self.receipt, 20000, 10000,
+            (Evidence("synthetic/erp/receipts.jsonl", "R-OTHER"),)),), (),
+            inventory_complete=Fact(True, Evidence("synthetic/erp/journal.jsonl", "complete source scan")))
+        baseline = APERPBaseline("2026-09", (), request.posting.order_catalog,
+            request.posting.receipt_catalog, request.posting.order_prices, history, (), ())
+        later = self.request("LATER-PIPELINE-TASK")
+        observation = replace(self.source_observation(later, received_at="2026-09-12T10:00:00"),
+                              status="RECEIVED")
+        invoice = APInvoiceRequest(observation=observation,
+            duplicate_inventory_complete=Fact(True, Evidence("synthetic/inventory.json", "complete tasks")),
+            rejection_fields={}, amount_sources=(), hold_fields={})
+        result = evaluate_ap_invoice(invoice, standalone.state, baseline=baseline,
+            tax_catalog=self.tax_catalog, withholding_catalog=self.withholding_catalog, context=self.context)
+        self.assertEqual(result.status, "UNKNOWN")
+        self.assertEqual(result.diagnostics, ("POSTED_DUPLICATE_OBSERVATIONS_INCOMPLETE",))
+        self.assertIsNone(result.row)
+        self.assertIs(result.state, standalone.state)
+        self.assertEqual(result.stages, ())
+        self.assertEqual(standalone.state.observations, ())
 
     def test_failed_header_or_journal_does_not_reserve_receipts_for_next_invoice(self):
         first = self.request("I1")
@@ -229,6 +356,30 @@ class APTransactionIntegrationTests(unittest.TestCase):
         changed = CodedAPLine("L-OTHER", {**request.posting.coded_lines[0].line, "tax_code": "S21"})
         with self.assertRaisesRegex(ValueError, "fiscal treatment"):
             self.commit(replace(request, posting=replace(request.posting, coded_lines=(changed,))))
+
+    def test_transaction_boundary_rejects_mutable_credit_snapshot(self):
+        balance = CreditBalance("1100", "SUP-OTHER", "EUR", "ORIGINAL-OTHER",
+                                "a" * 64, "line:1", 10000, 6000)
+        credits = [balance]
+        with self.assertRaisesRegex(TypeError, "immutable tuple"):
+            APTransactionState(self.baseline.consumption, AdvanceState(credits=credits))
+        snapshot = APTransactionState(self.baseline.consumption, AdvanceState(credits=tuple(credits)))
+        credits.clear()
+        self.assertEqual(snapshot.advances.credits, (balance,))
+        self.assertEqual(self.baseline.advances.credits, ())
+
+    def test_transaction_boundary_rejects_overconsumed_credit_without_changing_committed_state(self):
+        balance = CreditBalance("1100", "SUP-OTHER", "EUR", "ORIGINAL-OTHER",
+                                "a" * 64, "line:1", 10000, 6000)
+        snapshot = APTransactionState(self.baseline.consumption, AdvanceState(credits=(balance,)))
+        committed = self.commit(self.request("OTHER-INVOICE"), snapshot)
+        with self.assertRaisesRegex(ValueError, "cumulative original credit consumption"):
+            APTransactionState(committed.state.consumption,
+                               replace(committed.state.advances,
+                                       credits=(replace(balance, used_doc=10001),)))
+        self.assertEqual(committed.state.advances.credits, (balance,))
+        self.assertEqual([row["doc_id"] for row in committed.state.rows], ["OTHER-INVOICE"])
+        self.assertEqual(snapshot.advances.credits, (balance,))
 
     def test_coded_po_cannot_move_to_other_invoice_line_with_identical_cost_dimensions(self):
         request = self.request("TWO-ORDERS")

@@ -35,11 +35,38 @@ the bridge preserves UNKNOWN and returns no quantity line. It never converts thi
 uncertainty into QTY_NOT_RECEIVED. Current state cannot discard historical usage
 or posted identities, or invent usage for an unknown receipt.
 
-Each query represents one explicitly evidenced line/portion. The caller combines
-observed MULTI_PO portions and their stated quantities, conserving the invoice
-line's total before allocation. Semantic ranking cannot manufacture that split.
-The bridge itself does not post or mutate consumption. Receipt visibility uses
-the explicit observed cutoff; invoice date remains unchanged for PO/fiscal/FX.
+`resolve_lines(lines: Sequence[POQueryLine], invoice_id=..., ...)` validates
+observed totals and scope before resolving every portion, then returns
+`APOrderBatchMatch(reference_status, quantity_status, matches, quantity_lines,
+diagnostics)`. Each output `InvoiceQuantityLine` keeps its original row total and
+all resolved `OrderPortion(order, quantity_milli, receipt_ids)` quantities. All
+matches retain candidates, filter discard reasons and semantic evidence. No
+partial successful invoice is published when any portion is unresolved.
+
+The batch invokes #44 as a pure preview against the same immutable historical
+snapshot. This catches two individually available rows competing for one receipt.
+Known joint deficits return INSUFFICIENT; deficits involving relevant unknown
+historical capacity return UNKNOWN and no quantity lines. Already-allocated
+identities also cannot authorize reuse. The preview never returns or commits its
+tentative consumption state. Call the real allocator again against current
+state before valuation/posting; selection alone does not reserve a receipt.
+
+`resolve_facts(facts, company=..., vendor=..., currency=..., invoice_id=..., ...)`
+uses `ap_order_sources.order_queries_from_facts`, which consumes the shared
+document normalizer. Company/vendor/currency come from resolved identity; the
+observed document and per-row currencies must agree. Supported canonical
+observations include flat `line.N.*`, nested observed `lines`, structured XML
+`line.N.delivery.K.document_number`, and existing receipt/project vocabulary.
+The adapter checks attachment hashes/path when a `ParsedDocument` is supplied.
+It requires positive observed quantity and unit, preserves every evidence item,
+and never computes quantity from price, amount or receipt supply.
+
+MULTI_PO uses separate observed rows or explicit per-row `po_portions` with
+their stated quantities. The adapter flattens those observations before shared
+normalization. A bare MULTI_PO marker, aggregate unbound delivery references,
+conflicting facts or unobserved portion quantities remain UNKNOWN. No model or
+proportional allocation manufactures a split. Receipt visibility uses the
+explicit observed cutoff; invoice date remains unchanged for PO/fiscal/FX.
 
 `semantic_called` means the resolver boundary was invoked, including a cache hit;
 provider calls/costs come from its recording metrics. Synthetic fixture replay

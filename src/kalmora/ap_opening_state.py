@@ -7,10 +7,11 @@ import re
 
 from .ap_advance_history import resolve_historical_advances
 from .ap_journal import AdvanceState
+from .ap_credit_history import HistoricalCreditInput, resolve_historical_credits
 from .ap_tax import TaxCatalog
 from .facts import Evidence, Fact
 from .model.ap_scope import ApScope
-from .money import company_local_currency
+from .money import RateTable, company_local_currency
 
 
 @dataclass(frozen=True)
@@ -101,7 +102,9 @@ def _potential_reversal(entry):
 def resolve_ap_opening_state(*, company: str, vendor: str, currency: str, as_of: Fact,
                              journal_entries: Iterable[Mapping], purchase_orders: Iterable[Mapping],
                              vendors: Iterable[Mapping], ap_invoices: Iterable[Mapping],
-                             tax_catalog: TaxCatalog, inventory_complete: Fact) -> APOpeningStateResolution:
+                             tax_catalog: TaxCatalog, inventory_complete: Fact,
+                             historical_credit_inputs: Iterable[HistoricalCreditInput] = (),
+                             rates: RateTable | None = None) -> APOpeningStateResolution:
     """Prove zero prior credits for this scope and retain its real advance history.
 
     A complete inventory includes manual movements and unposted AP documents.
@@ -207,7 +210,24 @@ def resolve_ap_opening_state(*, company: str, vendor: str, currency: str, as_of:
             diagnostics.append(f"{locator}:CREDIT_HISTORY_LINK_UNRESOLVED")
         diagnostics.append(f"{locator}:HISTORICAL_CREDIT_OR_REVERSAL_PRESENT")
 
+    covered, credit_balances = set(), ()
+    historical_credit_inputs = deepcopy(tuple(historical_credit_inputs))
+    if historical_credit_inputs:
+        try:
+            credits = resolve_historical_credits(company=company, vendor=vendor, currency=currency, as_of=as_of,
+                        inventory_complete=inventory_complete, inputs=historical_credit_inputs,
+                        ap_invoices=invoices, journal_entries=journals, rates=rates)
+            evidence.extend(credits.evidence)
+            diagnostics.extend(credits.diagnostics)
+            if credits.status != "RESOLVED":
+                diagnostics.append("CREDIT_HISTORY_UNRESOLVED")
+            else:
+                covered, credit_balances = set(credits.covered_entries), credits.balances
+        except (ValueError, TypeError, KeyError, AttributeError) as error:
+            diagnostics.append("CREDIT_HISTORY_SOURCE_UNRESOLVED:" + str(error))
     for entry in journals:
+        if _key(entry, "id") in covered:
+            continue
         rows = linked.get(_key(entry, "id"), ())
         entry_lines = entry.get("lines") if isinstance(entry.get("lines"), list) else []
         is_ap_credit = entry.get("doc_type") == "KG" and (
@@ -253,4 +273,4 @@ def resolve_ap_opening_state(*, company: str, vendor: str, currency: str, as_of:
         diagnostics.append("ADVANCE_HISTORY_UNRESOLVED")
     if diagnostics:
         return finish()
-    return finish(AdvanceState(balances=history.balances))
+    return finish(AdvanceState(balances=history.balances, credits=credit_balances))

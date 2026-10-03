@@ -2,8 +2,11 @@
 
 `resolve_ap_opening_state(company, vendor, currency, as_of, journal_entries,
 purchase_orders, vendors, ap_invoices, tax_catalog, inventory_complete)` connects
-the recorded advance baseline to an explicitly proved **zero historical credit
-consumption**. All arguments are keyword-only. It returns a frozen
+the recorded advance baseline to evidenced historical credit consumption.
+Its default path proves **zero historical credit consumption**; optional
+`historical_credit_inputs` reconstruct positive usage only from associated
+credit/original facts, real components and a corroborated recorded KG. See
+[credit history/restoration](ap-credit-restoration.md). All arguments are keyword-only. It returns a frozen
 `APOpeningStateResolution`: `RESOLVED` with an `AdvanceState`, or `UNKNOWN` with
 `state=None`, plus the requested `scope`, `cutoff`, evidence, diagnostics and
 source-only `reference_entry_errors`.
@@ -54,14 +57,16 @@ For the requested society/vendor/document-currency scope, the adapter checks:
   when the complete journal also contains no same-number posting in a potentially
   matching company. A dangling link or an absent field is not that proof.
 
-Any historical credit or potential reversal in scope causes `UNKNOWN`, even
-when the original invoice cannot be linked. This increment reconstructs no
-positive credit consumption. It does not strip prefixes, associate credits by
+Any uncovered historical credit or potential reversal in scope causes `UNKNOWN`,
+even when the original invoice cannot be linked. Supplied historical credit
+inputs must match the exact AP/GL link, original snapshot, clocks, dimensions and
+signed cents before their positive bucket usage is retained. Missing evidence
+never creates a positive baseline or clears another uncovered movement. It does not strip prefixes, associate credits by
 amount, infer returned quantities, restore advances or restore receipt capacity.
 
 The returned state contains the historical advance balances and **no new
-events, credit reservations or publications**. Empty credit usage is proved only
-for the returned scope and cutoff. Original-invoice snapshots and their SHA-bound
+events or publications**. Its `credits` retain the evidenced positive historical
+usage, or empty usage proved for the returned scope and cutoff. Original-invoice snapshots and their SHA-bound
 bucket capacities still belong to the original/credit engines. This result does
 not authorize credit imputation, tax treatment or posting.
 

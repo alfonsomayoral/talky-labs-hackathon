@@ -71,6 +71,46 @@ class PDFVisionTests(unittest.TestCase):
             processor._run([sys.executable, '-c', 'print("x"*1000)'], self.root)
         self.assertEqual(caught.exception.category, 'output_limit')
 
+    def test_multiple_page_resource_budget_and_invalid_page_locator(self):
+        writer = PdfWriter()
+        for _ in range(5):
+            writer.add_blank_page(612, 792)
+        writer.write(self.source)
+        document = replace(self.document, source_sha256=digest(self.source.read_bytes()),
+            blocks=tuple(ParsedBlock(f'page.{number}', '', number) for number in range(1, 6)),
+            warnings=tuple(f'page.{number}:vision_required' for number in range(1, 6)))
+        # Five pages are allowed now; a cumulative pixel budget still runs
+        # before any renderer or OCR process is started.
+        self.error('total_pixel_limit', replace(PDFVisionConfig(), max_total_pixels=12_000_000), document)
+        self.error('page_locator', document=replace(document, warnings=('page.6:vision_required',)))
+        self.error('page_locator', document=replace(document, blocks=(ParsedBlock('page.1', '', 1),)))
+        for settings in ({'force_render_all_pages': 1}, {'ocr_enabled': None}, {'psm': 2}):
+            with self.subTest(settings=settings), self.assertRaises(ValueError):
+                PDFVisionConfig(**settings)
+
+    def test_render_only_audit_includes_every_page_without_ocr_tools(self):
+        config = PDFVisionConfig(force_render_all_pages=True, ocr_enabled=False,
+                                 tesseract='/nonexistent/tesseract')
+        if not Path(shutil.which(config.renderer) or config.renderer).is_file():
+            self.skipTest('local renderer not installed')
+        writer = PdfWriter()
+        for _ in range(5):
+            writer.add_blank_page(72, 72)
+        writer.write(self.source)
+        document = replace(self.document, source_sha256=digest(self.source.read_bytes()), warnings=(),
+            blocks=tuple(ParsedBlock(f'page.{number}', f'Native text I{number}', number) for number in range(1, 6)))
+        processed = PDFVisionProcessor(self.root, config).process(document, Path(self.temp.name) / 'renders')
+        self.assertEqual(processed.blocks, document.blocks)
+        self.assertEqual(processed.source_sha256, document.source_sha256)
+        self.assertEqual([image.page for image in processed.images], list(range(1, 6)))
+        self.assertEqual([aid.provenance['kind'] for aid in processed.processing_aids], ['page_render'] * 5)
+        self.assertTrue(all(aid.text == '' for aid in processed.processing_aids))
+        for image, aid in zip(processed.images, processed.processing_aids):
+            self.assertEqual(aid.provenance['image_sha256'], image.sha256)
+            self.assertEqual(aid.provenance['render_scope'], 'full_media_box')
+            self.assertNotIn('ocr', aid.provenance['tools'])
+        self.error('already_processed', config, processed)
+
     def test_real_synthetic_scan_has_unverified_provenance_and_preserved_blocks(self):
         config = PDFVisionConfig(renderer=os.environ.get('KALMORA_TEST_PDFTOPPM'), tesseract=os.environ.get('KALMORA_TEST_TESSERACT'))
         if not Path(shutil.which(config.renderer) or config.renderer).is_file() or not Path(config.tesseract).is_file():

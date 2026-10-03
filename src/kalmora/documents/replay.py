@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from kalmora.facts import DocumentFacts, atomic_json, _encode_value, _decode_value
 from .contracts import ParsedDocument, ResolutionRequest, ResolutionResult, fingerprint, valid_hash
-from .prompts import recording_prompt
+from .prompts import recording_prompt, repair_prompt
 
 ABSENCE_MARKER = re.compile(r"\b(?:sin|ausente|ningun[ao]?|no\s+(?:indicado|indicada|consta|disponible|aplica)|not\s+(?:provided|available|applicable)|absent|none)\b", re.I)
 ABSENCE_ALIASES = {
@@ -262,10 +262,21 @@ class ResolutionCapture:
 
 def validate_capture_metadata(stage, source, config, metadata):
     document = source.document if isinstance(source, ResolutionRequest) else source
+    initial_prompt = recording_prompt(stage, source, config.parameters)
+    history = metadata.get('validation_history', [])
+    maximum = config.parameters.get('max_validation_attempts', 1)
+    if not isinstance(history, list) or len(history) >= maximum or (history and stage != 'extract'):
+        raise ValueError('Invalid validation repair history')
+    for index, entry in enumerate(history):
+        if (not isinstance(entry, dict) or set(entry) != {'category', 'detail', 'raw_response', 'prompt_sha256'}
+                or not isinstance(entry['category'], str) or not isinstance(entry['detail'], str)
+                or not isinstance(entry['raw_response'], dict)
+                or entry['prompt_sha256'] != hashlib.sha256(repair_prompt(initial_prompt, history[:index]).encode()).hexdigest()):
+            raise ValueError('Repair history is not bound to the original source prompt')
     expected = {'provider': config.provider, 'model': config.model,
         'prompt_version': config.prompt_version,
         'instructions_sha256': config.prompt_sha256,
-        'prompt_sha256': hashlib.sha256(recording_prompt(stage, source, config.parameters).encode()).hexdigest(),
+        'prompt_sha256': hashlib.sha256(repair_prompt(initial_prompt, history).encode()).hexdigest(),
         'schema_sha256': config.schema_sha256, 'schema_version': config.schema_version,
         'source_sha256': document.source_sha256, 'parser_version': document.parser_version,
         'transformation_sha256': document.transformation_sha256}

@@ -1,0 +1,59 @@
+name: M6 isolated validation
+on:
+  push:
+    branches: [codex/m6-close]
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.repository == 'juan-fernandez-gotherlabs/talky-labs-hackathon' || github.repository == 'alfonsomayoral/talky-labs-hackathon'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve exact source and environment
+        run: |
+          mkdir -p m6-ci-evidence
+          git archive HEAD | gzip > m6-ci-evidence/source.tar.gz
+          git rev-parse HEAD > m6-ci-evidence/commit.txt
+          python --version > m6-ci-evidence/python.txt
+      - name: Install backend dependencies
+        run: |
+          set -o pipefail
+          python -m pip install -c requirements-m1.lock -e '.[documents,llm,landing,api,dev]' 2>&1 | tee m6-ci-evidence/install.log
+      - name: Compile source
+        if: always()
+        run: |
+          set -o pipefail
+          python -m compileall -q src 2>&1 | tee m6-ci-evidence/compile.log
+      - name: Run M6 regression tests
+        if: always()
+        env:
+          PYTHONPATH: src
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_m6_*.py' -v 2>&1 | tee m6-ci-evidence/m6-tests.log
+      - name: Run full backend tests
+        if: always()
+        env:
+          PYTHONPATH: src
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee m6-ci-evidence/tests.log
+      - name: Doctor (actual package entry point)
+        if: always()
+        env:
+          PYTHONPATH: src
+        run: |
+          set -o pipefail
+          python -m kalmora --run-dir m6-ci-evidence/doctor-runlogs doctor 2>&1 | tee m6-ci-evidence/doctor.log
+      - name: Archive evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-validation-${{ github.sha }}
+          path: m6-ci-evidence/
+          retention-days: 14

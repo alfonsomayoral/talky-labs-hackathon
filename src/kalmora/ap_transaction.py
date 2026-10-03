@@ -11,6 +11,7 @@ from .ap_allocation import (
     AllocationDiagnostic, ConsumptionState, InvoiceQuantityLine, OrderLine,
     Receipt, allocate_receipts,
 )
+from .ap_credit_state import validate_credit_balances
 from .ap_journal import (
     AdvanceApplication, AdvanceState, ApprovedAdvanceOrder, CreditReference, InvoiceLineOrder,
     build_ap_journal, build_down_payment_request,
@@ -24,6 +25,7 @@ from .ap_withholding import (
 )
 from .facts import Evidence
 from .model.ap_component_scope import APComponentScope
+from .model.ap_duplicate_record import DuplicateRecord
 from .model.validation_context import ValidationContext
 from .money import RateTable, integer
 from .output_models.ap import ApLine, ApPayee, ApRow
@@ -78,6 +80,7 @@ class APTransactionRequest:
     document_type: str
     evidence: tuple[Evidence, ...]
     posting: APPostingInputs | APDownPaymentInputs | None = None
+    observation: DuplicateRecord | None = None
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,7 @@ class _Publication:
     key: tuple[str, str, str, str]
     row_json: str
     evidence: tuple[Evidence, ...]
+    observation: DuplicateRecord | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +106,7 @@ class APTransactionState:
     def __post_init__(self):
         if not isinstance(self.consumption, ConsumptionState) or not isinstance(self.advances, AdvanceState):
             raise TypeError("transaction state requires receipt and advance snapshots")
+        validate_credit_balances(self.advances.credits)
         if any(not isinstance(items, tuple) for items in (
                 self.consumption.usages, self.consumption.invoices,
                 self.advances.balances, self.advances.events)):
@@ -125,6 +130,10 @@ class APTransactionState:
     @property
     def evidence(self) -> tuple[tuple[Evidence, ...], ...]:
         return tuple(publication.evidence for publication in self._published)
+
+    @property
+    def observations(self) -> tuple[DuplicateRecord, ...]:
+        return tuple(p.observation for p in self._published if p.observation is not None)
 
 
 @dataclass(frozen=True)
@@ -194,6 +203,7 @@ def _publish(request, state, consumption, advance_state, row):
     key = (scope.company, scope.vendor, scope.currency, scope.invoice_id)
     publication = _Publication(
         key, json.dumps(row, sort_keys=True, separators=(",", ":"), allow_nan=False), request.evidence,
+        request.observation,
     )
     committed = APTransactionState(consumption, advance_state)
     object.__setattr__(committed, "_published", (*state._published, publication))
@@ -262,6 +272,15 @@ def commit_ap_transaction(
         if not isinstance(value, str) or not value:
             raise ValueError("complete posting company/vendor/currency scope required")
     _iso(scope.invoice_date, "invoice date")
+    observation = request.observation
+    if observation is not None:
+        from .ap_duplicates import duplicate_result
+        duplicate_result(observation, (), inventory_complete=False)  # validates the source record
+        if (observation.company, observation.vendor, observation.currency, observation.doc_id,
+                observation.document_type, observation.status) != (
+                scope.company, scope.vendor, scope.currency, scope.invoice_id,
+                request.document_type, scope.decision):
+            raise ValueError("publication observation differs from posting scope/decision")
     key = (scope.company, scope.vendor, scope.currency, scope.invoice_id)
     historical_keys = (*state.consumption.invoices, *state.advances.events)
     if (key in state.keys or any((old[0], old[3]) == (scope.company, scope.invoice_id)
@@ -274,6 +293,9 @@ def commit_ap_transaction(
     if (inputs.header.company, inputs.header.vendor_id, inputs.header.currency,
             inputs.header.invoice_date) != (scope.company, scope.vendor, scope.currency, scope.invoice_date):
         raise ValueError("AP header differs from resolved posting scope")
+    if observation is not None and (observation.number, observation.amount_cents) != (
+            inputs.header.invoice_number, inputs.header.gross):
+        raise ValueError("publication observation differs from posting source amounts")
     _iso(inputs.posting_date, "posting date")
     if not isinstance(tax_catalog, TaxCatalog):
         raise TypeError("active tax catalogue required")

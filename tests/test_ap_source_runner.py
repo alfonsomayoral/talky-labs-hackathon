@@ -223,6 +223,22 @@ class APSourceIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, 1)
         self.assertIn("explicitly authorized --budget-usd", error.getvalue())
 
+    async def test_authorized_record_cli_uses_actual_client_and_direct_xml_needs_no_calls(self):
+        import asyncio
+        config = self.root / "settings.json"
+        config.write_text(json.dumps({"model": "gpt-6-luna", "input_rate": "0.00000025",
+            "output_rate": "0.00000075", "pricing_provenance": "synthetic test ceiling",
+            "timeout_seconds": None, "max_output_tokens": None}))
+        output, error = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error), patch(
+                "kalmora.llm.client.AsyncLLMClient.complete", side_effect=AssertionError("direct XML cannot call provider")):
+            code = await asyncio.to_thread(main, ["--run-dir", str(self.root / "reports"), "prepare-ap",
+                str(self.phase), "--state-dir", str(self.out), "--mode", "record", "--config", str(config),
+                "--captures", str(self.root / "captures"), "--budget-usd", "5"])
+        self.assertEqual(code, 0, error.getvalue())
+        self.assertEqual(json.loads(output.getvalue())["new_provider_calls"], 0)
+        self.assertTrue((self.out / "residual-identity.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
