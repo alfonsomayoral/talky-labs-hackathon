@@ -36,7 +36,9 @@ new/reused IDs, different dates/PO positions, immutable inputs and idempotence.
 
 This completes the general counterpart-resolution interface and its policy
 checks. #140 must bind actual documentary approval statements and original
-advance classifications/balances to it. Remaining-original credit limits, advance
+advance classifications/balances to it. `ap_journal` now maintains cumulative
+original-credit limits for resolved references in `AdvanceState.credits`; its
+caller must evidence historical credit consumption before starting. Advance
 restoration for a credit and final independent evaluation are not inferred here.
 An original invoice containing an applied advance (a nonzero 407 posting) cannot
 be credited through the ordinary invoice path: the builder abstains until advance
