@@ -10,13 +10,24 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from kalmora.documents.evaluation import (FROZEN_THRESHOLDS, SourceAudit, _runtime,
-    _semantic, canonical_field, evaluate_sample, normalize_value, validate_annotation_sources)
+    _semantic, _value_supported, canonical_field, evaluate_sample, normalize_value, validate_annotation_sources)
 from kalmora.facts import DocumentFacts, Evidence, Fact
 from kalmora.runlog import RunRecorder
 from kalmora.documents.contracts import ParsedBlock, ParsedDocument, PageImage
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_period_and_certificate_dates_require_actual_date_without_label_lookup(self):
+        for field in ('period_start', 'period_end', 'service_period_start',
+                      'service_period_end', 'contractor_certificate_valid_until',
+                      'lines[0].period_end'):
+            with self.subTest(field=field):
+                self.assertEqual(normalize_value(field, '30/09/2026'), '2026-09-30')
+                observed = {'field': field, 'value': '2026-09-30'}
+                self.assertTrue(_value_supported(observed, 'hasta 30/09/2026', None))
+                self.assertFalse(_value_supported(observed, 'desde dicha fecha', None))
+                self.assertFalse(_value_supported(observed, 'hasta 29/09/2026', None))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
