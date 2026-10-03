@@ -20,7 +20,7 @@ class ApPayee(TypedDict, total=False):
 
 
 class ApLine(TypedDict, total=False):
-    """One coded line of a posted AP document."""
+    """One coded invoice line; factual allocations may survive a non-posting decision."""
 
     amount: Required[Cents]
     """Net amount of the line in document currency, in cents (M0 convention)."""

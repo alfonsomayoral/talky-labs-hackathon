@@ -1,88 +1,102 @@
-"""Close (M6) fed with this run's real upstream deliveries instead of golden fixtures.
-
-Reuses the M6 handoff builder (``tools/m6_fixture.build``) with its loader pointed at ``deliverables/``,
-completing the fields the builder reads that the delivery format does not carry: AP journal headers
-(posting date = day received, inside the month), bank adjustment references, cash company and date,
-billing item metadata. Needs the M6 engine (``kalmora.close``, PR #197) and ``tools/`` next to ``src/``.
-"""
+"""M6 fed by real deliveries and the verified IC audit/owned projection."""
 from __future__ import annotations
-
 import json
-import sys
-from calendar import monthrange
-from decimal import Decimal
 from pathlib import Path
-from typing import Any
+import sys
 
 from ..data import PhaseData
-from ..money import company_local_currency
+from ..close.contracts import encoded, file_hash, seal
+from ..ic.model import digest as ic_digest
+from ..close.rules import month_bounds
+from .upstream import load_deliveries
 
 TOOLS = Path(__file__).resolve().parents[3] / "tools"
 
 
-def _enricher(phase: Path, data: PhaseData):
-    month = data.month
-    last = f"{month}-{monthrange(int(month[:4]), int(month[5:]))[1]:02d}"
-    received = {m["doc_id"]: str(m.get("received_at", ""))[:10] for m in data.table("document_messages") if m.get("doc_id")}
-    bank_dates = {line["bank_line"]: line["booking_date"] for line in data.table("bank_lines")}
-
-    def enrich(producer: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        for row in rows:
-            if producer == "ap" and row.get("journal_entry"):
-                entry = row["journal_entry"]
-                day = min(max(received.get(row["doc_id"]) or last, f"{month}-01"), last)
-                entry.setdefault("posting_date", day)
-                entry.setdefault("document_date", row.get("invoice_date") or day)
-                entry.setdefault("currency", company_local_currency(entry["company"]))
-                entry.setdefault("reference", row.get("invoice_number"))
-                entry.setdefault("doc_type", "KG" if row.get("document_type") == "CREDIT_NOTE" else "KR")
-                entry.setdefault("source", "AP")
-                if row.get("currency") and row["currency"] != entry["currency"]:
-                    # FX revaluation needs the document-currency principal on each line.
-                    local = sum(l["credit"] - l["debit"] for l in entry["lines"] if l.get("partner") == row.get("vendor_id"))
-                    if local:
-                        ratio = Decimal(row["payable"]) / abs(local)
-                        for line in entry["lines"]:
-                            line.setdefault("currency", row["currency"])
-                            line.setdefault("amount_doc", int((abs(line["debit"] - line["credit"]) * ratio).to_integral_value()))
-            elif producer == "bank_rec":
-                for index, adjustment in enumerate(row.get("adjustments", [])):
-                    adjustment.setdefault("ref", f"{row['account']}:{adjustment['category']}:{index}")
-            elif producer == "ar_cash":
-                if row.get("adjustment"):
-                    row.setdefault("company", row["adjustment"][0]["company"])
-                row.setdefault("date", bank_dates.get(row["bank_line"]))
-            elif producer == "ar_billing":
-                item = json.loads((phase / "inbox" / "ar" / "billing" / row["billing_item"] / "item.json").read_text())
-                for key in ("company", "customer", "contract", "type"):
-                    row.setdefault(key, item[key])
-        return rows
-    return enrich
+def _ic_inputs(phase, deliverables):
+    directory = deliverables.parent / "handoffs" / "ic"
+    audit_path = directory / "audit.json"
+    audit = json.loads(audit_path.read_text())
+    upstream_path = directory / "upstream.json"
+    upstream = json.loads(upstream_path.read_text())
+    producer = json.loads((directory / "producer-manifest.json").read_text())
+    metadata = audit["metadata"]
+    data = PhaseData(phase)
+    task = data.table("tasks/intercompany")
+    coverage = metadata.get("task_coverage") or {}
+    expected = sorted("/".join(sorted(p)) for p in task["pairs"])
+    observed = sorted("/".join(sorted(p)) for p in coverage.get("pairs", []))
+    if (not audit.get("complete") or not coverage.get("complete") or observed != expected
+            or coverage.get("accounts") != sorted(task["accounts"])
+            or coverage.get("month") != data.month
+            or coverage.get("as_of") != month_bounds(data.month)[1].isoformat()
+            or len(coverage.get("rules", [])) != 5):
+        raise ValueError("IC audit is incomplete or does not cover the phase pairs/accounts")
+    if (metadata["task_file_sha256"] != file_hash(data._path("tasks/intercompany"))
+            or metadata["journal_file_sha256"] != file_hash(data._path("journal_entries"))
+            or metadata["ic_jsonl_sha256"] != file_hash(deliverables / "ic.jsonl")
+            or metadata["upstream_manifest_sha256"] != file_hash(upstream_path)
+            or metadata["projection_adjustments_sha256"] != file_hash(directory / "projection.adjustments.jsonl")
+            or coverage["positions_sha256"] != ic_digest(audit["positions"])):
+        raise ValueError("IC audit/output/source hash mismatch")
+    provenance = upstream["provenance"]
+    if (provenance.get("kind") != "real" or provenance.get("month") != data.month
+            or provenance.get("phase") != phase.name
+            or provenance["producer_manifest_sha256"] != file_hash(directory / "producer-manifest.json")
+            or metadata["dependency_provenance"] != provenance):
+        raise ValueError("IC producer provenance mismatch")
+    for relative, hashed in producer["sources"].items():
+        path = (phase / relative).resolve()
+        if not path.is_relative_to(phase.resolve()) or "golden" in path.parts or file_hash(path) != hashed:
+            raise ValueError("IC source changed: " + relative)
+    for name in ("ap", "bank_rec"):
+        if provenance["deliveries_sha256"][name] != file_hash(deliverables / (name + ".jsonl")):
+            raise ValueError("IC consumed a different producer delivery: " + name)
+    result = {"complete": True, "coverage": {"expected": expected, "observed": observed,
+              "mode": "reconciled_pairs", "audit_sha256": file_hash(audit_path),
+              "upstream_sha256": file_hash(upstream_path), "limitations": []}}
+    postings = {}
+    for name, values in (("ap", upstream["ap_entries"]), ("bank_rec", upstream["banks"]["entries"])):
+        postings[name] = [{"event_id": v["event_id"], "stage": v["stage"],
+                          "business_key": "producer:" + v["event_id"],
+                          "journal_entry": v["entry"], "recorded_ids": [], "evidence": [v["evidence"]]}
+                         for v in values]
+    postings["ic"] = []
+    for line in (directory / "projection.adjustments.jsonl").read_text().splitlines():
+        entry = json.loads(line)
+        owner = entry["provenance"]
+        if owner["stage"] == "intercompany":
+            findings = [f for f in audit["findings"] if f["event_id"] == owner["event_id"]]
+            if len(findings) != 1:
+                raise ValueError("IC owned adjustment has no unique audited finding")
+            postings["ic"].append({**owner, "business_key": owner["event_id"],
+                                   "journal_entry": entry, "recorded_ids": [],
+                                   "evidence": findings[0]["evidence"]})
+    # Preserve AP business identity independently of transient journal IDs.
+    ap = {r["doc_id"]: r for r in load_deliveries(phase, deliverables, ("ap",))["ap"]}
+    import m6_fixture
+    for posting in postings["ap"]:
+        row = ap[posting["event_id"]]
+        posting["business_key"] = m6_fixture.ap_key(row["company"], row["vendor_id"], row["invoice_number"])
+    return result, postings
 
 
 def run_close(phase: Path, deliverables: Path, work: Path) -> Path:
-    """Build the real-upstream handoff and run the close engine; returns the produced close.jsonl."""
     if str(TOOLS) not in sys.path:
         sys.path.insert(0, str(TOOLS))
-    import m6_fixture  # noqa: PLC0415 - M6 tool module, importable once tools/ is on the path
+    import m6_fixture
     from ..close.__main__ import execute
-    from ..close.contracts import file_hash, seal
 
-    data = PhaseData(phase)
-    enrich = _enricher(phase, data)
+    coverage, postings = _ic_inputs(phase, deliverables)
+    rows = load_deliveries(phase, deliverables, ("ap", "ar_billing", "bank_rec", "ar_cash", "ic"))
 
-    def load_upstream(_phase: Path, producer: str):
-        path = deliverables / f"{producer}.jsonl"
-        rows = [json.loads(line, parse_float=Decimal) for line in path.read_text().splitlines() if line.strip()]
-        return enrich(producer, rows), file_hash(path)
+    def loader(_phase, producer):
+        return rows[producer], file_hash(deliverables / (producer + ".jsonl"))
 
-    m6_fixture.load_upstream = load_upstream
-    bundle = m6_fixture.build(phase)
-    for dependency in bundle["dependencies"]:
-        dependency["provenance"] = "real"
-    bundle["adapter"].update(version="v0_real_handoff/v1", integration="real_upstream")
+    bundle = m6_fixture.build(phase, loader=loader, provenance="real",
+                             coverage_overrides={"ic": coverage}, owned_postings=postings)
     work.mkdir(parents=True, exist_ok=True)
     handoff = work / "dependencies.json"
-    handoff.write_bytes(m6_fixture.encoded(seal(bundle)))
+    handoff.write_bytes(encoded(seal(bundle)))
     execute(phase, handoff, work / "frozen")
     return work / "frozen" / "close.jsonl"

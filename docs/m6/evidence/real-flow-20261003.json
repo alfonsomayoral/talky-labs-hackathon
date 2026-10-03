@@ -1,0 +1,533 @@
+{
+  "backend_base_commit": "0840e539520e3ea5dbb3fec9d89f3ba8b5cb6da9",
+  "backend_tests": {
+    "discovered": 1246,
+    "failed": 0,
+    "log_sha256": "38e821e5d4b9d9ddd1ffc80afd52b31d7012a47e9377c9ed6525d3eaaf71e981",
+    "passed": 1203,
+    "skipped": 43
+  },
+  "ic_replay": {
+    "audit_sha256": "31997f11b73cbbb9b116371543954b9e50930015c76944e3c5f5d2791eb73bb9",
+    "complete": true,
+    "corrected_ledger_unchanged": true,
+    "findings": 8,
+    "new_adjustment_lines": 0
+  },
+  "limitations": [
+    "Real deterministic v0 AP deliveries are used; this does not accept M1 native/model workflow quality.",
+    "Four July AP company mismatches generate five comparison diagnostics.",
+    "Three source-backed IC transits remain outside the accepted reference; see #239.",
+    "Six monetary open USD credit notes remain in FX under policy 5.",
+    "September has no available golden or official score."
+  ],
+  "milestone_acceptance": false,
+  "negative_probes": [
+    {
+      "case": "incomplete_audit",
+      "reason": "IC audit is incomplete or does not cover the phase pairs/accounts",
+      "result": "REJECTED"
+    },
+    {
+      "case": "missing_pair",
+      "reason": "IC audit is incomplete or does not cover the phase pairs/accounts",
+      "result": "REJECTED"
+    },
+    {
+      "case": "empty_ic_file",
+      "reason": "IC audit/output/source hash mismatch",
+      "result": "REJECTED"
+    },
+    {
+      "case": "stale_ap_delivery",
+      "reason": "IC consumed a different producer delivery: ap",
+      "result": "REJECTED"
+    }
+  ],
+  "open_gates": [
+    "#171 reviewed accounting/integration acceptance",
+    "#251 source/reference FX discrepancy review",
+    "#159 real M5 acceptance review"
+  ],
+  "packages": {
+    "july": {
+      "archive_sha256": "c813449eab9ddc7fc28b04eff85518957035e895b5500fd19e26c0d8ef7f0109",
+      "verified_non_reference_files": 817
+    },
+    "september": {
+      "archive_sha256": "fe57cb9cc27ba66cf474ac91cdfcefde14766be25edb3f9280feae4105fc93f7",
+      "files": 805
+    }
+  },
+  "phases": {
+    "july": {
+      "ap_coverage": {
+        "decision_counts": {
+          "DUPLICATE": 15,
+          "HOLD": 18,
+          "NOT_INVOICE": 12,
+          "POST": 243,
+          "REJECT": 17
+        },
+        "message_count": 305,
+        "result_count": 305,
+        "task_count": 305,
+        "task_result_message_ids_exact": true
+      },
+      "ap_entries": 243,
+      "bank_entries": 57,
+      "close_freeze": {
+        "engine_data_complete": true,
+        "files": {
+          "balance_impact.json": "8b46724fcf0c46195b039bd8e0295edbcee86f72393df7ccf77a86fb5d57d06e",
+          "close.jsonl": "29bb31699fe94e1de8d8b5a3a5113b847df0c4e4de0e509e43d8eb1fbbcb405a",
+          "close_decisions.jsonl": "a329d757f333b42440303f121d8c51590e57b1af2ddee0c7ca2f5866d5aaee30",
+          "erp_original_balance.json": "d2dd2c19e7a3fabc6fa488172ea9131c070e91de527e91406b415b94cc23fd96",
+          "erp_original_positions.json": "c5da8543896043e34f5fc3613fb4e4054093a570580b01b25a991d54880f7587",
+          "final_balance.json": "4bf681981195ffa12d9aa050def022d1274d27b68e0cd4cea5bf285a17644712",
+          "final_positions.json": "46c7317138848c2f00e0121b6a846458832e772c41d0084630baa4a86a3ee005",
+          "pre_m6_balance.json": "acad7778b5e6af2e1662e60af3a0c3fafe9f6474d8a6ccb2b88e336b6d3e73c1",
+          "pre_m6_positions.json": "23863a56e303e6a11309964cdf107f9ce73d5756a4cf71b199fa98ebdbea04e1",
+          "projection_events.jsonl": "bd50a29103b45fae16081ba1dfc0c83e70af383b622593909c7d15d54991ccb9"
+        },
+        "handoff_sha256": "83d8e7a295fd7b15bcf9b4a7819a3ae7e33d40024cd78c85f51ea9ee2ec053e1",
+        "integration": "real_audited_handoffs",
+        "integration_execution_complete": true,
+        "types": {
+          "ACCRUAL": 52,
+          "BAD_DEBT": 1,
+          "FX_REVAL": 14,
+          "PREPAID": 9,
+          "WIP_REVENUE": 1
+        }
+      },
+      "deliveries_sha256": {
+        "ap": "0e16c81c41f722ebea20d81b7bc1c232e65832bb2e5b605d7c37465f0c324665",
+        "ar_billing": "94738d4794bd52424ab69884b232d33a07e955285100d2df505f2977d3f800aa",
+        "ar_cash": "19a3121fa425b59f5dff984cdba1d2be9e6a5e77a848ef03b9ef23e9fbf1987f",
+        "bank_rec": "aeb6ec1f98ae9858f164514d5ebaca678172d79bdd4d9f99465b36e8356caa54",
+        "close": "29bb31699fe94e1de8d8b5a3a5113b847df0c4e4de0e509e43d8eb1fbbcb405a",
+        "ic": "599cd3f5759b16113b8808690a135b3447c710ecfc270b189eee30913f98b71b"
+      },
+      "evaluation": {
+        "diagnostic_counts": {
+          "COMPANY_MISMATCH": 5,
+          "REFERENCE_ENTRY_RULE": 1
+        },
+        "diagnostics": [
+          {
+            "code": "COMPANY_MISMATCH",
+            "detail": {
+              "actual": "1100",
+              "expected": "1300"
+            },
+            "entity": "API005209",
+            "message": "row company differs from the golden",
+            "module": "ap",
+            "severity": "error"
+          },
+          {
+            "code": "COMPANY_MISMATCH",
+            "detail": {
+              "actual": "1910",
+              "expected": "1100"
+            },
+            "entity": "API005226",
+            "message": "row company differs from the golden",
+            "module": "ap",
+            "severity": "error"
+          },
+          {
+            "code": "COMPANY_MISMATCH",
+            "detail": {
+              "actual": "1100",
+              "expected": "1200"
+            },
+            "entity": "API005225",
+            "message": "row company differs from the golden",
+            "module": "ap",
+            "severity": "error"
+          },
+          {
+            "code": "COMPANY_MISMATCH",
+            "detail": {
+              "actual": "1910",
+              "expected": "1100"
+            },
+            "entity": "API005227",
+            "message": "row company differs from the golden",
+            "module": "ap",
+            "severity": "error"
+          },
+          {
+            "code": "COMPANY_MISMATCH",
+            "detail": {
+              "actual": "1910",
+              "expected": "1100"
+            },
+            "entity": "API005227",
+            "message": "journal_entry: entry company differs from the golden",
+            "module": "ap",
+            "severity": "error"
+          },
+          {
+            "code": "REFERENCE_ENTRY_RULE",
+            "detail": {
+              "source": "golden"
+            },
+            "entity": "API004469",
+            "message": "journal_entry: reference violates accounting rule: lines[1].partner: required for open-item account",
+            "module": "ap",
+            "severity": "warning"
+          }
+        ],
+        "headline": {
+          "ap": {
+            "answered": 305,
+            "coding": 0.9958677685950413,
+            "decision_macro_f1": 0.9815713860221503,
+            "documents": 305,
+            "header": 1.0,
+            "journal_entry": 0.9958677685950413,
+            "payee_and_block": 1.0,
+            "per_decision_f1": {
+              "DUPLICATE": 0.966,
+              "HOLD": 0.973,
+              "NOT_INVOICE": 1.0,
+              "POST": 0.998,
+              "REJECT": 0.971
+            },
+            "po_match": 1.0,
+            "reasons": 0.9607843137254902,
+            "score": 0.9911
+          },
+          "ar_billing": {
+            "answered": 26,
+            "items": 26,
+            "score": 1.0
+          },
+          "ar_cash": {
+            "fully_correct": 31,
+            "receipts": 32,
+            "score": 0.9734
+          },
+          "bank_rec": {
+            "per_account": {
+              "BAE-1100": 1.0,
+              "BAE-1300": 1.0,
+              "BANH-3100-MXN": 1.0,
+              "BANH-3100-USD": 1.0,
+              "BIN-1000": 1.0,
+              "BIN-1100": 1.0,
+              "BIN-1200": 1.0,
+              "BLC-2100": 1.0,
+              "CMA-1000": 1.0,
+              "CMA-1100": 0.98,
+              "CMA-1200": 1.0,
+              "CMA-1910": 1.0
+            },
+            "score": 0.9983
+          },
+          "close": {
+            "items": 64,
+            "precision": 0.803,
+            "recall": 0.853,
+            "score": 0.8273
+          },
+          "ic": {
+            "detected": 5,
+            "differences": 5,
+            "score": 0.8615
+          },
+          "total": 96.79,
+          "trial_balance": {
+            "abs_difference_eur": 2816263.66,
+            "recorded_vs_truth_eur": 303662230.6,
+            "score": 0.9907
+          }
+        },
+        "ic_exact_reference_entities": {
+          "exact": 5
+        },
+        "ic_extra_rows": [
+          "1000-2100:INVOICE_IN_TRANSIT",
+          "1000-3100:INVOICE_IN_TRANSIT",
+          "1100-1910:INVOICE_IN_TRANSIT"
+        ],
+        "mode": "compare",
+        "report_sha256": "4b8175c6d05432f56d401578a99feab2df86b284b8dc7df8991c8186a8b5d17c",
+        "scores": {
+          "ap": 0.9910643505011841,
+          "ar_billing": 1.0,
+          "ar_cash": 0.9734375,
+          "bank_rec": 0.9983333333333334,
+          "close": 0.8272727272727272,
+          "ic": 0.8615384615384616,
+          "trial_balance": 0.9907256702473818
+        }
+      },
+      "ic_audit_sha256": "4924f560b11202a761ee91316ea9f4bf68d00ec40c824a52effe2bfabdfbcbc1",
+      "ic_complete": true,
+      "ic_diagnostics": [],
+      "ic_task_coverage": {
+        "accounts": [
+          "16330000",
+          "24230000",
+          "40090000",
+          "40300000",
+          "43300000",
+          "55200000",
+          "55210000",
+          "55220000"
+        ],
+        "as_of": "2026-07-31",
+        "complete": true,
+        "month": "2026-07",
+        "pairs": [
+          [
+            "1000",
+            "1100"
+          ],
+          [
+            "1000",
+            "1200"
+          ],
+          [
+            "1000",
+            "1300"
+          ],
+          [
+            "1000",
+            "2100"
+          ],
+          [
+            "1000",
+            "3100"
+          ],
+          [
+            "1100",
+            "1200"
+          ],
+          [
+            "1100",
+            "1910"
+          ]
+        ],
+        "positions_sha256": "3eb0f8b9175855f4f8609a9a00dd8abc274e2b47974a3962f0cf3f53e4869be7",
+        "rules": [
+          "duplicate_postings",
+          "wrong_partners",
+          "loan_interest",
+          "invoices_in_transit",
+          "pooling_not_booked"
+        ]
+      },
+      "month": "2026-07",
+      "pooling_links": [
+        {
+          "bank_account": "BIN-1200",
+          "bank_delivery_ref": "BIN-1200:POOLING_NOT_BOOKED:2",
+          "entry_id": "M5DEP-BANK-2a8e76bcece313494883fa43",
+          "link_basis": "bank unmatched ID + signed statement amount/currency + agreement + same-date ERP mirror",
+          "original_mirror_entry": "1000-2026-3000000155",
+          "original_mirror_reference": "CP2607221200",
+          "owner": [
+            "BL0005652",
+            "bank_adjustment"
+          ],
+          "signed_bank_local_cents": -27053177,
+          "signed_ic_local_cents": 27053177,
+          "source_currency": "EUR",
+          "statement": {
+            "amount": -27053177,
+            "bank_line": "BL0005652",
+            "booking_date": "2026-07-22",
+            "currency": "EUR",
+            "text": "TRASPASO CASH POOLING SALDO CERO",
+            "value_date": "2026-07-22"
+          }
+        }
+      ],
+      "producer_code_manifest_sha256": "f3b5a4e77ed667b60c526ba735b69d031b51b9cf37b515ddc56eca3a54f76005",
+      "replay": {
+        "document_calls": 0,
+        "files_equal": 10,
+        "forbidden_solver_accesses": 0,
+        "llm_calls": 0,
+        "result": "PASS"
+      },
+      "rows": {
+        "ap": 305,
+        "ar_billing": 26,
+        "ar_cash": 32,
+        "bank_rec": 12,
+        "close": 77,
+        "ic": 8
+      },
+      "runtime_s": 87.538,
+      "source_manifest_sha256": "e1e0715fd276ecf38e32f6a7a31245b0a658d9a647169023c19f5a6e27ab1f5b",
+      "tasks_done": true
+    },
+    "september": {
+      "ap_coverage": {
+        "decision_counts": {
+          "DUPLICATE": 15,
+          "HOLD": 19,
+          "NOT_INVOICE": 15,
+          "POST": 230,
+          "POST_PAYMENT_BLOCK": 3,
+          "REJECT": 15
+        },
+        "message_count": 297,
+        "result_count": 297,
+        "task_count": 297,
+        "task_result_message_ids_exact": true
+      },
+      "ap_entries": 233,
+      "bank_entries": 55,
+      "close_freeze": {
+        "engine_data_complete": true,
+        "files": {
+          "balance_impact.json": "144a26add891d5482150f82d4806a3bbaab2467d245191b4caf8549dac60c95f",
+          "close.jsonl": "ae750c323b9310bfd3c4dd9af52e6922c84fd371f0b84e5784cd92d63024706c",
+          "close_decisions.jsonl": "ddc5840543a204eb69b78e9356f9cfe44610a2e4feb93a40e5253d393cd09d70",
+          "erp_original_balance.json": "e0f2623ab8d4b7bbe53acd01b4db03639709ee395ec1220720878a9f5de16a3f",
+          "erp_original_positions.json": "68d6ad0877fad86b33682dd29b048026482f0045b4b8473e4ca71c54a0b10939",
+          "final_balance.json": "e224772964df923c607f7b446b719f29ebcad12fbe41dae407369ef1749624af",
+          "final_positions.json": "1a888b2dfc41f0b3d0fbdb5d0c776681f5b5a4b69ffe3b09abe10d1b38544944",
+          "pre_m6_balance.json": "eb1e0b94f41796f49e97de91dded0a6d94ce7d5f535ec2717dbcf51d4e033b1a",
+          "pre_m6_positions.json": "fb164baae342af9e63e053d1ceb524fbcc0574fe7bd02b2223620a6d5b66920a",
+          "projection_events.jsonl": "9c437db117f2bfd2bfbda6c469295d96f453fa6bfbe639f5ccab2915482aaa6d"
+        },
+        "handoff_sha256": "9a569a655dcabd7ea5b11d28c109ad75a8548f46f7345bb3434f12a70ff2fa21",
+        "integration": "real_audited_handoffs",
+        "integration_execution_complete": true,
+        "types": {
+          "ACCRUAL": 54,
+          "BAD_DEBT": 7,
+          "FX_REVAL": 14,
+          "PREPAID": 9
+        }
+      },
+      "deliveries_sha256": {
+        "ap": "520a47e9e587fcc0e80cd93bbdbefe2e96532bfbf9f87af351bac8e8a71791cc",
+        "ar_billing": "cb1f1939c4d46d5671f2512dddca2fca15b4a8830b5ecbfab5627f3ae23ea919",
+        "ar_cash": "2c765bd436feda084503e73d6ce1e330fb001a5ed38fe4c60e1fb208e871dbfd",
+        "bank_rec": "34b96d7549e99ff6dccb20cc0ee00c2cba04d8553da26644f20e57e6dfdd8842",
+        "close": "ae750c323b9310bfd3c4dd9af52e6922c84fd371f0b84e5784cd92d63024706c",
+        "ic": "e3504e1c10220125b1ca667d3b99714eb0a9f951ece1468e766ad58c731d74ba"
+      },
+      "evaluation": {
+        "diagnostic_counts": {},
+        "diagnostics": [],
+        "mode": "structure_only",
+        "report_sha256": "2c5415a6e36eecdc9c9d16c6e956eceacfaf81475e1aa9ad0212cc149408ce74"
+      },
+      "ic_audit_sha256": "895fcb0fb5c9eae226a69d8fda6f9f99154b88577124e90dcb60ccda8beffdfd",
+      "ic_complete": true,
+      "ic_diagnostics": [],
+      "ic_task_coverage": {
+        "accounts": [
+          "16330000",
+          "24230000",
+          "40090000",
+          "40300000",
+          "43300000",
+          "55200000",
+          "55210000",
+          "55220000"
+        ],
+        "as_of": "2026-09-30",
+        "complete": true,
+        "month": "2026-09",
+        "pairs": [
+          [
+            "1000",
+            "1100"
+          ],
+          [
+            "1000",
+            "1200"
+          ],
+          [
+            "1000",
+            "1300"
+          ],
+          [
+            "1000",
+            "2100"
+          ],
+          [
+            "1000",
+            "3100"
+          ],
+          [
+            "1100",
+            "1200"
+          ],
+          [
+            "1100",
+            "1910"
+          ]
+        ],
+        "positions_sha256": "eae5f4b6477395046870ee5c71a575483768fe2ce4b0cb6e556e6c74830856fe",
+        "rules": [
+          "duplicate_postings",
+          "wrong_partners",
+          "loan_interest",
+          "invoices_in_transit",
+          "pooling_not_booked"
+        ]
+      },
+      "month": "2026-09",
+      "pooling_links": [
+        {
+          "bank_account": "BIN-1200",
+          "bank_delivery_ref": "BIN-1200:POOLING_NOT_BOOKED:3",
+          "entry_id": "M5DEP-BANK-49c94653c09b7212ad753f44",
+          "link_basis": "bank unmatched ID + signed statement amount/currency + agreement + same-date ERP mirror",
+          "original_mirror_entry": "1000-2026-3000000199",
+          "original_mirror_reference": "CP2609221200",
+          "owner": [
+            "BL0005740",
+            "bank_adjustment"
+          ],
+          "signed_bank_local_cents": -1355200,
+          "signed_ic_local_cents": 1355200,
+          "source_currency": "EUR",
+          "statement": {
+            "amount": -1355200,
+            "bank_line": "BL0005740",
+            "booking_date": "2026-09-22",
+            "currency": "EUR",
+            "text": "TRASPASO CASH POOLING SALDO CERO",
+            "value_date": "2026-09-22"
+          }
+        }
+      ],
+      "producer_code_manifest_sha256": "f3b5a4e77ed667b60c526ba735b69d031b51b9cf37b515ddc56eca3a54f76005",
+      "replay": {
+        "document_calls": 0,
+        "files_equal": 10,
+        "forbidden_solver_accesses": 0,
+        "llm_calls": 0,
+        "result": "PASS"
+      },
+      "rows": {
+        "ap": 297,
+        "ar_billing": 25,
+        "ar_cash": 34,
+        "bank_rec": 12,
+        "close": 84,
+        "ic": 8
+      },
+      "runtime_s": 94.598,
+      "source_manifest_sha256": "0a00bdfb2eb8cf666fbd8fbb04416cf6d2b9643dc7f9536c8ed9baf7f4d437ac",
+      "tasks_done": true
+    }
+  },
+  "python": "3.12.2",
+  "schema": "kalmora.real-close-review/v1",
+  "solver_reference_access": "denied by inherited Python I/O guard; original July files matched archive before execution",
+  "verified_code_commit": "575e2409ba401053eadbf910e83afe81c3705c98"
+}

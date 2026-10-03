@@ -30,6 +30,11 @@ def handoff(f=None, postings=(), *, real=False):
             "provenance": "real" if real else "golden_fixture", "source_sha256": "1" * 64,
             "complete": True, "coverage": {"expected": [], "observed": []},
             "postings": list(postings) if name == "ap" else []})
+    if real:
+        for dependency in value["dependencies"]:
+            if dependency["producer"] == "ic":
+                dependency["coverage"].update(mode="reconciled_pairs",
+                                              audit_sha256="2" * 64, upstream_sha256="3" * 64)
     return Handoff.from_dict(seal(value))
 
 
@@ -133,6 +138,10 @@ class ContractTests(unittest.TestCase):
     def test_complete_real_replacement(self):
         self.assertTrue(handoff().simulated)
         self.assertFalse(handoff(real=True).simulated)
+        unaudited = copy.deepcopy(handoff(real=True).payload)
+        unaudited["dependencies"][-1]["coverage"].pop("audit_sha256")
+        with self.assertRaisesRegex(ValueError, "real IC requires"):
+            Handoff.from_dict(seal(unaudited))
 
     def test_tampered_payload(self):
         h = copy.deepcopy(handoff().payload); h["month"] = "2026-08"

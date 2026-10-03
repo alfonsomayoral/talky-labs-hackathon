@@ -72,7 +72,14 @@ def normalize(journal, context, diagnostics):
     return result
 
 
-def build(phase: Path) -> dict:
+def build(phase: Path, *, loader=None, provenance="golden_fixture",
+          coverage_overrides=None, owned_postings=None) -> dict:
+    """Use the same builder for explicit fixtures and audited producer inputs."""
+    if provenance not in {"golden_fixture", "real"}:
+        raise ValueError("unknown dependency provenance")
+    if provenance == "real" and (not coverage_overrides or "ic" not in coverage_overrides):
+        raise ValueError("real IC requires positive reconciliation coverage")
+    loader = loader or load_upstream
     data = PhaseData(phase)
     month = data.month
     _, closing = month_bounds(month)
@@ -86,7 +93,8 @@ def build(phase: Path) -> dict:
     bundle = {'schema': SCHEMA, 'phase': phase.name, 'month': month, 'closing_date': closing.isoformat(),
         'sources': sources, 'dependencies': [], 'recorded_events': [],
         'facts': {'accruals': [], 'prepaids': [], 'pending_certifications': [], 'fx_positions': []},
-        'adapter': {'version': 'm6_fixture/v1', 'integration': 'simulated', 'diagnostics': []}}
+        'adapter': {'version': 'm6_handoff/v2',
+                    'integration': 'real_upstream' if provenance == 'real' else 'simulated', 'diagnostics': []}}
     diagnostics = bundle['adapter']['diagnostics']
     for a in data.table('ap_invoices'):
         if a.get('journal_entry') in original:
@@ -94,25 +102,33 @@ def build(phase: Path) -> dict:
                                              'journal_ids': [a['journal_entry']]})
     upstream = {}
     for producer in ('ap', 'ar_billing', 'bank_rec', 'ar_cash', 'ic'):
-        rows, hashed = load_upstream(phase, producer)
+        rows, hashed = loader(phase, producer)
         upstream[producer] = rows
         task = data.table('tasks/' + TASKS[producer])
         expected = ['/'.join(pair) for pair in task['pairs']] if producer == 'ic' else task
         # An IC fixture exception report is not real positive reconciliation evidence.
         observed = expected if producer == 'ic' else [r[IDENTITIES[producer]] for r in rows]
         dependency = {'producer': producer, 'phase': phase.name, 'month': month,
-            'provenance': 'golden_fixture', 'source_sha256': hashed, 'complete': set(expected) == set(observed),
+            'provenance': provenance, 'source_sha256': hashed, 'complete': set(expected) == set(observed),
             'coverage': {'expected': expected, 'observed': observed,
               'mode': 'complete_fixture_exception_report' if producer == 'ic' else 'one_result_per_task',
               'limitations': ['absence of an IC exception is a fixture assumption, not real reconciliation evidence'] if producer == 'ic' else []},
             'postings': [], 'results': rows}
+        if coverage_overrides and producer in coverage_overrides:
+            override = coverage_overrides[producer]
+            dependency['coverage'] = override['coverage']
+            dependency['complete'] = override['complete']
+        if owned_postings is not None and producer in owned_postings:
+            dependency['postings'] = deepcopy(owned_postings[producer])
+            bundle['dependencies'].append(dependency)
+            continue
         postings = dependency['postings']
 
         def add(journal, key, stage, source_index, context=None, recorded_ids=()):
             journal = normalize(journal, context or {}, diagnostics)
             postings.append({'event_id': key, 'business_key': key, 'stage': stage,
                 'journal_entry': journal, 'recorded_ids': list(recorded_ids),
-                'evidence': [evidence(f'fixture:{producer}.jsonl@{hashed}', str(source_index))]})
+                'evidence': [evidence(f'{provenance}:{producer}.jsonl@{hashed}', str(source_index))]})
 
         for index, row in enumerate(rows):
             if producer == 'ap':
