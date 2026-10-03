@@ -80,7 +80,12 @@ invoice line/PO portion, preserving the quantity allocation's original line
 identity in the caller. Final quantity conservation and posting belong to #44,
 #51 and #54. The caller must also complete identity and eligibility checks.
 
-Ten synthetic tests cover current-master precedence over conflicting history,
+Known vendor company restrictions are validated before returning coding; a
+1100-only vendor cannot supply relabelled defaults or overrides for 1910.
+Legacy master inputs without affiliations require the caller's #42 identity
+validation; this function does not infer company authorization from their absence.
+
+Eleven synthetic tests cover current-master precedence over conflicting history,
 explicit document/PO overrides, missing-master historical fallback, conflicts, compatible historical
 ambiguity, strict dates, source joins, currency/company/vendor isolation,
 account/tax/withholding validation, CC/WBS ownership, project mismatch,

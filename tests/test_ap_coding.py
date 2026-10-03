@@ -66,6 +66,16 @@ class CodingTests(unittest.TestCase):
         self.assertEqual(contextual.status, "RESOLVED")
         self.assertEqual(contextual.record.cost_center, "CC1")
 
+    def test_known_vendor_company_restriction_cannot_be_relabelled(self):
+        self.vendors[0]["companies"] = ["1100"]
+        catalog = self.catalog((self.history(),))
+        self.assertEqual(catalog.resolve(self.query).status, "RESOLVED")
+        foreign = replace(self.query, company="1910")
+        source = replace(self.record(account="62300000", tax_code="S21", reconciliation_account="41000000",
+                                     cost_center="CC-UTE", withholding_codes=()), company="1910")
+        with self.assertRaises(ValueError):
+            catalog.resolve(foreign, document=(source,))
+
     def test_history_ambiguity_never_uses_latest_or_mode_and_equal_records_preserve_evidence(self):
         history = (self.history(), self.history(cost_center="CC2", recorded_on="2026-07-01"),
                    self.history(recorded_on="2026-07-02"))

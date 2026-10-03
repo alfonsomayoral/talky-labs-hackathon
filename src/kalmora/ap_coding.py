@@ -254,6 +254,12 @@ class CodingCatalog:
         defaults = ()
         vendor = self._vendors.get(query.vendor)
         if vendor is not None:
+            affiliations = vendor.get("companies")
+            if affiliations is not None:
+                if not isinstance(affiliations, (list, tuple)) or any(not isinstance(c, str) for c in affiliations):
+                    raise ValueError("vendor company affiliations must be explicit codes")
+                if query.company not in affiliations:
+                    raise ValueError("vendor is not enabled for the coding company")
             proof = tuple(Evidence("erp/vendors.jsonl", f"id={query.vendor}.{name}") for name in
                 ("default_gl_account", "default_tax_code", "reconciliation_account",
                  "default_cost_center", "default_wbs", "withholding") if name in vendor)
