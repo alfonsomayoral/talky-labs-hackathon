@@ -42,7 +42,7 @@ class LLMConfig:
     output_rate: Decimal
     pricing_provenance: str
     reasoning_effort: str = "low"
-    timeout_seconds: float = 60.0
+    timeout_seconds: float | None = None
     max_attempts: int = 2
     concurrency: int = 2
     max_input_tokens: int = 200_000
@@ -72,6 +72,8 @@ class LLMConfig:
             raise ValueError("Explicit output limit exceeds declared model capacity")
         for name in ("timeout_seconds", "retry_base_seconds", "retry_max_seconds"):
             value = getattr(self, name)
+            if name == 'timeout_seconds' and value is None:
+                continue
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be positive and finite")
         if not isinstance(self.reasoning_effort, str) or self.reasoning_effort not in {"none", "minimal", "low", "medium", "high", "xhigh", "max"}:
@@ -218,6 +220,7 @@ class AsyncLLMClient:
         metadata = {"model": self.config.model, "reasoning_effort": self.config.reasoning_effort,
                     "max_input_tokens": self.config.max_input_tokens,
                     "max_output_tokens": self.config.max_output_tokens,
+                    "timeout_seconds": self.config.timeout_seconds,
                     "model_output_capacity_tokens": self.config.model_output_capacity_tokens,
                     "image_token_reserve": self.config.image_token_reserve,
                     "max_image_bytes": self.config.max_image_bytes,

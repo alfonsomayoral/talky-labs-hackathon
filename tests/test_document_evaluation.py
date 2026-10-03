@@ -139,6 +139,27 @@ class EvaluationTests(unittest.TestCase):
         self.manifest['evaluation_contract']['thresholds']['grounded_evidence_location_min'] = '0.5'
         self.assertIn('frozen_thresholds_changed', [x['code'] for x in self.report()['violations']])
 
+    def test_only_declared_user_revision_removes_latency_gate_and_preserves_duration(self):
+        contract = self.manifest['evaluation_contract']
+        report = {'status': 'completed', 'elapsed_seconds': 120,
+            'input_metadata': {'capture_mode': 'captured_live', 'transport_mode': 'default', 'response_source': 'provider_api'},
+            'calls': [{'provider': 'openai', 'model': 'gpt-6-luna', 'input_tokens': 100, 'output_tokens': 20,
+                'estimated_cost': '0.00014', 'pricing': {'currency': 'USD', 'unit': 'per_token',
+                    'provenance': 'synthetic unit test rates', 'input_rate': '0.000001', 'output_rate': '0.000002'}}]}
+        self.assertIn('latency_gate', [i['code'] for i in _runtime(['T'], {'T': report}, contract)[1]])
+        contract['thresholds']['latency_p95_seconds_max'] = None
+        self.assertIn('frozen_thresholds_changed', [i['code'] for i in self.report()['violations']])
+        contract['threshold_revision'] = 'user-no-temporal-limit-2026-10-03'
+        result = self.report()
+        self.assertTrue(result['capture_correctness_passed'])
+        self.assertIsNone(result['thresholds']['latency_p95_seconds_max'])
+        self.assertEqual(result['threshold_revision'], contract['threshold_revision'])
+        runtime, issues = _runtime(['T'], {'T': report}, contract)
+        self.assertEqual(issues, [])
+        self.assertEqual(runtime['p95_seconds'], 120)
+        contract['thresholds']['critical_header_money_tax_line_amount_exact_min'] = '0.50'
+        self.assertIn('frozen_thresholds_changed', [i['code'] for i in self.report()['violations']])
+
     def test_nineteen_of_twenty_correct_grounded_predictions_pass_coverage(self):
         captures = self.capture()
         for index in range(16):
