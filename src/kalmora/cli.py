@@ -28,6 +28,12 @@ def main(argv: list[str] | None = None) -> int:
     ar_cash.add_argument("phase", type=Path)
     ar_cash.add_argument("--output", type=Path, required=True, help="Destination ar_cash.jsonl")
     ar_cash.add_argument("--billing", type=Path, help="This month's ar_billing.jsonl: its invoices can be applied")
+    ar_cash.add_argument("--ap", type=Path, help="This month's ap.jsonl: its posted payables can be netted")
+    cash_projection = commands.add_parser("project-ar-cash", help="Publish M3/M4 projected balances and unresolved receipts")
+    cash_projection.add_argument("phase", type=Path)
+    cash_projection.add_argument("--output", type=Path, required=True)
+    cash_projection.add_argument("--use-preparsed", action="store_true")
+    cash_projection.add_argument("--normalized-dir", type=Path)
     ap_prepare = commands.add_parser("prepare-ap", help="Prepare AP source facts; does not post or export AP decisions")
     ap_prepare.add_argument("phase", type=Path)
     ap_prepare.add_argument("--state-dir", type=Path, required=True, help="Source state outside the original phase")
@@ -352,6 +358,42 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
             return 1
         print(json.dumps(summary))
         return 0
+    if args.command == "project-ar-cash":
+        from .ar_cash import build_ar_cash
+        from .ar_cash.projection import project_cash, projection_report
+        from .bankrec import build_bank_rec
+        from .data import PhaseData
+        import os
+        import tempfile
+        temporary = None
+        try:
+            phase, output = args.phase.resolve(), args.output.expanduser().resolve()
+            if output.is_relative_to(phase) or "golden" in output.parts:
+                raise ValueError("projection output must be outside source/golden directories")
+            data = PhaseData(phase)
+            cash = build_ar_cash(data, use_preparsed=args.use_preparsed, normalized_dir=args.normalized_dir)
+            report = projection_report(project_cash(data, cash, build_bank_rec(data)))
+            report["diagnostics"] = {str(r.row["bank_line"]): list(r.diagnostics)
+                                     for r in cash.results if r.diagnostics}
+            report["run_diagnostics"] = list(cash.diagnostics)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output.parent, delete=False) as handle:
+                temporary = handle.name
+                json.dump(report, handle, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, output)
+            temporary = None
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            return 1
+        finally:
+            if temporary is not None:
+                Path(temporary).unlink(missing_ok=True)
+        print(json.dumps({"output": str(output), "complete": report["complete"],
+                          "unresolved_receipts": report["unresolved_receipts"]}))
+        return 0
     if args.command == "solve-ar-cash":
         from .ar_cash import build_ar_cash
         from .ar_cash.io import write_ar_cash
@@ -363,8 +405,10 @@ def _execute(args: argparse.Namespace, recorder=None) -> int:
                 raise ValueError("AR cash output must be outside the read-only phase directory")
             billing = ([json.loads(line) for line in args.billing.read_text(encoding="utf-8").splitlines() if line.strip()]
                        if args.billing else [])
+            ap = ([json.loads(line) for line in args.ap.read_text(encoding="utf-8").splitlines() if line.strip()]
+                  if args.ap else [])
             run = build_ar_cash(PhaseData(phase), use_preparsed=args.use_preparsed,
-                                normalized_dir=args.normalized_dir, billing=billing)
+                                normalized_dir=args.normalized_dir, billing=billing, ap=ap)
             written = write_ar_cash(run, output)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
