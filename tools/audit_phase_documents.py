@@ -131,7 +131,7 @@ def original_files(phase_root):
     return sorted(sources, key=lambda item: item['path'])
 
 
-def inventory(phase_root):
+def inventory(phase_root, *, phase='phase_test'):
     """Independent native-text coverage, followed by the production router."""
     sources = original_files(phase_root)
     router = DocumentRouter(phase_root)
@@ -166,7 +166,9 @@ def inventory(phase_root):
             item.update(parse_status='failed', error_type=type(error).__name__,
                         error_category=getattr(error, 'category', str(error)))
     pdfs = [item for item in sources if item['suffix'] == '.pdf']
-    return {'schema_version': 1, 'phase': 'phase_test', 'source_root': str(phase_root.resolve()),
+    if phase not in {'phase_dev', 'phase_test'}:
+        raise ValueError('Unknown phase identity')
+    return {'schema_version': 1, 'phase': phase, 'source_root': str(phase_root.resolve()),
             'source_only': True, 'evaluation_performed': False, 'official_golden_available': False,
             'sources': sources, 'summary': {'sources': len(sources), 'formats': dict(Counter(item['suffix'] for item in sources)),
                 'pdfs': len(pdfs), 'pages': sum(item.get('page_count', 0) for item in pdfs),
@@ -215,7 +217,7 @@ async def capture(args, manifest, run_directory):
     if not selected:
         raise ValueError('No original PDF/XML sources selected')
     recorder = RunRecorder(run_directory / 'reports', ['audit_phase_documents', '--capture'],
-                           {'phase': 'phase_test', 'source_only': True, 'experimental_model': args.model != 'gpt-6-luna',
+                           {'phase': manifest['phase'], 'source_only': True, 'experimental_model': args.model != 'gpt-6-luna',
                             'capture_mode': 'captured_live', 'transport_mode': 'default', 'response_source': 'provider_api'})
     with recorder:
         client = AsyncLLMClient(config, recorder)
@@ -329,7 +331,7 @@ async def capture(args, manifest, run_directory):
 
         results = await asyncio.gather(*(one(source) for source in selected))
         recorder.report['exit_code'] = int(any(item['status'] != 'completed' for item in results))
-        report = {'schema_version': 1, 'phase': 'phase_test', 'source_only': True,
+        report = {'schema_version': 1, 'phase': manifest['phase'], 'source_only': True,
                   'started_at': recorder.report['started_at'],
                   'evaluation_performed': False, 'official_golden_available': False,
                   'literal_fidelity_independently_verified': False,
@@ -349,6 +351,8 @@ async def capture(args, manifest, run_directory):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--phase-root', type=Path)
+    parser.add_argument('--phase', choices=('phase_dev', 'phase_test'), default='phase_test',
+                        help='Explicit report phase; extraction reads original inbox only')
     parser.add_argument('--archive', type=Path)
     parser.add_argument('--extract-to', type=Path)
     parser.add_argument('--output', type=Path, required=True)
@@ -378,6 +382,8 @@ def main(argv=None):
     if args.concurrency < 1:
         parser.error('--concurrency must be positive')
     if args.archive:
+        if args.phase != 'phase_test':
+            parser.error('--archive accepts September phase_test sources only')
         if not args.extract_to or args.phase_root:
             parser.error('--archive requires --extract-to and forbids --phase-root')
         args.phase_root, _ = extract_sources(args.archive, args.extract_to)
@@ -390,7 +396,7 @@ def main(argv=None):
     args.output.mkdir(parents=True, exist_ok=True)
     run_directory = args.output / 'runs' / uuid.uuid4().hex
     run_directory.mkdir(parents=True)
-    manifest = inventory(args.phase_root)
+    manifest = inventory(args.phase_root, phase=args.phase)
     atomic_json(run_directory / 'inventory.json', manifest)
     print(json.dumps({'inventory': str(run_directory / 'inventory.json'), **manifest['summary']}), flush=True)
     if args.capture:

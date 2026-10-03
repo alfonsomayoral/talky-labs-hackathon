@@ -76,8 +76,14 @@ def captured_document(directory, item, entry, artifact, router, root):
                 or provenance.get('authoritative') is not False
                 or not isinstance(provenance.get('config'), dict)):
             raise ValueError('Unverified processing aid provenance does not match captured original/image')
-        for tool in ('renderer', 'ocr'):
-            info = provenance.get('tools', {}).get(tool, {})
+        tools = provenance.get('tools', {})
+        kind = provenance.get('kind', getattr(aid, 'kind', None))
+        ocr_enabled = provenance.get('config', {}).get('ocr_enabled', kind == 'unverified_ocr')
+        if type(ocr_enabled) is not bool or (kind == 'page_render' and ocr_enabled):
+            raise ValueError('Processing aid OCR mode is inconsistent with its provenance')
+        required_tools = ('renderer', 'ocr') if ocr_enabled else ('renderer',)
+        for tool in required_tools:
+            info = tools.get(tool, {})
             if not info.get('version') or not isinstance(info.get('binary_sha256'), str) or len(info['binary_sha256']) != 64:
                 raise ValueError('Processing aid tool provenance is missing')
     return document
@@ -98,6 +104,26 @@ def source_requests(document, facts, data):
     namespace = {'Candidate': Candidate, 'ResolutionRequest': ResolutionRequest}
     exec(compile(ast.Module(body=functions, type_ignores=[]), '<source-identity-helpers>', 'exec'), namespace)
     return namespace['semantic_requests'](document, facts, data)
+
+
+def composed_facts(directory, item, entry, document, raw_facts):
+    """Verify archived deterministic composition by recomputing it from raw facts."""
+    path = directory / 'compositions' / (entry['sha256'] + '.json')
+    if not path.exists():
+        if item.get('composition_sha256'):
+            raise ValueError('Composition archive is missing')
+        return raw_facts
+    encoded = path.read_bytes()
+    if hashlib.sha256(encoded).hexdigest() != item.get('composition_sha256'):
+        raise ValueError('Composition archive hash differs from capture status')
+    archived = read_json(path)
+    from kalmora.documents.composition import compose_native_invoice
+    recomputed = compose_native_invoice(document, raw_facts)
+    if (archived.get('facts') != recomputed.facts.to_dict()
+            or archived.get('provenance') != recomputed.provenance
+            or archived.get('raw_model_facts_sha256') != recomputed.provenance['recorded_model_facts_sha256']):
+        raise ValueError('Composition does not recompute from the original source and raw model facts')
+    return recomputed.facts
 
 
 def semantic_capture(directory, attachment, document, facts, config, data):
@@ -213,11 +239,20 @@ async def verify_replay(args, cases):
             status = read_json(directory / 'capture.json')
             item = next(item for item in status['attachments'] if item['sha256'] == entry['sha256'])
             document = captured_document(directory, item, entry, artifact, router, root)
-            replayed = await replay.extract_with_response(document)
-            if replayed.facts.to_dict() != read_json(artifact_path)['facts']:
-                raise ValueError('Replay facts differ from captured facts')
-            if replayed.provenance.get('new_provider_calls') != 0 or replay.capture_calls:
-                raise AssertionError('Replay attempted a provider capture')
+            if item.get('processing_kind') == 'source_tools':
+                from kalmora.documents.xml_extractor import XMLDocumentExtractor
+                replayed_facts = await XMLDocumentExtractor().extract(document)
+                if replayed_facts.to_dict() != artifact['facts']:
+                    raise ValueError('XML source-tool replay differs from captured raw facts')
+            else:
+                replay_config = RecordingConfig.from_dict(item.get('extraction_config') or read_json(directory / 'config.json')['extraction'])
+                replay = RecordedExtractor(RecordingStore(directory / 'recordings'), replay_config, mode='replay')
+                replayed = await replay.extract_with_response(document)
+                if replayed.facts.to_dict() != artifact['facts']:
+                    raise ValueError('Replay facts differ from captured raw model facts')
+                if replayed.provenance.get('new_provider_calls') != 0 or replay.capture_calls:
+                    raise AssertionError('Replay attempted a provider capture')
+            composed_facts(directory, item, entry, document, DocumentFacts.from_dict(artifact['facts']))
             verified += 1
     print(json.dumps({'replay_verified': verified, 'provider_calls': 0, 'network_allowed': False}))
     return 0
@@ -249,10 +284,11 @@ def evaluate(args, manifest, cases):
             facts = DocumentFacts.from_dict(artifact['facts'])
             if facts.source_sha256 != entry['sha256']:
                 raise ValueError('Artifact source hash does not match manifest')
-            raw.append(facts.to_dict())
-            normalized.append(normalize_document_facts(facts).facts.to_dict())
             recorded_attachment = next((item for item in status.get('attachments', []) if item['sha256'] == entry['sha256']), {})
             document = captured_document(directory, recorded_attachment, entry, artifact, router, root)
+            facts = composed_facts(directory, recorded_attachment, entry, document, facts)
+            raw.append(facts.to_dict())
+            normalized.append(normalize_document_facts(facts).facts.to_dict())
             recorded_attachment['_source_validated'] = True
             parsed_documents[entry['path']] = document
             transformation_hashes[entry['path']] = artifact['request_metadata'].get('transformation_sha256')
