@@ -1,11 +1,12 @@
 """One phase in, one run folder out: the six tasks in dependency order, each fed by the previous outputs.
 
-AP -> AR billing -> bank rec (with AP) -> AR cash (with billing) -> intercompany (recorded book).
-Close is produced by the M6 engine (#197) once it is integrated; until then its file is absent.
+AP -> AR billing -> bank rec (with AP) -> AR cash (with billing) -> intercompany (recorded book) -> close
+(the M6 engine fed with these deliveries; skipped with a note while ``kalmora.close`` is not integrated).
 Writes ``deliverables/<task>.jsonl`` and ``manifest.json`` (timing per task, no model calls) under ``out``.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import time
@@ -80,7 +81,15 @@ def run_chain(phase: Path, out: Path, *, backend_commit: str = "unknown") -> dic
         shutil.copyfile(out / "work" / "ic" / "ic.jsonl", deliverables / "ic.jsonl")
         return f"exit {code} (3 = recorded book only, without AP/bank upstream)"
 
-    for name, work in (("ap", ap), ("ar_billing", billing), ("bank_rec", bank), ("ar_cash", cash), ("ic", intercompany)):
+    def close() -> str:
+        if importlib.util.find_spec("kalmora.close") is None:
+            return "skipped: the M6 close engine (PR #197) is not integrated"
+        from .close_handoff import run_close
+        shutil.copyfile(run_close(phase, deliverables, out / "work" / "close"), deliverables / "close.jsonl")
+        return "close from real upstream deliveries"
+
+    for name, work in (("ap", ap), ("ar_billing", billing), ("bank_rec", bank), ("ar_cash", cash), ("ic", intercompany),
+                       ("close", close)):
         step(name, work)
     manifest = {"dataset": phase.name, "month": data.month, "started_at": started_at, "finished_at": _now(),
                 "runtime_s": round(time.monotonic() - began, 3), "models": [], "cost_usd_total": 0,
