@@ -110,6 +110,23 @@ class NativeTableTests(unittest.TestCase):
         self.assertEqual(result.reason, "unsupported_or_wrapped_table_text_on_pages:1")
         self.assertEqual(result.to_facts(document), {})
 
+    def test_explicit_company_page_and_test_disclaimer_footers_are_ignored(self):
+        document = source([(1, "\n".join([
+            HEADER,
+            row("Acero corrugado – AL-063373", "1.380", "kg", "1,30", "1.794,00"),
+            "Moreno y Mora Ferralla Industrial, S.L.U. · Avenida de la Industria 51 · "
+            "37782 Villafranca de Orbe · B23231205",
+            "Página 1",
+            "Synthetic test document – no fiscal validity",
+        ]))])
+
+        result = extract_native_table(document)
+
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.expected_count, 1)
+        self.assertEqual(result.rows[0].description, "Acero corrugado – AL-063373")
+        self.assertEqual(result.rows[0].delivery_reference, "AL-063373")
+
     def test_total_lines_do_not_become_rows_and_image_only_page_is_not_applicable(self):
         document = source([(1, "\n".join([
             HEADER,
@@ -143,12 +160,18 @@ class NativeTableTests(unittest.TestCase):
 
     def test_unrecognized_header_and_unsupported_unit_abstain(self):
         no_header = source([(1, "Cant. Ud. Precio Importe\n1 kg 1,00 2,00")])
+        reversed_header = source([(1, "\n".join([
+            "Descripción  Precio  Importe  Cant.  Ud.",
+            row("Arena lavada", "1", "t", "10,00", "10,00"),
+        ]))])
         unsupported_unit = source([(1, "\n".join([
             HEADER,
             row("Servicio especial", "1", "container", "20,00", "20,00"),
         ]))])
 
         self.assertEqual(extract_native_table(no_header).status, "not_applicable")
+        self.assertEqual(extract_native_table(reversed_header).status, "not_applicable")
+        self.assertEqual(extract_native_table(reversed_header).to_facts(reversed_header), {})
         result = extract_native_table(unsupported_unit)
         self.assertEqual(result.status, "ambiguous")
         self.assertEqual(result.to_facts(unsupported_unit), {})

@@ -39,6 +39,16 @@ _SUMMARY = re.compile(
 )
 _ROW_FIELD = re.compile(r"^(?:line|lines|detail_lines)\.(\d+)\.")
 _DELIVERY_REFERENCE = re.compile(r"(?<![A-Za-z0-9])AL-\d+(?!\d)")
+_PAGE_FOOTER = re.compile(r"^\s*(?:p[aá]gina|page)\s+\d+\s*$", re.IGNORECASE)
+_LEGAL_FOOTER = re.compile(
+    r"^\s*[^·]{2,120},\s*S\.L\.U\.\s*·\s*[^·]{3,100}\s*·\s*"
+    r"\d{5}\s+[^·]{2,100}\s*·\s*[A-Z]\d{8}\s*$",
+    re.IGNORECASE,
+)
+_SYNTHETIC_FOOTER = re.compile(
+    r"^\s*synthetic test document\s*[–—-]\s*no fiscal validity\s*$",
+    re.IGNORECASE,
+)
 
 
 def _plain(text: str) -> str:
@@ -47,14 +57,26 @@ def _plain(text: str) -> str:
 
 
 def _header(text: str) -> bool:
-    words = set(re.findall(r"[a-z0-9]+", _plain(text)))
-    return (
-        bool(words & {"descripcion", "description"})
-        and bool(words & {"cant", "cantidad", "quantity", "qty"})
-        and bool(words & {"ud", "uds", "unidad", "unidades", "unit", "units"})
-        and bool(words & {"precio", "price"})
-        and bool(words & {"importe", "amount"})
-    )
+    tokens = list(re.finditer(r"[a-z0-9]+", _plain(text)))
+    positions = [
+        [match.start() for match in tokens if match.group() in labels]
+        for labels in (
+            {"descripcion", "description"},
+            {"cant", "cantidad", "quantity", "qty"},
+            {"ud", "uds", "unidad", "unidades", "unit", "units"},
+            {"precio", "price"},
+            {"importe", "amount"},
+        )
+    ]
+    if any(not group for group in positions):
+        return False
+    previous = -1
+    for group in positions:
+        following = next((position for position in group if position > previous), None)
+        if following is None:
+            return False
+        previous = following
+    return True
 
 
 def _native_pages(document: ParsedDocument) -> dict[int, str]:
@@ -124,6 +146,11 @@ def _looks_like_row(line: str) -> bool:
     return _ROW.search(line) is not None
 
 
+def _explicit_footer(line: str) -> bool:
+    return bool(_PAGE_FOOTER.fullmatch(line) or _LEGAL_FOOTER.fullmatch(line)
+                or _SYNTHETIC_FOOTER.fullmatch(line))
+
+
 def _parse_row(line: str, *, index: int, page: int) -> NativeTableRow | None:
     match = _ROW.search(line)
     if match is None:
@@ -158,14 +185,18 @@ def _parse_page_rows(text: str, *, page: int, start_index: int,
     ambiguous = False
     seen_row = False
     pending_text = False
+    footer_seen = False
     for line in lines[start:]:
         if _SUMMARY.search(_plain(line)):
             break
         if not line.strip() or _header(line):
             continue
+        if _explicit_footer(line):
+            footer_seen = True
+            continue
         parsed = _parse_row(line, index=start_index + len(rows), page=page)
         if parsed is not None:
-            if pending_text:
+            if pending_text or footer_seen:
                 ambiguous = True
             pending_text = False
             rows.append(parsed)
