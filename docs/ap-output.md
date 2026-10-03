@@ -43,6 +43,33 @@ is the default; `overwrite=True` uses atomic replacement. Failed validation
 preserves an existing destination, and temporary files are always cleaned up.
 Serialization performs no projected-ledger insertion or consumption-state commit.
 
+For an active-phase delivery, use `ap_phase_export.write_phase_ap_jsonl` instead
+of supplying an expected inventory manually. It reads exactly
+`tasks/ap_documents.json`, validates distinct opaque IDs without altering them,
+and passes that snapshot to the same row/coverage/atomic writer. Attachment names,
+folder contents, month and expected distributions do not determine task keys.
+The output destination is separate from the read-only phase. Its returned
+`APExportReceipt` records the phase, task-source hash, actual output hash and row
+count. No missing task receives a fabricated decision. An incomplete result set
+fails before output creation/replacement. The inventory has no fixed 305/297
+size and can be loaded independently with `load_ap_task_inventory`.
+
+```python
+from kalmora.ap_phase_export import write_phase_ap_jsonl
+
+receipt = write_phase_ap_jsonl(
+    output_dir / "ap.jsonl", resolved_rows, phase_path=active_phase,
+    context=master_context, tax_catalog=active_tax_catalog,
+)
+```
+
+The phase-export regressions cover task-only inventory, independent phases,
+multiple attachments per task, missing/extra/duplicate rows, action validation,
+source preservation, hashes/repetition and real ES/PT/MX engine journals.
+The source-only development check reads all 305 original task keys, without
+generating pretend results for them or consulting golden. Full July evaluation
+and the frozen September delivery remain separate acceptance requirements.
+
 `kalmora.output_validation` provides the shared delivery-contract check used by
 both export and the M0 comparator. The compatibility facade in
 `evaluation.structure` preserves evaluator callers; export imports no evaluator.
