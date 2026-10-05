@@ -2,12 +2,13 @@
 
 <img src="app/public/favicon.svg" width="56" alt="" />
 
-# Kalmora Close
+# 1.º Talky Labs Hackathon
 
-**Un agente que cierra el mes contable de un grupo de siete sociedades y explica cada decisión con su regla y su evidencia.**
+**Primer premio del [Reto Cierre Kalmora](https://usetalky.com/hackathon/kalmora) de Talky Labs.**
 
-Solución al [Reto Cierre Kalmora](https://usetalky.com/hackathon/kalmora) de Talky Labs.
+Kalmora Close es un agente que cierra el mes contable de un grupo de siete sociedades y explica cada decisión con su regla y su evidencia.
 
+![1.º premio](https://img.shields.io/badge/Talky%20Labs%20Hackathon-1.%C2%BA%20premio-F97316)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-API%20%2Fv1-009688?logo=fastapi&logoColor=white)
 ![MCP](https://img.shields.io/badge/MCP-32%20herramientas-555555)
